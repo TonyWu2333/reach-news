@@ -104,8 +104,8 @@ struct FloatingTabBar: View {
                         withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) { dragX = nil; isDragging = false }
                     }
             )
-            .distortionEffect(
-                ShaderLibrary.liquidGlass(.float2(Float(proxy.size.width), Float(proxy.size.height)), .float(isDragging ? 7 : 0), .float((dragX ?? proxy.size.width / 2) / max(proxy.size.width, 1))),
+            .layerEffect(
+                ShaderLibrary.liquidGlassLayer(.float2(Float(proxy.size.width), Float(proxy.size.height)), .float(isDragging ? 16 : 0), .float((dragX ?? proxy.size.width / 2) / max(proxy.size.width, 1))),
                 maxSampleOffset: CGSize(width: 12, height: 10)
             )
         }

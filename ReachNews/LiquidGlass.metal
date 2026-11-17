@@ -1,16 +1,28 @@
 #include <metal_stdlib>
+#include <SwiftUI/SwiftUI.h>
 using namespace metal;
 
-// A small edge-bulge displacement used by the draggable glass indicator.
-// The strongest displacement lives around the rim, where real glass bends
-// the background and produces the characteristic liquid edge.
-[[ stitchable ]] float2 liquidGlass(float2 position, float2 size, float strength, float phase) {
-    float2 uv = position / max(size, float2(1.0));
-    float2 centered = uv - 0.5;
-    float distanceFromCenter = length(centered);
-    float rim = smoothstep(0.16, 0.50, distanceFromCenter);
-    float2 normal = centered / max(distanceFromCenter, 0.001);
-    float wave = sin((uv.x * 2.0 + uv.y + phase) * 24.0) * 0.30;
-    float directional = sin((uv.x - phase) * 12.0) * 0.12;
-    return position + normal * (rim * (strength + wave * strength + directional * strength));
+[[ stitchable ]] half4 liquidGlassLayer(float2 position, SwiftUI::Layer layer, float2 size, float strength, float phase) {
+    float2 centered = position - size * 0.5;
+    float radius = min(22.0, min(size.x, size.y) * 0.5);
+    float2 q = abs(centered) - (size * 0.5 - radius);
+    float2 outside = max(q, float2(0.0));
+    float distance = length(outside) + min(max(q.x, q.y), 0.0) - radius;
+    float2 normal = float2(0.0);
+    if (length(outside) > 0.001) {
+        normal = normalize(outside) * sign(centered);
+    } else if (q.x > q.y) {
+        normal = float2(sign(centered.x), 0.0);
+    } else {
+        normal = float2(0.0, sign(centered.y));
+    }
+    float bevel = 15.0;
+    float edgeDepth = clamp(-distance / bevel, 0.0, 1.0);
+    float rim = 1.0 - smoothstep(0.0, 0.72, edgeDepth);
+    float wave = sin((position.x / max(size.x, 1.0) + phase) * 18.0) * 0.22;
+    float2 offset = -normal * rim * (strength + wave * strength);
+    half4 color = layer.sample(position + offset);
+    float highlight = rim * (0.24 + 0.10 * sin((position.x + position.y) * 0.12 + phase * 8.0));
+    color.rgb += half3(highlight * 0.72, highlight * 0.86, highlight);
+    return color;
 }
