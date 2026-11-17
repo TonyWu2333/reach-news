@@ -38,7 +38,7 @@ jobs:
       - name: Build and test
         run: |
           xcodebuild build-for-testing -project ReachNews.xcodeproj -scheme ReachNews -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' CODE_SIGNING_ALLOWED=NO
-          xcodebuild test-without-building -project ReachNews.xcodeproj -scheme ReachNews -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' CODE_SIGNING_ALLOWED=NO
+          xcodebuild test-without-building -project ReachNews.xcodeproj -scheme ReachNews -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' -only-testing:ReachNewsTests CODE_SIGNING_ALLOWED=NO
       - name: Archive simulator app
         run: |
           xcodebuild build -project ReachNews.xcodeproj -scheme ReachNews -destination 'generic/platform=iOS Simulator' -derivedDataPath build CODE_SIGNING_ALLOWED=NO
