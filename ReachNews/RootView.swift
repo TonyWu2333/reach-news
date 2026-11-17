@@ -15,26 +15,73 @@ enum AppTab: String, CaseIterable {
 
 struct RootView: View {
     @State private var selectedTab: AppTab = .briefing
+    @State private var glass = LiquidGlassSettings()
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            ForEach(AppTab.allCases, id: \.self) { tab in
-                NavigationStack {
-                    Group {
-                        switch tab {
-                        case .briefing: BriefingView()
-                        case .explore: ExploreView()
-                        case .following: FollowingView()
-                        }
-                    }
+        ZStack(alignment: .bottom) {
+            currentTab
+            FloatingTabBar(selection: $selectedTab)
+                .padding(.horizontal, 18)
+                .padding(.bottom, 8)
+        }
+        .environment(glass)
+        .background(NewsTheme.paper)
+        .tint(NewsTheme.ink)
+    }
+
+    @ViewBuilder
+    private var currentTab: some View {
+        switch selectedTab {
+        case .briefing:
+            NavigationStack {
+                BriefingView()
                     .navigationDestination(for: Article.self) { ArticleDetailView(article: $0) }
                     .navigationDestination(for: NewsCollection.self) { CollectionDetailView(collection: $0) }
-                }
-                .tabItem { Label(tab.rawValue, systemImage: tab.symbol) }
-                .tag(tab)
+            }
+        case .explore:
+            NavigationStack {
+                ExploreView()
+                    .navigationDestination(for: Article.self) { ArticleDetailView(article: $0) }
+                    .navigationDestination(for: NewsCollection.self) { CollectionDetailView(collection: $0) }
+            }
+        case .following:
+            NavigationStack {
+                FollowingView()
+                    .navigationDestination(for: Article.self) { ArticleDetailView(article: $0) }
+                    .navigationDestination(for: NewsCollection.self) { CollectionDetailView(collection: $0) }
             }
         }
-        .tint(NewsTheme.ink)
+    }
+}
+
+struct FloatingTabBar: View {
+    @Binding var selection: AppTab
+
+    var body: some View {
+        HStack(spacing: 5) {
+            ForEach(AppTab.allCases, id: \.self) { tab in
+                Button {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) { selection = tab }
+                } label: {
+                    HStack(spacing: 7) {
+                        Image(systemName: tab.symbol).font(.system(size: 15, weight: .semibold))
+                        if selection == tab {
+                            Text(tab.rawValue).font(.caption.weight(.bold))
+                        }
+                    }
+                    .foregroundStyle(selection == tab ? NewsTheme.ink : NewsTheme.secondary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 43)
+                    .background(selection == tab ? .white.opacity(0.78) : .clear, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(tab.rawValue)
+                .accessibilityAddTraits(selection == tab ? .isSelected : [])
+            }
+        }
+        .padding(5)
+        .liquidGlass(cornerRadius: 32)
+        .frame(maxWidth: 430)
     }
 }
 
@@ -144,8 +191,7 @@ struct DailyBriefCard: View {
             Image(systemName: "newspaper").font(.system(size: 41, weight: .ultraLight)).rotationEffect(.degrees(-8))
             Image(systemName: "arrow.up.right").font(.subheadline)
         }
-        .padding(18).background(NewsTheme.paper, in: RoundedRectangle(cornerRadius: 12))
-        .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(NewsTheme.line, lineWidth: 0.5) }
+        .padding(18).liquidGlass(cornerRadius: 14)
         .foregroundStyle(NewsTheme.ink)
     }
 }

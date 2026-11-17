@@ -1,4 +1,20 @@
 import SwiftUI
+import Observation
+
+@MainActor @Observable
+final class LiquidGlassSettings {
+    var opacity: Double = 0.68
+    var blur: Double = 18
+    var cornerRadius: Double = 26
+    var tint: Double = 0.10
+
+    func reset() {
+        opacity = 0.68
+        blur = 18
+        cornerRadius = 26
+        tint = 0.10
+    }
+}
 
 enum NewsTheme {
     static let ink = Color(red: 0.07, green: 0.07, blue: 0.065)
@@ -25,6 +41,29 @@ enum NewsTheme {
         case .left: left
         case .right: right
         }
+    }
+}
+
+struct LiquidGlassModifier: ViewModifier {
+    @Environment(LiquidGlassSettings.self) private var settings
+    var radius: CGFloat?
+
+    func body(content: Content) -> some View {
+        let resolvedRadius = radius ?? CGFloat(settings.cornerRadius)
+        content
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous))
+            .background(NewsTheme.ink.opacity(settings.tint * settings.opacity), in: RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous)
+                    .strokeBorder(.white.opacity(settings.opacity * 0.55), lineWidth: 1)
+            }
+            .shadow(color: NewsTheme.ink.opacity(0.15), radius: CGFloat(settings.blur), y: 8)
+    }
+}
+
+extension View {
+    func liquidGlass(cornerRadius: CGFloat? = nil) -> some View {
+        modifier(LiquidGlassModifier(radius: cornerRadius))
     }
 }
 
@@ -201,7 +240,7 @@ struct StoryCard: View {
             .font(.caption).foregroundStyle(NewsTheme.secondary)
         }
         .padding(15)
-        .background(NewsTheme.card, in: RoundedRectangle(cornerRadius: 14))
+        .liquidGlass(cornerRadius: 14)
         .foregroundStyle(NewsTheme.ink)
         .contentShape(Rectangle())
     }
