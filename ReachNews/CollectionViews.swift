@@ -91,7 +91,7 @@ struct SettingsView: View {
                     Text("Appearance")
                 }
                 Section("About") {
-                    LabeledContent("Version", value: "0.0.1 (10005)")
+                    LabeledContent("Version", value: "0.0.1 (10006)")
                     Text("Reach News helps you compare coverage, see blindspots and read across the spectrum.").foregroundStyle(NewsTheme.secondary)
                 }
             }

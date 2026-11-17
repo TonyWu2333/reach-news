@@ -23,9 +23,8 @@ using namespace metal;
     float localStrength = strength * (0.75 + bloom * 0.9);
     float2 offset = -normal * rim * localStrength;
     half4 color = layer.sample(position + offset);
-    float highlight = rim * (0.10 + bloom * 0.18);
-    // Warm refraction tint, like looking through a water droplet onto UI.
-    color.rgb = mix(color.rgb, half3(0.55, 0.34, 0.18), half(rim * bloom * 0.22));
-    color.rgb += half3(highlight, highlight * 0.96, highlight * 0.90);
+    // Keep the droplet optically clear; only add a cool/white rim glare.
+    float highlight = rim * (0.16 + bloom * 0.22);
+    color.rgb += half3(highlight, highlight, highlight);
     return color;
 }

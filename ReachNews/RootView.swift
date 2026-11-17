@@ -85,19 +85,30 @@ struct FloatingTabBar: View {
 
     var body: some View {
         let tabs = AppTab.allCases
-        return ZStack(alignment: .center) {
+        return ZStack {
             Capsule(style: .continuous)
-                .fill(.ultraThinMaterial)
+                .fill(.regularMaterial)
                 .overlay {
                     Capsule(style: .continuous)
-                        .fill(Color.white.opacity(0.10))
+                        .fill(Color.white.opacity(0.42))
                 }
                 .overlay {
                     Capsule(style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.42), lineWidth: 1)
+                        .strokeBorder(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.85),
+                                    Color.white.opacity(0.28),
+                                    Color.white.opacity(0.55)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            ),
+                            lineWidth: 1.1
+                        )
                 }
-                .shadow(color: .black.opacity(0.12), radius: 18, y: 8)
-                .frame(height: 64)
+                .shadow(color: .black.opacity(0.14), radius: 18, y: 8)
+                .frame(height: 68)
 
             GeometryReader { proxy in
                 let width = proxy.size.width
@@ -131,7 +142,7 @@ struct FloatingTabBar: View {
                                 }
                                 .foregroundStyle(isSelected ? NewsTheme.selectedBrown : NewsTheme.ink)
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 54)
+                                .frame(height: 58)
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
@@ -145,19 +156,11 @@ struct FloatingTabBar: View {
                 .onChange(of: width) { _, newValue in contentWidth = newValue }
             }
             .padding(.horizontal, 8)
-            .frame(height: 78)
+            .frame(height: 86)
         }
-        .frame(height: 78)
+        .frame(height: 86)
         .frame(maxWidth: 430)
         .contentShape(Capsule())
-        .layerEffect(
-            ShaderLibrary.liquidGlassLayer(
-                .float2(Float(max(contentWidth, 1)), 78),
-                .float((isDragging || previewDragProgress != nil) ? 10 : 0),
-                .float((dragX ?? (contentWidth * 0.5)) / max(contentWidth, 1))
-            ),
-            maxSampleOffset: CGSize(width: 12, height: 12)
-        )
         .highPriorityGesture(
             DragGesture(minimumDistance: 4)
                 .onChanged { value in
@@ -191,47 +194,60 @@ struct LiquidDropIndicator: View {
 
     var body: some View {
         let segment = width / 3
-        let dropWidth = segment - 18
-        let dropHeight: CGFloat = isDragging ? 72 : 66
+        let dropWidth = segment - 16
+        let dropHeight: CGFloat = isDragging ? 78 : 74
+
         ZStack {
             Capsule(style: .continuous)
-                .fill(.ultraThinMaterial)
+                .fill(.clear)
+                .background {
+                    Capsule(style: .continuous)
+                        .fill(.ultraThinMaterial)
+                        .opacity(0.55)
+                }
                 .overlay {
                     Capsule(style: .continuous)
-                        .fill(
+                        .strokeBorder(
                             LinearGradient(
                                 colors: [
-                                    Color.white.opacity(0.55),
-                                    NewsTheme.selectedBrown.opacity(0.18 + bloom * 0.22),
-                                    Color.white.opacity(0.28)
+                                    Color.white.opacity(0.95),
+                                    Color.white.opacity(0.35),
+                                    Color.white.opacity(0.8)
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
-                            )
+                            ),
+                            lineWidth: 1.4
                         )
                 }
-                .overlay {
-                    Capsule(style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.72), lineWidth: 1.1)
+                .overlay(alignment: .top) {
+                    Capsule()
+                        .fill(Color.white.opacity(0.55 + bloom * 0.2))
+                        .frame(width: dropWidth * 0.55, height: 7)
+                        .blur(radius: 1.2)
+                        .offset(y: 8)
+                }
+                .overlay(alignment: .bottom) {
+                    Capsule()
+                        .stroke(Color.white.opacity(0.35), lineWidth: 0.8)
+                        .frame(width: dropWidth * 0.72, height: 10)
+                        .blur(radius: 0.6)
+                        .offset(y: -10)
                 }
                 .frame(width: dropWidth, height: dropHeight)
-
-            Ellipse()
-                .fill(Color.white.opacity(0.55 + bloom * 0.2))
-                .frame(width: dropWidth * 0.42, height: 12)
-                .blur(radius: 3)
-                .offset(y: -dropHeight * 0.28)
-
-            Ellipse()
-                .fill(NewsTheme.selectedBrown.opacity(0.12 + bloom * 0.18))
-                .frame(width: dropWidth * 0.7, height: 18)
-                .blur(radius: 8)
-                .offset(y: dropHeight * 0.18)
+                .layerEffect(
+                    ShaderLibrary.liquidGlassLayer(
+                        .float2(Float(dropWidth), Float(dropHeight)),
+                        .float(isDragging ? 8 + bloom * 6 : 4),
+                        .float(0.5)
+                    ),
+                    maxSampleOffset: CGSize(width: 10, height: 10)
+                )
         }
         .frame(width: segment, height: dropHeight)
-        .shadow(color: NewsTheme.selectedBrown.opacity(0.18 + bloom * 0.16), radius: isDragging ? 16 : 10, y: 4)
-        .scaleEffect(x: 1 + bloom * 0.04, y: 1 + bloom * 0.08)
-        .offset(x: progress - segment / 2, y: -6)
+        .shadow(color: .black.opacity(0.10), radius: isDragging ? 14 : 10, y: 4)
+        .scaleEffect(x: 1 + bloom * 0.03, y: 1 + bloom * 0.05)
+        .offset(x: progress - segment / 2, y: -4)
         .allowsHitTesting(false)
     }
 }

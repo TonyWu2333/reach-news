@@ -12,7 +12,7 @@ settings:
     CODE_SIGNING_ALLOWED: NO
     ENABLE_USER_SCRIPT_SANDBOXING: YES
     MARKETING_VERSION: "0.0.1"
-    CURRENT_PROJECT_VERSION: 10005
+    CURRENT_PROJECT_VERSION: 10006
 targets:
   ReachNews:
     type: application
@@ -36,7 +36,7 @@ targets:
         CFBundlePackageType: APPL
         CFBundleExecutable: ReachNews
         CFBundleShortVersionString: "0.0.1"
-        CFBundleVersion: "10005"
+        CFBundleVersion: "10006"
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
