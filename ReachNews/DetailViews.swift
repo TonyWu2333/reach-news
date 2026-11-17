@@ -37,7 +37,7 @@ struct ArticleDetailView: View {
                     MetricCard(title: "Ownership", value: "Diverse", icon: "circle.grid.2x2")
                 }
                 Button { withAnimation(.easeInOut) { analysisShown.toggle() } } label: {
-                    HStack { Text(analysisShown ? "Hide analysis" : "Full analysis").font(.headline.underline()); Spacer(); Image(systemName: analysisShown ? "arrow.up.right" : "arrow.right") }
+                    HStack { Text(analysisShown ? "Hide analysis" : "Full analysis").font(.headline).underline(); Spacer(); Image(systemName: analysisShown ? "arrow.up.right" : "arrow.right") }
                 }.buttonStyle(.plain)
                 if analysisShown { AnalysisView(article: article) }
                 Text("Where sources agree").font(NewsTheme.headline(31))

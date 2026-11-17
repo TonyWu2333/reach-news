@@ -101,7 +101,7 @@ struct BriefingView: View {
                     HStack {
                         Text("A wider perspective").font(.title3.bold())
                         Spacer()
-                        NavigationLink("See all") { CollectionsView() }.font(.caption.underline())
+                        NavigationLink("See all") { CollectionsView() }.font(.caption).underline()
                     }
                     NavigationLink(value: NewsCollection.divergent) {
                         CollectionCard(collection: .divergent, compact: true)
@@ -197,7 +197,7 @@ struct ExploreView: View {
                     HStack {
                         Text("\(results.count) \(results.count == 1 ? "story" : "stories")").font(.headline)
                         Spacer()
-                        Button("Reset") { query = ""; selectedTopic = nil }.font(.subheadline.underline())
+                        Button("Reset") { query = ""; selectedTopic = nil }.font(.subheadline).underline()
                     }
                     if results.isEmpty {
                         EmptyState(symbol: "magnifyingglass", title: "No stories found", message: "Try a different headline, keyword or topic.")
@@ -220,7 +220,7 @@ struct ExploreView: View {
 
                     HStack(alignment: .firstTextBaseline) {
                         SectionHeading(title: "Collections")
-                        NavigationLink("View all") { CollectionsView() }.font(.caption.underline()).fixedSize()
+                        NavigationLink("View all") { CollectionsView() }.font(.caption).underline().fixedSize()
                     }
                     ForEach(NewsCollection.allCases) { collection in
                         NavigationLink(value: collection) { CollectionCard(collection: collection) }
@@ -259,7 +259,7 @@ struct FollowingView: View {
                     HStack {
                         Text("Your topics").font(.headline)
                         Spacer()
-                        Button("Manage") { manageTopics = true }.font(.subheadline.underline())
+                        Button("Manage") { manageTopics = true }.font(.subheadline).underline()
                     }
                     ScrollView(.horizontal, showsIndicators: false) {
                         HStack {
