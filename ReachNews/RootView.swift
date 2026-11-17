@@ -56,46 +56,74 @@ struct RootView: View {
 
 struct FloatingTabBar: View {
     @Binding var selection: AppTab
+    @State private var dragX: CGFloat?
 
     var body: some View {
         GeometryReader { proxy in
-            HStack(spacing: 5) {
-                ForEach(AppTab.allCases, id: \.self) { tab in
-                    Button {
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) { selection = tab }
-                    } label: {
-                        HStack(spacing: 7) {
-                            Image(systemName: tab.symbol).font(.system(size: 15, weight: .semibold))
-                            if selection == tab {
-                                Text(tab.rawValue).font(.caption.weight(.bold))
+            ZStack {
+                LiquidDropIndicator(progress: dragX ?? (proxy.size.width * (CGFloat(AppTab.allCases.firstIndex(of: selection) ?? 0) + 0.5) / CGFloat(AppTab.allCases.count)), width: proxy.size.width)
+                HStack(spacing: 5) {
+                    ForEach(AppTab.allCases, id: \.self) { tab in
+                        Button {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) { selection = tab }
+                        } label: {
+                            HStack(spacing: 7) {
+                                Image(systemName: tab.symbol).font(.system(size: 15, weight: .semibold))
+                                if selection == tab {
+                                    Text(tab.rawValue).font(.caption.weight(.bold))
+                                }
+                            }
+                            .foregroundStyle(selection == tab ? NewsTheme.ink : NewsTheme.secondary)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 43)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(tab.rawValue)
+                        .accessibilityAddTraits(selection == tab ? .isSelected : [])
+                    }
+                }
+                .padding(5)
+                .contentShape(Capsule())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            let x = max(0, min(proxy.size.width, value.location.x))
+                            dragX = x
+                            let segment = max(0, min(AppTab.allCases.count - 1, Int(x / max(proxy.size.width, 1) * CGFloat(AppTab.allCases.count))))
+                            let tab = AppTab.allCases[segment]
+                            if selection != tab {
+                                withAnimation(.interactiveSpring(response: 0.2, dampingFraction: 0.82)) { selection = tab }
                             }
                         }
-                        .foregroundStyle(selection == tab ? NewsTheme.ink : NewsTheme.secondary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 43)
-                        .background(selection == tab ? .white.opacity(0.78) : .clear, in: Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(tab.rawValue)
-                    .accessibilityAddTraits(selection == tab ? .isSelected : [])
-                }
+                        .onEnded { _ in
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) { dragX = nil }
+                        }
+                )
             }
             .padding(5)
             .liquidGlass(cornerRadius: 32)
-            .contentShape(Capsule())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { value in
-                        let segment = max(0, min(AppTab.allCases.count - 1, Int(value.location.x / max(proxy.size.width, 1) * CGFloat(AppTab.allCases.count))))
-                        let tab = AppTab.allCases[segment]
-                        if selection != tab {
-                            withAnimation(.interactiveSpring(response: 0.2, dampingFraction: 0.82)) { selection = tab }
-                        }
-                    }
-            )
         }
         .frame(height: 54)
         .frame(maxWidth: 430)
+    }
+}
+
+struct LiquidDropIndicator: View {
+    let progress: CGFloat
+    let width: CGFloat
+
+    var body: some View {
+        let segment = width / 3
+        ZStack {
+            Capsule().fill(.white.opacity(0.72)).frame(width: segment - 10, height: 43)
+            Circle().fill(.white.opacity(0.34)).frame(width: 34, height: 24).blur(radius: 5).offset(x: segment * 0.18, y: -11)
+            Circle().fill(.white.opacity(0.28)).frame(width: 25, height: 20).blur(radius: 4).offset(x: -segment * 0.17, y: 13)
+        }
+        .frame(width: segment, height: 48)
+        .scaleEffect(x: 1.04, y: 0.96)
+        .shadow(color: .white.opacity(0.48), radius: 7, y: 2)
+        .offset(x: progress - width / 2)
+        .allowsHitTesting(false)
     }
 }
 

@@ -20,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -89,9 +90,16 @@ fun FloatingNavigationBar(selected: Int, onSelect: (Int) -> Unit) {
     val tabs = listOf("Briefing" to Icons.Default.MenuBook, "Explore" to Icons.Default.Search, "Following" to Icons.Default.Bookmark)
     Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp).liquidGlass().padding(5.dp).pointerInput(Unit) { detectDragGestures { change, _ -> onSelect((change.position.x / size.width * tabs.size).toInt().coerceIn(0, tabs.lastIndex)) } }, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
         tabs.forEachIndexed { index, item ->
-            Row(Modifier.weight(1f).height(43.dp).clip(RoundedCornerShape(24.dp)).background(if (index == selected) Color.White.copy(alpha = .82f) else Color.Transparent).clickable { onSelect(index) }, horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                Icon(item.second, null, Modifier.size(17.dp), tint = if (index == selected) Ink else Secondary)
-                if (index == selected) Text(item.first, Modifier.padding(start = 7.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Ink)
+            Box(Modifier.weight(1f).height(43.dp).clip(RoundedCornerShape(24.dp)).clickable { onSelect(index) }) {
+                if (index == selected) {
+                    Box(Modifier.fillMaxSize().background(Brush.linearGradient(listOf(Color.White.copy(alpha = .9f), Color.White.copy(alpha = .55f), Color.White.copy(alpha = .82f)))))
+                    Box(Modifier.size(34.dp, 20.dp).offset(x = 8.dp, y = (-7).dp).blur(5.dp).background(Color.White.copy(alpha = .42f), RoundedCornerShape(50)))
+                    Box(Modifier.size(23.dp, 17.dp).align(Alignment.BottomEnd).offset(x = (-10).dp, y = 5.dp).blur(4.dp).background(Color.White.copy(alpha = .28f), RoundedCornerShape(50)))
+                }
+                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                    Icon(item.second, null, Modifier.size(17.dp), tint = if (index == selected) Ink else Secondary)
+                    if (index == selected) Text(item.first, Modifier.padding(start = 7.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Ink)
+                }
             }
         }
     }
