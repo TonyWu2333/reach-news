@@ -104,6 +104,10 @@ struct FloatingTabBar: View {
             }
             .padding(5)
             .liquidGlass(cornerRadius: 32)
+            .distortionEffect(
+                ShaderLibrary.liquidGlass(.float2(Float(proxy.size.width), Float(proxy.size.height)), .float(isDragging ? 18 : 0), .float((dragX ?? proxy.size.width / 2) / max(proxy.size.width, 1))),
+                maxSampleOffset: CGSize(width: 24, height: 16)
+            )
         }
         .frame(height: 54)
         .frame(maxWidth: 430)
@@ -118,10 +122,10 @@ struct LiquidDropIndicator: View {
     var body: some View {
         let segment = width / 3
         ZStack {
-            Capsule().fill(LinearGradient(colors: [.white.opacity(0.98), NewsTheme.left.opacity(0.28), .white.opacity(0.78)], startPoint: .topLeading, endPoint: .bottomTrailing))
+            Capsule().fill(LinearGradient(colors: [.white.opacity(0.98), NewsTheme.left.opacity(isDragging ? 0.52 : 0.38), .white.opacity(0.78)], startPoint: .topLeading, endPoint: .bottomTrailing))
                 .frame(width: segment - 10 + (isDragging ? 20 : 0), height: isDragging ? 46 : 43)
             Circle().fill(.white.opacity(0.78)).frame(width: isDragging ? 46 : 34, height: isDragging ? 28 : 24).blur(radius: 5).offset(x: segment * 0.18, y: -11)
-            Circle().fill(NewsTheme.left.opacity(isDragging ? 0.30 : 0.18)).frame(width: isDragging ? 32 : 25, height: 20).blur(radius: 4).offset(x: -segment * 0.17, y: 13)
+            Circle().fill(NewsTheme.left.opacity(isDragging ? 0.44 : 0.26)).frame(width: isDragging ? 32 : 25, height: 20).blur(radius: 4).offset(x: -segment * 0.17, y: 13)
         }
         .frame(width: segment, height: 48)
         .distortionEffect(
