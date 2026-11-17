@@ -85,65 +85,79 @@ struct FloatingTabBar: View {
 
     var body: some View {
         let tabs = AppTab.allCases
-        return ZStack {
+        return ZStack(alignment: .center) {
             Capsule(style: .continuous)
                 .fill(.ultraThinMaterial)
                 .overlay {
                     Capsule(style: .continuous)
-                        .fill(Color.white.opacity(0.18))
+                        .fill(Color.white.opacity(0.10))
                 }
                 .overlay {
                     Capsule(style: .continuous)
-                        .strokeBorder(Color.white.opacity(0.55), lineWidth: 1)
+                        .strokeBorder(Color.white.opacity(0.42), lineWidth: 1)
                 }
                 .shadow(color: .black.opacity(0.12), radius: 18, y: 8)
+                .frame(height: 64)
 
             GeometryReader { proxy in
                 let width = proxy.size.width
                 let effectiveDrag = previewDragProgress.map { $0 * width } ?? dragX
                 let indicatorX = effectiveDrag ?? (width * (CGFloat(tabs.firstIndex(of: selection) ?? 0) + 0.5) / CGFloat(tabs.count))
                 let dragging = isDragging || previewDragProgress != nil
+                let selectedIndex = CGFloat(tabs.firstIndex(of: selection) ?? 0)
+                let selectedCenter = (selectedIndex + 0.5) / CGFloat(tabs.count)
+                let proximity = 1 - min(abs((indicatorX / max(width, 1)) - selectedCenter) / (1.0 / CGFloat(tabs.count)), 1)
 
                 ZStack(alignment: .leading) {
                     LiquidDropIndicator(
                         progress: indicatorX,
                         width: width,
-                        isDragging: dragging
+                        isDragging: dragging,
+                        bloom: proximity
                     )
+                    .zIndex(1)
 
                     HStack(spacing: 0) {
                         ForEach(tabs, id: \.self) { tab in
+                            let isSelected = selection == tab
                             Button {
                                 withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) { selection = tab }
                             } label: {
-                                HStack(spacing: 7) {
+                                VStack(spacing: 4) {
                                     Image(systemName: tab.symbol)
                                         .font(.system(size: 15, weight: .semibold))
-                                    if selection == tab && !dragging {
-                                        Text(tab.rawValue)
-                                            .font(.caption.weight(.bold))
-                                    }
+                                    Text(tab.rawValue)
+                                        .font(.system(size: 10, weight: .semibold))
                                 }
-                                .foregroundStyle(selection == tab ? NewsTheme.ink : NewsTheme.secondary)
+                                .foregroundStyle(isSelected ? NewsTheme.selectedBrown : NewsTheme.ink)
                                 .frame(maxWidth: .infinity)
-                                .frame(height: 46)
+                                .frame(height: 54)
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(tab.rawValue)
-                            .accessibilityAddTraits(selection == tab ? .isSelected : [])
+                            .accessibilityAddTraits(isSelected ? .isSelected : [])
                         }
                     }
+                    .zIndex(2)
                 }
                 .onAppear { contentWidth = width }
                 .onChange(of: width) { _, newValue in contentWidth = newValue }
             }
-            .padding(.horizontal, 6)
+            .padding(.horizontal, 8)
+            .frame(height: 78)
         }
-        .frame(height: 58)
+        .frame(height: 78)
         .frame(maxWidth: 430)
-        .clipShape(Capsule(style: .continuous))
         .contentShape(Capsule())
+        .layerEffect(
+            ShaderLibrary.liquidGlassLayer(
+                .float2(Float(max(contentWidth, 1)), 78),
+                .float((isDragging || previewDragProgress != nil) ? 10 : 0),
+                .float((dragX ?? (contentWidth * 0.5)) / max(contentWidth, 1))
+            ),
+            maxSampleOffset: CGSize(width: 12, height: 12)
+        )
         .highPriorityGesture(
             DragGesture(minimumDistance: 4)
                 .onChanged { value in
@@ -173,23 +187,51 @@ struct LiquidDropIndicator: View {
     let progress: CGFloat
     let width: CGFloat
     let isDragging: Bool
+    var bloom: CGFloat = 0
 
     var body: some View {
         let segment = width / 3
+        let dropWidth = segment - 18
+        let dropHeight: CGFloat = isDragging ? 72 : 66
         ZStack {
-            Capsule()
-                .fill(.white.opacity(isDragging ? 0.34 : 0.22))
-                .overlay { Capsule().strokeBorder(.white.opacity(0.7), lineWidth: 1) }
-                .frame(width: segment - 14, height: 40)
+            Capsule(style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    Capsule(style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.55),
+                                    NewsTheme.selectedBrown.opacity(0.18 + bloom * 0.22),
+                                    Color.white.opacity(0.28)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                }
+                .overlay {
+                    Capsule(style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.72), lineWidth: 1.1)
+                }
+                .frame(width: dropWidth, height: dropHeight)
+
             Ellipse()
-                .fill(.white.opacity(0.55))
-                .frame(width: 28, height: 10)
-                .blur(radius: 4)
-                .offset(y: -12)
+                .fill(Color.white.opacity(0.55 + bloom * 0.2))
+                .frame(width: dropWidth * 0.42, height: 12)
+                .blur(radius: 3)
+                .offset(y: -dropHeight * 0.28)
+
+            Ellipse()
+                .fill(NewsTheme.selectedBrown.opacity(0.12 + bloom * 0.18))
+                .frame(width: dropWidth * 0.7, height: 18)
+                .blur(radius: 8)
+                .offset(y: dropHeight * 0.18)
         }
-        .frame(width: segment, height: 48)
-        .shadow(color: .black.opacity(0.08), radius: 8, y: 2)
-        .offset(x: progress - segment / 2, y: 4)
+        .frame(width: segment, height: dropHeight)
+        .shadow(color: NewsTheme.selectedBrown.opacity(0.18 + bloom * 0.16), radius: isDragging ? 16 : 10, y: 4)
+        .scaleEffect(x: 1 + bloom * 0.04, y: 1 + bloom * 0.08)
+        .offset(x: progress - segment / 2, y: -6)
         .allowsHitTesting(false)
     }
 }

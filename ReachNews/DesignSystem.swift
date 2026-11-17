@@ -27,6 +27,7 @@ enum NewsTheme {
     static let right = Color(red: 0.97, green: 0.34, blue: 0.20)
     static let gold = Color(red: 0.81, green: 0.74, blue: 0.56)
     static let purple = Color(red: 0.52, green: 0.41, blue: 0.72)
+    static let selectedBrown = Color(red: 0.45, green: 0.27, blue: 0.15)
 
     static func headline(_ size: CGFloat) -> Font {
         .custom("BarlowCondensed-Bold", size: size, relativeTo: .largeTitle)
