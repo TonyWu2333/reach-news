@@ -37,18 +37,21 @@ struct RootView: View {
                 BriefingView()
                     .navigationDestination(for: Article.self) { ArticleDetailView(article: $0) }
                     .navigationDestination(for: NewsCollection.self) { CollectionDetailView(collection: $0) }
+                    .toolbarBackground(.hidden, for: .navigationBar)
             }
         case .explore:
             NavigationStack {
                 ExploreView()
                     .navigationDestination(for: Article.self) { ArticleDetailView(article: $0) }
                     .navigationDestination(for: NewsCollection.self) { CollectionDetailView(collection: $0) }
+                    .toolbarBackground(.hidden, for: .navigationBar)
             }
         case .following:
             NavigationStack {
                 FollowingView()
                     .navigationDestination(for: Article.self) { ArticleDetailView(article: $0) }
                     .navigationDestination(for: NewsCollection.self) { CollectionDetailView(collection: $0) }
+                    .toolbarBackground(.hidden, for: .navigationBar)
             }
         }
     }
@@ -58,90 +61,99 @@ struct FloatingTabBar: View {
     @Binding var selection: AppTab
     @State private var dragX: CGFloat?
     @State private var isDragging = false
+    @State private var barWidth: CGFloat = 0
 
     var body: some View {
         let tabs = AppTab.allCases
-        return Capsule(style: .continuous)
-            .fill(.clear)
-            .frame(height: 58)
-            .frame(maxWidth: 430)
-            .overlay {
-                GeometryReader { proxy in
-                    let width = proxy.size.width
-                    let indicatorX = dragX ?? (width * (CGFloat(tabs.firstIndex(of: selection) ?? 0) + 0.5) / CGFloat(tabs.count))
-                    ZStack {
-                        Capsule(style: .continuous)
-                            .fill(.ultraThinMaterial)
-                            .overlay {
-                                Capsule(style: .continuous)
-                                    .strokeBorder(.white.opacity(0.55), lineWidth: 1)
-                            }
-                            .shadow(color: .black.opacity(0.12), radius: 16, y: 8)
-
-                        LiquidDropIndicator(
-                            progress: indicatorX,
-                            width: width,
-                            isDragging: isDragging
-                        )
-
-                        HStack(spacing: 0) {
-                            ForEach(tabs, id: \.self) { tab in
-                                Button {
-                                    withAnimation(.spring(response: 0.28, dampingFraction: 0.82)) { selection = tab }
-                                } label: {
-                                    HStack(spacing: 7) {
-                                        Image(systemName: tab.symbol)
-                                            .font(.system(size: 15, weight: .semibold))
-                                        if selection == tab {
-                                            Text(tab.rawValue)
-                                                .font(.caption.weight(.bold))
-                                        }
-                                    }
-                                    .foregroundStyle(selection == tab ? NewsTheme.ink : NewsTheme.secondary)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 46)
-                                    .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.plain)
-                                .accessibilityLabel(tab.rawValue)
-                                .accessibilityAddTraits(selection == tab ? .isSelected : [])
-                            }
+        return HStack(spacing: 0) {
+            ForEach(tabs, id: \.self) { tab in
+                Button {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) { selection = tab }
+                } label: {
+                    HStack(spacing: 7) {
+                        Image(systemName: tab.symbol)
+                            .font(.system(size: 15, weight: .semibold))
+                        if selection == tab {
+                            Text(tab.rawValue)
+                                .font(.caption.weight(.bold))
                         }
-                        .padding(.horizontal, 6)
                     }
-                    .clipShape(Capsule(style: .continuous))
-                    .contentShape(Capsule())
-                    .highPriorityGesture(
-                        DragGesture(minimumDistance: 4)
-                            .onChanged { value in
-                                let x = max(0, min(width, value.location.x))
-                                dragX = x
-                                isDragging = true
-                                let segment = max(0, min(tabs.count - 1, Int(x / max(width, 1) * CGFloat(tabs.count))))
-                                let tab = tabs[segment]
-                                if selection != tab {
-                                    withAnimation(.interactiveSpring(response: 0.2, dampingFraction: 0.86)) {
-                                        selection = tab
-                                    }
-                                }
-                            }
-                            .onEnded { _ in
-                                withAnimation(.spring(response: 0.28, dampingFraction: 0.86)) {
-                                    dragX = nil
-                                    isDragging = false
-                                }
-                            }
-                    )
-                    .layerEffect(
-                        ShaderLibrary.liquidGlassLayer(
-                            .float2(Float(width), Float(proxy.size.height)),
-                            .float(isDragging ? 8 : 0),
-                            .float(indicatorX / max(width, 1))
-                        ),
-                        maxSampleOffset: CGSize(width: 8, height: 8)
-                    )
+                    .foregroundStyle(selection == tab ? NewsTheme.ink : NewsTheme.secondary)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 46)
+                    .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
+                .accessibilityLabel(tab.rawValue)
+                .accessibilityAddTraits(selection == tab ? .isSelected : [])
             }
+        }
+        .padding(.horizontal, 6)
+        .frame(height: 58)
+        .frame(maxWidth: 430)
+        .background {
+            GeometryReader { proxy in
+                Color.clear
+                    .preference(key: TabBarWidthKey.self, value: proxy.size.width)
+            }
+        }
+        .onPreferenceChange(TabBarWidthKey.self) { barWidth = $0 }
+        .background {
+            Capsule(style: .continuous)
+                .fill(.ultraThinMaterial)
+                .overlay {
+                    Capsule(style: .continuous)
+                        .fill(Color.white.opacity(0.18))
+                }
+                .overlay {
+                    Capsule(style: .continuous)
+                        .strokeBorder(Color.white.opacity(0.55), lineWidth: 1)
+                }
+                .shadow(color: .black.opacity(0.12), radius: 18, y: 8)
+        }
+        .overlay(alignment: .leading) {
+            GeometryReader { proxy in
+                let width = proxy.size.width
+                let indicatorX = dragX ?? (width * (CGFloat(tabs.firstIndex(of: selection) ?? 0) + 0.5) / CGFloat(tabs.count))
+                LiquidDropIndicator(
+                    progress: indicatorX,
+                    width: width,
+                    isDragging: isDragging
+                )
+            }
+            .allowsHitTesting(false)
+        }
+        .clipShape(Capsule(style: .continuous))
+        .contentShape(Capsule())
+        .highPriorityGesture(
+            DragGesture(minimumDistance: 4)
+                .onChanged { value in
+                    let width = max(barWidth, 1)
+                    let x = max(0, min(width, value.location.x))
+                    dragX = x
+                    isDragging = true
+                    let segment = max(0, min(tabs.count - 1, Int(x / width * CGFloat(tabs.count))))
+                    let tab = tabs[segment]
+                    if selection != tab {
+                        withAnimation(.interactiveSpring(response: 0.2, dampingFraction: 0.88)) {
+                            selection = tab
+                        }
+                    }
+                }
+                .onEnded { _ in
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
+                        dragX = nil
+                        isDragging = false
+                    }
+                }
+        )
+    }
+}
+
+private struct TabBarWidthKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }
 
