@@ -18,29 +18,24 @@ struct RootView: View {
 
     var body: some View {
         TabView(selection: $selectedTab) {
-            NavigationStack {
-                BriefingView()
-                    .navigationDestination(for: Article.self) { ArticleDetailView(article: $0) }
-                    .navigationDestination(for: NewsCollection.self) { CollectionDetailView(collection: $0) }
+            ForEach(AppTab.allCases, id: \.self) { tab in
+                Tab(value: tab) {
+                    NavigationStack {
+                        Group {
+                            switch tab {
+                            case .briefing: BriefingView()
+                            case .explore: ExploreView()
+                            case .following: FollowingView()
+                            }
+                        }
+                        .navigationDestination(for: Article.self) { ArticleDetailView(article: $0) }
+                        .navigationDestination(for: NewsCollection.self) { CollectionDetailView(collection: $0) }
+                    }
+                    .tint(nil)
+                } label: {
+                    Label(tab.rawValue, systemImage: tab.symbol)
+                }
             }
-            .tabItem { Label(AppTab.briefing.rawValue, systemImage: AppTab.briefing.symbol) }
-            .tag(AppTab.briefing)
-
-            NavigationStack {
-                ExploreView()
-                    .navigationDestination(for: Article.self) { ArticleDetailView(article: $0) }
-                    .navigationDestination(for: NewsCollection.self) { CollectionDetailView(collection: $0) }
-            }
-            .tabItem { Label(AppTab.explore.rawValue, systemImage: AppTab.explore.symbol) }
-            .tag(AppTab.explore)
-
-            NavigationStack {
-                FollowingView()
-                    .navigationDestination(for: Article.self) { ArticleDetailView(article: $0) }
-                    .navigationDestination(for: NewsCollection.self) { CollectionDetailView(collection: $0) }
-            }
-            .tabItem { Label(AppTab.following.rawValue, systemImage: AppTab.following.symbol) }
-            .tag(AppTab.following)
         }
         .tint(NewsTheme.ink)
         .background(NewsTheme.paper.ignoresSafeArea())

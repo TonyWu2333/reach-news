@@ -72,7 +72,7 @@ struct SettingsView: View {
                     Button { confirmReset = true } label: { Label("Clear reading history", systemImage: "arrow.counterclockwise") }.foregroundStyle(NewsTheme.ink)
                 }
                 Section("About") {
-                    LabeledContent("Version", value: "0.0.1 (10007)")
+                    LabeledContent("Version", value: "0.0.1 (10008)")
                     Text("Reach News helps you compare coverage, see blindspots and read across the spectrum.").foregroundStyle(NewsTheme.secondary)
                 }
             }
