@@ -104,7 +104,7 @@ struct FloatingTabBar: View {
                 let indicatorX = effectiveDrag ?? (width * (CGFloat(tabs.firstIndex(of: selection) ?? 0) + 0.5) / CGFloat(tabs.count))
                 let dragging = isDragging || previewDragProgress != nil
 
-                ZStack {
+                ZStack(alignment: .leading) {
                     LiquidDropIndicator(
                         progress: indicatorX,
                         width: width,
@@ -189,8 +189,7 @@ struct LiquidDropIndicator: View {
         }
         .frame(width: segment, height: 48)
         .shadow(color: .black.opacity(0.08), radius: 8, y: 2)
-        // GeometryReader places children at the top-leading origin, so center by segment/2.
-        .offset(x: progress - segment / 2)
+        .offset(x: progress - segment / 2, y: 4)
         .allowsHitTesting(false)
     }
 }
