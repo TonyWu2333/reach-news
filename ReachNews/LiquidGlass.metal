@@ -19,10 +19,9 @@ using namespace metal;
     float bevel = 15.0;
     float edgeDepth = clamp(-distance / bevel, 0.0, 1.0);
     float rim = 1.0 - smoothstep(0.0, 0.72, edgeDepth);
-    float wave = sin((position.x / max(size.x, 1.0) + phase) * 18.0) * 0.22;
-    float2 offset = -normal * rim * (strength + wave * strength);
+    float2 offset = -normal * rim * strength;
     half4 color = layer.sample(position + offset);
-    float highlight = rim * (0.24 + 0.10 * sin((position.x + position.y) * 0.12 + phase * 8.0));
+    float highlight = rim * 0.20;
     color.rgb += half3(highlight * 0.72, highlight * 0.86, highlight);
     return color;
 }

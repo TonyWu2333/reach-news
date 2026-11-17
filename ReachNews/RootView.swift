@@ -124,15 +124,15 @@ struct LiquidDropIndicator: View {
         ZStack {
             Capsule()
                 .fill(.ultraThinMaterial)
-                .overlay { Capsule().fill(LinearGradient(colors: [.white.opacity(0.86), NewsTheme.left.opacity(isDragging ? 0.44 : 0.25), .white.opacity(0.68)], startPoint: .topLeading, endPoint: .bottomTrailing)) }
+                .overlay { Capsule().fill(LinearGradient(colors: [.white.opacity(0.92), .white.opacity(isDragging ? 0.58 : 0.42), .white.opacity(0.72)], startPoint: .topLeading, endPoint: .bottomTrailing)) }
                 .overlay { Capsule().stroke(.white.opacity(0.92), lineWidth: 1.2) }
                 .frame(width: segment - 10 + (isDragging ? 16 : 0), height: isDragging ? 42 : 39)
             Ellipse().fill(.white.opacity(0.82)).frame(width: isDragging ? 46 : 34, height: isDragging ? 15 : 11).blur(radius: 5).offset(x: segment * 0.18, y: -13)
-            Ellipse().fill(NewsTheme.left.opacity(isDragging ? 0.38 : 0.22)).frame(width: isDragging ? 34 : 25, height: 11).blur(radius: 5).offset(x: -segment * 0.17, y: 13)
+            Ellipse().fill(.white.opacity(isDragging ? 0.34 : 0.22)).frame(width: isDragging ? 34 : 25, height: 11).blur(radius: 5).offset(x: -segment * 0.17, y: 13)
         }
         .frame(width: segment, height: 48)
         .scaleEffect(x: isDragging ? 1.12 : 1.04, y: isDragging ? 1.02 : 0.96)
-        .shadow(color: NewsTheme.left.opacity(isDragging ? 0.42 : 0.18), radius: isDragging ? 16 : 7, y: 2)
+        .shadow(color: .white.opacity(isDragging ? 0.52 : 0.28), radius: isDragging ? 14 : 7, y: 2)
         .offset(x: progress - width / 2)
         .allowsHitTesting(false)
     }
