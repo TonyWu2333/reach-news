@@ -124,6 +124,10 @@ struct LiquidDropIndicator: View {
             Circle().fill(NewsTheme.left.opacity(isDragging ? 0.30 : 0.18)).frame(width: isDragging ? 32 : 25, height: 20).blur(radius: 4).offset(x: -segment * 0.17, y: 13)
         }
         .frame(width: segment, height: 48)
+        .distortionEffect(
+            ShaderLibrary.liquidGlass(.float2(Float(segment), 48), .float(isDragging ? 5 : 2), .float(isDragging ? 1 : 0)),
+            maxSampleOffset: CGSize(width: 8, height: 8)
+        )
         .scaleEffect(x: isDragging ? 1.12 : 1.04, y: isDragging ? 1.02 : 0.96)
         .shadow(color: NewsTheme.left.opacity(isDragging ? 0.42 : 0.18), radius: isDragging ? 16 : 7, y: 2)
         .offset(x: progress - width / 2)
