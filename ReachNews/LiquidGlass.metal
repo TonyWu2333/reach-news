@@ -21,7 +21,8 @@ using namespace metal;
     float rim = 1.0 - smoothstep(0.0, 0.72, edgeDepth);
     float2 offset = -normal * rim * strength;
     half4 color = layer.sample(position + offset);
-    float highlight = rim * 0.20;
-    color.rgb += half3(highlight * 0.72, highlight * 0.86, highlight);
+    // Neutral white rim only — avoid blue-channel bias that reads as a tinted bar.
+    float highlight = rim * 0.12;
+    color.rgb += half3(highlight, highlight, highlight);
     return color;
 }

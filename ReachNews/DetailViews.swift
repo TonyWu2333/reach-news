@@ -51,7 +51,7 @@ struct ArticleDetailView: View {
             }
             .padding(18).frame(maxWidth: 700).frame(maxWidth: .infinity)
         }
-        .background(.white)
+        .background(NewsTheme.paper.ignoresSafeArea())
         .navigationTitle("Story").navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

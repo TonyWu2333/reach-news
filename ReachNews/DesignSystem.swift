@@ -53,7 +53,7 @@ struct LiquidGlassModifier: ViewModifier {
         let resolvedRadius = radius ?? CGFloat(settings.cornerRadius)
         content
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous))
-            .background(tintColor.opacity(0.22 + settings.tint * settings.opacity), in: RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous))
+            .background(tintColor.opacity(0.08 + settings.tint * settings.opacity * 0.45), in: RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous))
             .overlay {
                 ZStack {
                     RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous)
