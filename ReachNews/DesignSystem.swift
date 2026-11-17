@@ -47,12 +47,13 @@ enum NewsTheme {
 struct LiquidGlassModifier: ViewModifier {
     @Environment(LiquidGlassSettings.self) private var settings
     var radius: CGFloat?
+    var tintColor: Color = .white
 
     func body(content: Content) -> some View {
         let resolvedRadius = radius ?? CGFloat(settings.cornerRadius)
         content
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous))
-            .background(NewsTheme.ink.opacity(settings.tint * settings.opacity), in: RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous))
+            .background(tintColor.opacity(0.22 + settings.tint * settings.opacity), in: RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous))
             .overlay {
                 ZStack {
                     RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous)
@@ -75,8 +76,29 @@ struct LiquidGlassModifier: ViewModifier {
 }
 
 extension View {
-    func liquidGlass(cornerRadius: CGFloat? = nil) -> some View {
-        modifier(LiquidGlassModifier(radius: cornerRadius))
+    func liquidGlass(cornerRadius: CGFloat? = nil, tint: Color = .white) -> some View {
+        modifier(LiquidGlassModifier(radius: cornerRadius, tintColor: tint))
+    }
+}
+
+struct LiquidLensShape: Shape {
+    var bulge: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let inset: CGFloat = 3
+        let left = rect.minX + inset
+        let right = rect.maxX - inset
+        let top = rect.minY + inset
+        let bottom = rect.maxY - inset
+        let radius = min(20, rect.height / 2)
+        var path = Path()
+        path.move(to: CGPoint(x: left + radius, y: top))
+        path.addCurve(to: CGPoint(x: right - radius, y: top), control1: CGPoint(x: rect.midX - rect.width * 0.22, y: top - bulge), control2: CGPoint(x: rect.midX + rect.width * 0.22, y: top - bulge))
+        path.addCurve(to: CGPoint(x: right, y: bottom - radius), control1: CGPoint(x: right + bulge, y: rect.midY - rect.height * 0.22), control2: CGPoint(x: right + bulge, y: rect.midY + rect.height * 0.22))
+        path.addCurve(to: CGPoint(x: left + radius, y: bottom), control1: CGPoint(x: rect.midX + rect.width * 0.22, y: bottom + bulge), control2: CGPoint(x: rect.midX - rect.width * 0.22, y: bottom + bulge))
+        path.addCurve(to: CGPoint(x: left, y: top + radius), control1: CGPoint(x: left - bulge, y: rect.midY + rect.height * 0.22), control2: CGPoint(x: left - bulge, y: rect.midY - rect.height * 0.22))
+        path.closeSubpath()
+        return path
     }
 }
 
