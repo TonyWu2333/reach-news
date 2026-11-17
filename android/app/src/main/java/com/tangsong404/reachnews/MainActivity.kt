@@ -37,19 +37,6 @@ private val Left = Color(0xFF0E94CF)
 private val Center = Color(0xFF6F6F6B)
 private val Right = Color(0xFFF55538)
 
-data class GlassStyle(val opacity: Float = 0.66f, val radius: Dp = 26.dp, val tint: Float = 0.10f)
-val LocalGlassStyle = compositionLocalOf { GlassStyle() }
-
-@Composable
-fun Modifier.liquidGlass(): Modifier {
-    val style = LocalGlassStyle.current
-    val shape = RoundedCornerShape(style.radius)
-    return this
-        .shadow(12.dp, shape, ambientColor = Ink.copy(alpha = 0.12f), spotColor = Ink.copy(alpha = 0.18f))
-        .clip(shape)
-        .background(Brush.linearGradient(listOf(Color.White.copy(alpha = style.opacity * 0.55f), Color.White.copy(alpha = style.opacity * 0.28f), Color.White.copy(alpha = style.opacity * 0.42f))))
-        .border(1.dp, Color.White.copy(alpha = 0.62f), shape)
-}
 
 data class Story(val id: String, val title: String, val topic: String, val summary: String, val left: Int, val center: Int, val right: Int, val sources: Int, val time: String, val colors: List<Color>)
 
@@ -68,53 +55,37 @@ class MainActivity : ComponentActivity() { override fun onCreate(savedInstanceSt
     var tab by remember { mutableIntStateOf(0) }
     var selected by remember { mutableStateOf<Story?>(null) }
     var showSettings by remember { mutableStateOf(false) }
-    var glassOpacity by remember { mutableFloatStateOf(0.66f) }
-    var glassRadius by remember { mutableFloatStateOf(26f) }
-    MaterialTheme(colorScheme = lightColorScheme(primary = Ink, background = Color.White)) {
-        CompositionLocalProvider(LocalGlassStyle provides GlassStyle(glassOpacity, glassRadius.dp)) {
-            if (selected != null) StoryDetail(selected!!, onBack = { selected = null })
-            else Box(Modifier.fillMaxSize().background(Paper)) {
-                when (tab) {
-                    0 -> Briefing({ selected = it }, { showSettings = true }, Modifier.fillMaxSize())
-                    1 -> Explore({ selected = it }, Modifier.fillMaxSize())
-                    else -> Following({ selected = it }, Modifier.fillMaxSize())
+    MaterialTheme(colorScheme = lightColorScheme(primary = Ink, background = Paper)) {
+        if (selected != null) StoryDetail(selected!!, onBack = { selected = null })
+        else Scaffold(
+            containerColor = Paper,
+            bottomBar = {
+                NavigationBar(containerColor = Color.White) {
+                    val tabs = listOf("Briefing" to Icons.Default.MenuBook, "Explore" to Icons.Default.Search, "Following" to Icons.Default.Bookmark)
+                    tabs.forEachIndexed { index, item ->
+                        NavigationBarItem(
+                            selected = tab == index,
+                            onClick = { tab = index },
+                            icon = { Icon(item.second, contentDescription = item.first) },
+                            label = { Text(item.first) }
+                        )
+                    }
                 }
-                FloatingNavigationBar(tab, Modifier.align(Alignment.BottomCenter)) { tab = it }
             }
-            if (showSettings) GlassSettingsDialog(glassOpacity, { glassOpacity = it }, glassRadius, { glassRadius = it }, { showSettings = false })
+        ) { padding ->
+            when (tab) {
+                0 -> Briefing({ selected = it }, { showSettings = true }, Modifier.padding(padding))
+                1 -> Explore({ selected = it }, Modifier.padding(padding))
+                else -> Following({ selected = it }, Modifier.padding(padding))
+            }
         }
-    }
-}
-
-@Composable
-fun FloatingNavigationBar(selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
-    val tabs = listOf("Briefing" to Icons.Default.MenuBook, "Explore" to Icons.Default.Search, "Following" to Icons.Default.Bookmark)
-    Row(
-        modifier
-            .fillMaxWidth()
-            .padding(horizontal = 18.dp, vertical = 10.dp)
-            .height(58.dp)
-            .liquidGlass()
-            .padding(horizontal = 6.dp)
-            .pointerInput(Unit) {
-                detectDragGestures { change, _ ->
-                    onSelect((change.position.x / size.width * tabs.size).toInt().coerceIn(0, tabs.lastIndex))
-                }
-            },
-        horizontalArrangement = Arrangement.spacedBy(0.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        tabs.forEachIndexed { index, item ->
-            Box(Modifier.weight(1f).height(43.dp).clip(RoundedCornerShape(24.dp)).clickable { onSelect(index) }) {
-                if (index == selected) {
-                    Box(Modifier.fillMaxSize().background(Color.White.copy(alpha = 0.28f), RoundedCornerShape(24.dp)))
-                    Box(Modifier.size(28.dp, 10.dp).align(Alignment.TopCenter).offset(y = (-4).dp).blur(4.dp).background(Color.White.copy(alpha = .45f), RoundedCornerShape(50)))
-                }
-                Row(Modifier.fillMaxSize(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                    Icon(item.second, null, Modifier.size(17.dp), tint = if (index == selected) Ink else Secondary)
-                    if (index == selected) Text(item.first, Modifier.padding(start = 7.dp), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Ink)
-                }
-            }
+        if (showSettings) {
+            AlertDialog(
+                onDismissRequest = { showSettings = false },
+                confirmButton = { TextButton(onClick = { showSettings = false }) { Text("Done") } },
+                title = { Text("Settings") },
+                text = { Text("Reach News compares coverage across the spectrum.") }
+            )
         }
     }
 }
@@ -122,7 +93,7 @@ fun FloatingNavigationBar(selected: Int, modifier: Modifier = Modifier, onSelect
 @Composable fun Header(title: String, subtitle: String? = null) { Column(Modifier.padding(bottom = 18.dp)) { Text(title, fontSize = 39.sp, fontWeight = FontWeight.Black, color = Ink); subtitle?.let { Text(it, color = Secondary, lineHeight = 20.sp) } } }
 
 @Composable fun Briefing(onStory: (Story) -> Unit, onSettings: () -> Unit, modifier: Modifier = Modifier) {
-    LazyColumn(modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(top = 20.dp, bottom = 110.dp)) {
+    LazyColumn(modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(16.dp), contentPadding = PaddingValues(top = 20.dp, bottom = 24.dp)) {
         item { Row(verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("TUESDAY, JUNE 17", fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.5.sp, color = Secondary); Text("Your daily perspective.", fontSize = 35.sp, fontWeight = FontWeight.Black, color = Ink) }; Icon(Icons.Default.AccountCircle, null, Modifier.size(38.dp).clickable { onSettings() }) } }
         item { DailyCard() }
         item { Text("TOP STORIES", fontSize = 12.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp, color = Secondary) }
@@ -130,12 +101,12 @@ fun FloatingNavigationBar(selected: Int, modifier: Modifier = Modifier, onSelect
     }
 }
 
-@Composable fun DailyCard() { Row(Modifier.fillMaxWidth().liquidGlass().padding(18.dp), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("THE BIG PICTURE", fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp); Text("The Last 24", fontSize = 36.sp, fontWeight = FontWeight.Black); Text("Your world, in a 4-minute read.", color = Secondary, fontSize = 12.sp) }; Icon(Icons.Default.Newspaper, null, Modifier.size(46.dp)) } }
+@Composable fun DailyCard() { Row(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF5F5F5)).padding(18.dp), verticalAlignment = Alignment.CenterVertically) { Column(Modifier.weight(1f)) { Text("THE BIG PICTURE", fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp); Text("The Last 24", fontSize = 36.sp, fontWeight = FontWeight.Black); Text("Your world, in a 4-minute read.", color = Secondary, fontSize = 12.sp) }; Icon(Icons.Default.Newspaper, null, Modifier.size(46.dp)) } }
 
 @Composable fun Explore(onStory: (Story) -> Unit, modifier: Modifier = Modifier) {
     var query by remember { mutableStateOf("") }
     val filtered = stories.filter { query.isBlank() || (it.title + it.topic + it.summary).contains(query, ignoreCase = true) }
-    LazyColumn(modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(top = 20.dp, bottom = 110.dp)) {
+    LazyColumn(modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(top = 20.dp, bottom = 24.dp)) {
         item { Header("Explore", "Go beyond your usual headlines.") }
         item { OutlinedTextField(value = query, onValueChange = { query = it }, modifier = Modifier.fillMaxWidth(), placeholder = { Text("Search stories and topics") }, leadingIcon = { Icon(Icons.Default.Search, null) }, singleLine = true) }
         item { Text("Topics to explore", fontWeight = FontWeight.Bold, fontSize = 18.sp) }
@@ -144,9 +115,9 @@ fun FloatingNavigationBar(selected: Int, modifier: Modifier = Modifier, onSelect
     }
 }
 
-@Composable fun Following(onStory: (Story) -> Unit, modifier: Modifier = Modifier) { LazyColumn(modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(top = 20.dp, bottom = 110.dp)) { item { Header("Following", "Your interests. A broader point of view.") }; item { Text("Your topics", fontWeight = FontWeight.Bold, fontSize = 18.sp) }; item { Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) { listOf("World", "Politics").forEach { AssistChip(onClick = {}, label = { Text(it) }) } } }; items(stories.filter { it.topic == "World" || it.topic == "Politics" }) { StoryCard(it, onStory) } } }
+@Composable fun Following(onStory: (Story) -> Unit, modifier: Modifier = Modifier) { LazyColumn(modifier.fillMaxSize().padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp), contentPadding = PaddingValues(top = 20.dp, bottom = 24.dp)) { item { Header("Following", "Your interests. A broader point of view.") }; item { Text("Your topics", fontWeight = FontWeight.Bold, fontSize = 18.sp) }; item { Row(horizontalArrangement = Arrangement.spacedBy(7.dp)) { listOf("World", "Politics").forEach { AssistChip(onClick = {}, label = { Text(it) }) } } }; items(stories.filter { it.topic == "World" || it.topic == "Politics" }) { StoryCard(it, onStory) } } }
 
-@Composable fun StoryCard(story: Story, onClick: (Story) -> Unit, featured: Boolean = false) { Column(Modifier.fillMaxWidth().liquidGlass().clickable { onClick(story) }.padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) { StoryImage(story, if (featured) 190 else 90); Text(if (story.left < 10 || story.right < 10) "◐ Blindspot" else "● Balanced coverage", fontSize = 12.sp, color = Secondary); Text(story.title, fontSize = if (featured) 24.sp else 19.sp, fontWeight = FontWeight.Bold, color = Ink); if (featured) Text(story.summary, color = Secondary, lineHeight = 20.sp); BiasBar(story); Text("${story.time}  ·  ${story.sources} sources", color = Secondary, fontSize = 12.sp) } }
+@Composable fun StoryCard(story: Story, onClick: (Story) -> Unit, featured: Boolean = false) { Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(Color(0xFFF5F5F5)).clickable { onClick(story) }.padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) { StoryImage(story, if (featured) 190 else 90); Text(if (story.left < 10 || story.right < 10) "◐ Blindspot" else "● Balanced coverage", fontSize = 12.sp, color = Secondary); Text(story.title, fontSize = if (featured) 24.sp else 19.sp, fontWeight = FontWeight.Bold, color = Ink); if (featured) Text(story.summary, color = Secondary, lineHeight = 20.sp); BiasBar(story); Text("${story.time}  ·  ${story.sources} sources", color = Secondary, fontSize = 12.sp) } }
 
 @Composable fun StoryImage(story: Story, height: Int) { Box(Modifier.fillMaxWidth().height(height.dp).clip(RoundedCornerShape(9.dp)).background(Brush.linearGradient(story.colors)), contentAlignment = Alignment.Center) { Icon(Icons.Default.Cloud, null, Modifier.size(56.dp), tint = Color.White.copy(alpha = .72f)) } }
 
@@ -156,22 +127,3 @@ fun FloatingNavigationBar(selected: Int, modifier: Modifier = Modifier, onSelect
 @Composable fun StoryDetail(story: Story, onBack: () -> Unit) { Scaffold(topBar = { TopAppBar(title = { Text("Story") }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, null) } }, actions = { IconButton(onClick = {}) { Icon(Icons.Default.BookmarkBorder, null) }; IconButton(onClick = {}) { Icon(Icons.Default.Share, null) } }) }) { padding -> LazyColumn(Modifier.padding(padding).padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(18.dp), contentPadding = PaddingValues(bottom = 24.dp)) { item { StoryImage(story, 230) }; item { Text(story.title, fontSize = 39.sp, fontWeight = FontWeight.Black, color = Ink) }; item { Text(story.summary, fontSize = 18.sp, color = Secondary, lineHeight = 26.sp) }; item { Text("Coverage", fontWeight = FontWeight.Bold, fontSize = 18.sp) }; item { BiasBar(story) }; item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Metric("Coverage", "${story.sources} sources", Modifier.weight(1f)); Metric("Bias", "Balanced", Modifier.weight(1f)) } }; item { Text("Where sources agree", fontSize = 28.sp, fontWeight = FontWeight.Black) }; item { Text(story.title + ". " + story.summary, lineHeight = 24.sp) }; item { Text("Where sources disagree", fontSize = 28.sp, fontWeight = FontWeight.Black) }; item { Text("Coverage differs on responsibility, consequences and the path forward. Read the original reporting for the complete picture.", lineHeight = 24.sp) } } } }
 
 @Composable fun Metric(title: String, value: String, modifier: Modifier = Modifier) { Column(modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xFFF5F5F5)).padding(14.dp)) { Text(title, color = Secondary); Text(value, fontWeight = FontWeight.Medium) } }
-
-@Composable
-fun GlassSettingsDialog(opacity: Float, onOpacityChange: (Float) -> Unit, radius: Float, onRadiusChange: (Float) -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Done") } },
-        title = { Text("Liquid glass") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Tune the floating navigation and story cards.", color = Secondary, fontSize = 12.sp)
-                Text("Opacity  ${String.format("%.2f", opacity)}", fontSize = 12.sp)
-                Slider(value = opacity, onValueChange = onOpacityChange, valueRange = 0.25f..0.95f)
-                Text("Corner radius  ${radius.toInt()}", fontSize = 12.sp)
-                Slider(value = radius, onValueChange = onRadiusChange, valueRange = 14f..38f)
-            }
-        }
-    )
-}
-

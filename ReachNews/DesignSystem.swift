@@ -1,20 +1,4 @@
 import SwiftUI
-import Observation
-
-@MainActor @Observable
-final class LiquidGlassSettings {
-    var opacity: Double = 0.68
-    var blur: Double = 18
-    var cornerRadius: Double = 26
-    var tint: Double = 0.10
-
-    func reset() {
-        opacity = 0.68
-        blur = 18
-        cornerRadius = 26
-        tint = 0.10
-    }
-}
 
 enum NewsTheme {
     static let ink = Color(red: 0.07, green: 0.07, blue: 0.065)
@@ -27,7 +11,6 @@ enum NewsTheme {
     static let right = Color(red: 0.97, green: 0.34, blue: 0.20)
     static let gold = Color(red: 0.81, green: 0.74, blue: 0.56)
     static let purple = Color(red: 0.52, green: 0.41, blue: 0.72)
-    static let selectedBrown = Color(red: 0.45, green: 0.27, blue: 0.15)
 
     static func headline(_ size: CGFloat) -> Font {
         .custom("BarlowCondensed-Bold", size: size, relativeTo: .largeTitle)
@@ -42,64 +25,6 @@ enum NewsTheme {
         case .left: left
         case .right: right
         }
-    }
-}
-
-struct LiquidGlassModifier: ViewModifier {
-    @Environment(LiquidGlassSettings.self) private var settings
-    var radius: CGFloat?
-    var tintColor: Color = .white
-
-    func body(content: Content) -> some View {
-        let resolvedRadius = radius ?? CGFloat(settings.cornerRadius)
-        content
-            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous))
-            .background(tintColor.opacity(0.08 + settings.tint * settings.opacity * 0.45), in: RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous))
-            .overlay {
-                ZStack {
-                    RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous)
-                        .fill(LinearGradient(colors: [.white.opacity(settings.opacity * 0.34), .clear, .white.opacity(settings.opacity * 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    Circle()
-                        .fill(.white.opacity(settings.opacity * 0.22))
-                        .frame(width: 76, height: 32)
-                        .blur(radius: CGFloat(max(4, settings.blur / 2)))
-                        .offset(x: -54, y: -25)
-                }
-                .clipShape(RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous))
-                .allowsHitTesting(false)
-            }
-            .overlay {
-                RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous)
-                    .strokeBorder(.white.opacity(settings.opacity * 0.55), lineWidth: 1)
-            }
-            .shadow(color: NewsTheme.ink.opacity(0.15), radius: CGFloat(settings.blur), y: 8)
-    }
-}
-
-extension View {
-    func liquidGlass(cornerRadius: CGFloat? = nil, tint: Color = .white) -> some View {
-        modifier(LiquidGlassModifier(radius: cornerRadius, tintColor: tint))
-    }
-}
-
-struct LiquidLensShape: Shape {
-    var bulge: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        let inset: CGFloat = 3
-        let left = rect.minX + inset
-        let right = rect.maxX - inset
-        let top = rect.minY + inset
-        let bottom = rect.maxY - inset
-        let radius = min(20, rect.height / 2)
-        var path = Path()
-        path.move(to: CGPoint(x: left + radius, y: top))
-        path.addCurve(to: CGPoint(x: right - radius, y: top), control1: CGPoint(x: rect.midX - rect.width * 0.22, y: top - bulge), control2: CGPoint(x: rect.midX + rect.width * 0.22, y: top - bulge))
-        path.addCurve(to: CGPoint(x: right, y: bottom - radius), control1: CGPoint(x: right + bulge, y: rect.midY - rect.height * 0.22), control2: CGPoint(x: right + bulge, y: rect.midY + rect.height * 0.22))
-        path.addCurve(to: CGPoint(x: left + radius, y: bottom), control1: CGPoint(x: rect.midX + rect.width * 0.22, y: bottom + bulge), control2: CGPoint(x: rect.midX - rect.width * 0.22, y: bottom + bulge))
-        path.addCurve(to: CGPoint(x: left, y: top + radius), control1: CGPoint(x: left - bulge, y: rect.midY + rect.height * 0.22), control2: CGPoint(x: left - bulge, y: rect.midY - rect.height * 0.22))
-        path.closeSubpath()
-        return path
     }
 }
 
@@ -276,7 +201,7 @@ struct StoryCard: View {
             .font(.caption).foregroundStyle(NewsTheme.secondary)
         }
         .padding(15)
-        .liquidGlass(cornerRadius: 14)
+        .background(NewsTheme.card, in: RoundedRectangle(cornerRadius: 14))
         .foregroundStyle(NewsTheme.ink)
         .contentShape(Rectangle())
     }

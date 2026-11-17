@@ -15,240 +15,35 @@ enum AppTab: String, CaseIterable {
 
 struct RootView: View {
     @State private var selectedTab: AppTab = .briefing
-    @State private var glass = LiquidGlassSettings()
-
-    init() {
-        if let preview = ProcessInfo.processInfo.environment["REACH_PREVIEW_TAB"] ?? UserDefaults.standard.string(forKey: "REACH_PREVIEW_TAB") {
-            switch preview.lowercased() {
-            case "explore": _selectedTab = State(initialValue: .explore)
-            case "following": _selectedTab = State(initialValue: .following)
-            default: _selectedTab = State(initialValue: .briefing)
-            }
-        }
-    }
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            currentTab
-            FloatingTabBar(
-                selection: $selectedTab,
-                previewDragProgress: previewDragProgress
-            )
-                .padding(.horizontal, 18)
-                .padding(.bottom, 8)
-        }
-        .environment(glass)
-        .background(NewsTheme.paper.ignoresSafeArea())
-        .tint(NewsTheme.ink)
-    }
-
-    private var previewDragProgress: CGFloat? {
-        let raw = ProcessInfo.processInfo.environment["REACH_PREVIEW_DRAG"] ?? UserDefaults.standard.string(forKey: "REACH_PREVIEW_DRAG")
-        guard let raw, let value = Double(raw) else { return nil }
-        return CGFloat(min(max(value, 0), 1))
-    }
-
-    @ViewBuilder
-    private var currentTab: some View {
-        switch selectedTab {
-        case .briefing:
+        TabView(selection: $selectedTab) {
             NavigationStack {
                 BriefingView()
                     .navigationDestination(for: Article.self) { ArticleDetailView(article: $0) }
                     .navigationDestination(for: NewsCollection.self) { CollectionDetailView(collection: $0) }
-                    .toolbarBackground(.hidden, for: .navigationBar)
             }
-        case .explore:
+            .tabItem { Label(AppTab.briefing.rawValue, systemImage: AppTab.briefing.symbol) }
+            .tag(AppTab.briefing)
+
             NavigationStack {
                 ExploreView()
                     .navigationDestination(for: Article.self) { ArticleDetailView(article: $0) }
                     .navigationDestination(for: NewsCollection.self) { CollectionDetailView(collection: $0) }
-                    .toolbarBackground(.hidden, for: .navigationBar)
             }
-        case .following:
+            .tabItem { Label(AppTab.explore.rawValue, systemImage: AppTab.explore.symbol) }
+            .tag(AppTab.explore)
+
             NavigationStack {
                 FollowingView()
                     .navigationDestination(for: Article.self) { ArticleDetailView(article: $0) }
                     .navigationDestination(for: NewsCollection.self) { CollectionDetailView(collection: $0) }
-                    .toolbarBackground(.hidden, for: .navigationBar)
             }
+            .tabItem { Label(AppTab.following.rawValue, systemImage: AppTab.following.symbol) }
+            .tag(AppTab.following)
         }
-    }
-}
-
-struct FloatingTabBar: View {
-    @Binding var selection: AppTab
-    var previewDragProgress: CGFloat? = nil
-    @State private var dragX: CGFloat?
-    @State private var isDragging = false
-    @State private var contentWidth: CGFloat = 0
-
-    var body: some View {
-        let tabs = AppTab.allCases
-        return ZStack {
-            Capsule(style: .continuous)
-                .fill(.regularMaterial)
-                .overlay {
-                    Capsule(style: .continuous)
-                        .fill(Color.white.opacity(0.42))
-                }
-                .overlay {
-                    Capsule(style: .continuous)
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.85),
-                                    Color.white.opacity(0.28),
-                                    Color.white.opacity(0.55)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1.1
-                        )
-                }
-                .shadow(color: .black.opacity(0.14), radius: 18, y: 8)
-                .frame(height: 68)
-
-            GeometryReader { proxy in
-                let width = proxy.size.width
-                let effectiveDrag = previewDragProgress.map { $0 * width } ?? dragX
-                let indicatorX = effectiveDrag ?? (width * (CGFloat(tabs.firstIndex(of: selection) ?? 0) + 0.5) / CGFloat(tabs.count))
-                let dragging = isDragging || previewDragProgress != nil
-                let selectedIndex = CGFloat(tabs.firstIndex(of: selection) ?? 0)
-                let selectedCenter = (selectedIndex + 0.5) / CGFloat(tabs.count)
-                let proximity = 1 - min(abs((indicatorX / max(width, 1)) - selectedCenter) / (1.0 / CGFloat(tabs.count)), 1)
-
-                ZStack(alignment: .leading) {
-                    LiquidDropIndicator(
-                        progress: indicatorX,
-                        width: width,
-                        isDragging: dragging,
-                        bloom: proximity
-                    )
-                    .zIndex(1)
-
-                    HStack(spacing: 0) {
-                        ForEach(tabs, id: \.self) { tab in
-                            let isSelected = selection == tab
-                            Button {
-                                withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) { selection = tab }
-                            } label: {
-                                VStack(spacing: 4) {
-                                    Image(systemName: tab.symbol)
-                                        .font(.system(size: 15, weight: .semibold))
-                                    Text(tab.rawValue)
-                                        .font(.system(size: 10, weight: .semibold))
-                                }
-                                .foregroundStyle(isSelected ? NewsTheme.selectedBrown : NewsTheme.ink)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 58)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(tab.rawValue)
-                            .accessibilityAddTraits(isSelected ? .isSelected : [])
-                        }
-                    }
-                    .zIndex(2)
-                }
-                .onAppear { contentWidth = width }
-                .onChange(of: width) { _, newValue in contentWidth = newValue }
-            }
-            .padding(.horizontal, 8)
-            .frame(height: 86)
-        }
-        .frame(height: 86)
-        .frame(maxWidth: 430)
-        .contentShape(Capsule())
-        .highPriorityGesture(
-            DragGesture(minimumDistance: 4)
-                .onChanged { value in
-                    let width = max(contentWidth, 1)
-                    let x = max(0, min(width, value.location.x))
-                    dragX = x
-                    isDragging = true
-                    let segment = max(0, min(tabs.count - 1, Int(x / width * CGFloat(tabs.count))))
-                    let tab = tabs[segment]
-                    if selection != tab {
-                        withAnimation(.interactiveSpring(response: 0.2, dampingFraction: 0.88)) {
-                            selection = tab
-                        }
-                    }
-                }
-                .onEnded { _ in
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.88)) {
-                        dragX = nil
-                        isDragging = false
-                    }
-                }
-        )
-    }
-}
-
-struct LiquidDropIndicator: View {
-    let progress: CGFloat
-    let width: CGFloat
-    let isDragging: Bool
-    var bloom: CGFloat = 0
-
-    var body: some View {
-        let segment = width / 3
-        let dropWidth = segment - 16
-        let dropHeight: CGFloat = isDragging ? 78 : 74
-
-        ZStack {
-            Capsule(style: .continuous)
-                .fill(.clear)
-                .background {
-                    Capsule(style: .continuous)
-                        .fill(.ultraThinMaterial)
-                        .opacity(0.55)
-                }
-                .overlay {
-                    Capsule(style: .continuous)
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.95),
-                                    Color.white.opacity(0.35),
-                                    Color.white.opacity(0.8)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1.4
-                        )
-                }
-                .overlay(alignment: .top) {
-                    Capsule()
-                        .fill(Color.white.opacity(0.55 + bloom * 0.2))
-                        .frame(width: dropWidth * 0.55, height: 7)
-                        .blur(radius: 1.2)
-                        .offset(y: 8)
-                }
-                .overlay(alignment: .bottom) {
-                    Capsule()
-                        .stroke(Color.white.opacity(0.35), lineWidth: 0.8)
-                        .frame(width: dropWidth * 0.72, height: 10)
-                        .blur(radius: 0.6)
-                        .offset(y: -10)
-                }
-                .frame(width: dropWidth, height: dropHeight)
-                .layerEffect(
-                    ShaderLibrary.liquidGlassLayer(
-                        .float2(Float(dropWidth), Float(dropHeight)),
-                        .float(isDragging ? 8 + bloom * 6 : 4),
-                        .float(0.5)
-                    ),
-                    maxSampleOffset: CGSize(width: 10, height: 10)
-                )
-        }
-        .frame(width: segment, height: dropHeight)
-        .shadow(color: .black.opacity(0.10), radius: isDragging ? 14 : 10, y: 4)
-        .scaleEffect(x: 1 + bloom * 0.03, y: 1 + bloom * 0.05)
-        .offset(x: progress - segment / 2, y: -4)
-        .allowsHitTesting(false)
+        .tint(NewsTheme.ink)
+        .background(NewsTheme.paper.ignoresSafeArea())
     }
 }
 
@@ -324,7 +119,7 @@ struct BriefingView: View {
                 Text("More context. A clearer picture.").font(.caption).foregroundStyle(NewsTheme.secondary)
                     .frame(maxWidth: .infinity).padding(.vertical, 12)
             }
-            .padding(.horizontal, 18).padding(.top, 10).padding(.bottom, 110)
+            .padding(.horizontal, 18).padding(.top, 10).padding(.bottom, 24)
             .frame(maxWidth: 700)
             .frame(maxWidth: .infinity)
         }
@@ -358,7 +153,7 @@ struct DailyBriefCard: View {
             Image(systemName: "newspaper").font(.system(size: 41, weight: .ultraLight)).rotationEffect(.degrees(-8))
             Image(systemName: "arrow.up.right").font(.subheadline)
         }
-        .padding(18).liquidGlass(cornerRadius: 14)
+        .padding(18).background(NewsTheme.card, in: RoundedRectangle(cornerRadius: 14))
         .foregroundStyle(NewsTheme.ink)
     }
 }
@@ -441,7 +236,7 @@ struct ExploreView: View {
                     }
                 }
             }
-            .padding(18).padding(.bottom, 110).frame(maxWidth: 700).frame(maxWidth: .infinity)
+            .padding(18).padding(.bottom, 24).frame(maxWidth: 700).frame(maxWidth: .infinity)
         }
         .scrollDismissesKeyboard(.interactively)
         .background(NewsTheme.paper.ignoresSafeArea())
@@ -496,7 +291,7 @@ struct FollowingView: View {
                     }
                 }
             }
-            .padding(18).padding(.bottom, 110).frame(maxWidth: 700).frame(maxWidth: .infinity)
+            .padding(18).padding(.bottom, 24).frame(maxWidth: 700).frame(maxWidth: .infinity)
         }
         .background(NewsTheme.paper.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)

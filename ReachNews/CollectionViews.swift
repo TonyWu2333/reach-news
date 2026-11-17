@@ -58,11 +58,9 @@ struct CollectionDetailView: View {
 
 struct SettingsView: View {
     @Environment(NewsStore.self) private var store
-    @Environment(LiquidGlassSettings.self) private var glass
     @Environment(\.dismiss) private var dismiss
     @State private var confirmReset = false
     var body: some View {
-        @Bindable var glass = glass
         NavigationStack {
             List {
                 Section("Your account") {
@@ -73,25 +71,8 @@ struct SettingsView: View {
                     NavigationLink { TopicManagerView() } label: { Label("Manage topics", systemImage: "list.bullet") }
                     Button { confirmReset = true } label: { Label("Clear reading history", systemImage: "arrow.counterclockwise") }.foregroundStyle(NewsTheme.ink)
                 }
-                Section {
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack {
-                            Label("Liquid glass", systemImage: "circle.lefthalf.filled")
-                            Spacer()
-                            Button("Reset") { glass.reset() }.font(.caption).underline()
-                        }
-                        Text("Tune the floating navigation and story cards.").font(.caption).foregroundStyle(NewsTheme.secondary)
-                        GlassSlider(title: "Opacity", value: $glass.opacity, range: 0.25...1, valueFormat: "%.2f")
-                        GlassSlider(title: "Blur shadow", value: $glass.blur, range: 4...34, valueFormat: "%.0f")
-                        GlassSlider(title: "Corner radius", value: $glass.cornerRadius, range: 14...38, valueFormat: "%.0f")
-                        GlassSlider(title: "Tint", value: $glass.tint, range: 0...0.28, valueFormat: "%.2f")
-                    }
-                    .padding(.vertical, 6)
-                } header: {
-                    Text("Appearance")
-                }
                 Section("About") {
-                    LabeledContent("Version", value: "0.0.1 (10006)")
+                    LabeledContent("Version", value: "0.0.1 (10007)")
                     Text("Reach News helps you compare coverage, see blindspots and read across the spectrum.").foregroundStyle(NewsTheme.secondary)
                 }
             }
@@ -104,22 +85,3 @@ struct SettingsView: View {
         }
     }
 }
-
-struct GlassSlider: View {
-    let title: String
-    @Binding var value: Double
-    let range: ClosedRange<Double>
-    let valueFormat: String
-
-    var body: some View {
-        VStack(spacing: 4) {
-            HStack {
-                Text(title).font(.caption)
-                Spacer()
-                Text(String(format: valueFormat, value)).font(.caption.monospacedDigit()).foregroundStyle(NewsTheme.secondary)
-            }
-            Slider(value: $value, in: range)
-        }
-    }
-}
-
