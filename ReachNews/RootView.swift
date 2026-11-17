@@ -58,29 +58,43 @@ struct FloatingTabBar: View {
     @Binding var selection: AppTab
 
     var body: some View {
-        HStack(spacing: 5) {
-            ForEach(AppTab.allCases, id: \.self) { tab in
-                Button {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) { selection = tab }
-                } label: {
-                    HStack(spacing: 7) {
-                        Image(systemName: tab.symbol).font(.system(size: 15, weight: .semibold))
-                        if selection == tab {
-                            Text(tab.rawValue).font(.caption.weight(.bold))
+        GeometryReader { proxy in
+            HStack(spacing: 5) {
+                ForEach(AppTab.allCases, id: \.self) { tab in
+                    Button {
+                        withAnimation(.spring(response: 0.28, dampingFraction: 0.78)) { selection = tab }
+                    } label: {
+                        HStack(spacing: 7) {
+                            Image(systemName: tab.symbol).font(.system(size: 15, weight: .semibold))
+                            if selection == tab {
+                                Text(tab.rawValue).font(.caption.weight(.bold))
+                            }
+                        }
+                        .foregroundStyle(selection == tab ? NewsTheme.ink : NewsTheme.secondary)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 43)
+                        .background(selection == tab ? .white.opacity(0.78) : .clear, in: Capsule())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(tab.rawValue)
+                    .accessibilityAddTraits(selection == tab ? .isSelected : [])
+                }
+            }
+            .padding(5)
+            .liquidGlass(cornerRadius: 32)
+            .contentShape(Capsule())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        let segment = max(0, min(AppTab.allCases.count - 1, Int(value.location.x / max(proxy.size.width, 1) * CGFloat(AppTab.allCases.count))))
+                        let tab = AppTab.allCases[segment]
+                        if selection != tab {
+                            withAnimation(.interactiveSpring(response: 0.2, dampingFraction: 0.82)) { selection = tab }
                         }
                     }
-                    .foregroundStyle(selection == tab ? NewsTheme.ink : NewsTheme.secondary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 43)
-                    .background(selection == tab ? .white.opacity(0.78) : .clear, in: Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(tab.rawValue)
-                .accessibilityAddTraits(selection == tab ? .isSelected : [])
-            }
+            )
         }
-        .padding(5)
-        .liquidGlass(cornerRadius: 32)
+        .frame(height: 54)
         .frame(maxWidth: 430)
     }
 }

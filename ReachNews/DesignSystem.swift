@@ -54,6 +54,19 @@ struct LiquidGlassModifier: ViewModifier {
             .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous))
             .background(NewsTheme.ink.opacity(settings.tint * settings.opacity), in: RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous))
             .overlay {
+                ZStack {
+                    RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous)
+                        .fill(LinearGradient(colors: [.white.opacity(settings.opacity * 0.34), .clear, .white.opacity(settings.opacity * 0.12)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    Circle()
+                        .fill(.white.opacity(settings.opacity * 0.22))
+                        .frame(width: 76, height: 32)
+                        .blur(radius: CGFloat(max(4, settings.blur / 2)))
+                        .offset(x: -54, y: -25)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous))
+                .allowsHitTesting(false)
+            }
+            .overlay {
                 RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous)
                     .strokeBorder(.white.opacity(settings.opacity * 0.55), lineWidth: 1)
             }

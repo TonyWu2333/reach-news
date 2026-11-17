@@ -4,7 +4,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,11 +20,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.input.pointer.pointerInput
 
 private val Ink = Color(0xFF121211)
 private val Secondary = Color(0xFF777773)
@@ -41,7 +46,7 @@ fun Modifier.liquidGlass(): Modifier {
     return this
         .shadow(12.dp, shape, ambientColor = Ink.copy(alpha = 0.12f), spotColor = Ink.copy(alpha = 0.18f))
         .clip(shape)
-        .background(Color.White.copy(alpha = style.opacity))
+        .background(Brush.linearGradient(listOf(Color.White.copy(alpha = style.opacity + 0.18f), Color.White.copy(alpha = style.opacity * 0.45f), Color.White.copy(alpha = style.opacity + 0.08f))))
         .border(1.dp, Color.White.copy(alpha = 0.62f), shape)
 }
 
@@ -82,7 +87,7 @@ class MainActivity : ComponentActivity() { override fun onCreate(savedInstanceSt
 @Composable
 fun FloatingNavigationBar(selected: Int, onSelect: (Int) -> Unit) {
     val tabs = listOf("Briefing" to Icons.Default.MenuBook, "Explore" to Icons.Default.Search, "Following" to Icons.Default.Bookmark)
-    Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp).liquidGlass().padding(5.dp), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 8.dp).liquidGlass().padding(5.dp).pointerInput(Unit) { detectDragGestures { change, _ -> onSelect((change.position.x / size.width * tabs.size).toInt().coerceIn(0, tabs.lastIndex)) } }, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
         tabs.forEachIndexed { index, item ->
             Row(Modifier.weight(1f).height(43.dp).clip(RoundedCornerShape(24.dp)).background(if (index == selected) Color.White.copy(alpha = .82f) else Color.Transparent).clickable { onSelect(index) }, horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                 Icon(item.second, null, Modifier.size(17.dp), tint = if (index == selected) Ink else Secondary)
