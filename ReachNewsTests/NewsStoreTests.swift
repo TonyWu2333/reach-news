@@ -1,6 +1,7 @@
 import XCTest
 @testable import ReachNews
 
+@MainActor
 final class NewsStoreTests: XCTestCase {
     func testSearchAndSaveArePersistent() {
         let defaults = UserDefaults(suiteName: #function)!
