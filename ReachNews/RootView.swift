@@ -17,16 +17,35 @@ struct RootView: View {
     @State private var selectedTab: AppTab = .briefing
     @State private var glass = LiquidGlassSettings()
 
+    init() {
+        if let preview = ProcessInfo.processInfo.environment["REACH_PREVIEW_TAB"] ?? UserDefaults.standard.string(forKey: "REACH_PREVIEW_TAB") {
+            switch preview.lowercased() {
+            case "explore": _selectedTab = State(initialValue: .explore)
+            case "following": _selectedTab = State(initialValue: .following)
+            default: _selectedTab = State(initialValue: .briefing)
+            }
+        }
+    }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             currentTab
-            FloatingTabBar(selection: $selectedTab)
+            FloatingTabBar(
+                selection: $selectedTab,
+                previewDragProgress: previewDragProgress
+            )
                 .padding(.horizontal, 18)
                 .padding(.bottom, 8)
         }
         .environment(glass)
         .background(NewsTheme.paper.ignoresSafeArea())
         .tint(NewsTheme.ink)
+    }
+
+    private var previewDragProgress: CGFloat? {
+        let raw = ProcessInfo.processInfo.environment["REACH_PREVIEW_DRAG"] ?? UserDefaults.standard.string(forKey: "REACH_PREVIEW_DRAG")
+        guard let raw, let value = Double(raw) else { return nil }
+        return CGFloat(min(max(value, 0), 1))
     }
 
     @ViewBuilder
@@ -59,46 +78,14 @@ struct RootView: View {
 
 struct FloatingTabBar: View {
     @Binding var selection: AppTab
+    var previewDragProgress: CGFloat? = nil
     @State private var dragX: CGFloat?
     @State private var isDragging = false
-    @State private var barWidth: CGFloat = 0
+    @State private var contentWidth: CGFloat = 0
 
     var body: some View {
         let tabs = AppTab.allCases
-        return HStack(spacing: 0) {
-            ForEach(tabs, id: \.self) { tab in
-                Button {
-                    withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) { selection = tab }
-                } label: {
-                    HStack(spacing: 7) {
-                        Image(systemName: tab.symbol)
-                            .font(.system(size: 15, weight: .semibold))
-                        if selection == tab {
-                            Text(tab.rawValue)
-                                .font(.caption.weight(.bold))
-                        }
-                    }
-                    .foregroundStyle(selection == tab ? NewsTheme.ink : NewsTheme.secondary)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 46)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(tab.rawValue)
-                .accessibilityAddTraits(selection == tab ? .isSelected : [])
-            }
-        }
-        .padding(.horizontal, 6)
-        .frame(height: 58)
-        .frame(maxWidth: 430)
-        .background {
-            GeometryReader { proxy in
-                Color.clear
-                    .preference(key: TabBarWidthKey.self, value: proxy.size.width)
-            }
-        }
-        .onPreferenceChange(TabBarWidthKey.self) { barWidth = $0 }
-        .background {
+        return ZStack {
             Capsule(style: .continuous)
                 .fill(.ultraThinMaterial)
                 .overlay {
@@ -110,25 +97,57 @@ struct FloatingTabBar: View {
                         .strokeBorder(Color.white.opacity(0.55), lineWidth: 1)
                 }
                 .shadow(color: .black.opacity(0.12), radius: 18, y: 8)
-        }
-        .overlay(alignment: .leading) {
+
             GeometryReader { proxy in
                 let width = proxy.size.width
-                let indicatorX = dragX ?? (width * (CGFloat(tabs.firstIndex(of: selection) ?? 0) + 0.5) / CGFloat(tabs.count))
-                LiquidDropIndicator(
-                    progress: indicatorX,
-                    width: width,
-                    isDragging: isDragging
-                )
+                let effectiveDrag = previewDragProgress.map { $0 * width } ?? dragX
+                let indicatorX = effectiveDrag ?? (width * (CGFloat(tabs.firstIndex(of: selection) ?? 0) + 0.5) / CGFloat(tabs.count))
+                let dragging = isDragging || previewDragProgress != nil
+
+                ZStack {
+                    LiquidDropIndicator(
+                        progress: indicatorX,
+                        width: width,
+                        isDragging: dragging
+                    )
+
+                    HStack(spacing: 0) {
+                        ForEach(tabs, id: \.self) { tab in
+                            Button {
+                                withAnimation(.spring(response: 0.28, dampingFraction: 0.84)) { selection = tab }
+                            } label: {
+                                HStack(spacing: 7) {
+                                    Image(systemName: tab.symbol)
+                                        .font(.system(size: 15, weight: .semibold))
+                                    if selection == tab && !dragging {
+                                        Text(tab.rawValue)
+                                            .font(.caption.weight(.bold))
+                                    }
+                                }
+                                .foregroundStyle(selection == tab ? NewsTheme.ink : NewsTheme.secondary)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 46)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(tab.rawValue)
+                            .accessibilityAddTraits(selection == tab ? .isSelected : [])
+                        }
+                    }
+                }
+                .onAppear { contentWidth = width }
+                .onChange(of: width) { _, newValue in contentWidth = newValue }
             }
-            .allowsHitTesting(false)
+            .padding(.horizontal, 6)
         }
+        .frame(height: 58)
+        .frame(maxWidth: 430)
         .clipShape(Capsule(style: .continuous))
         .contentShape(Capsule())
         .highPriorityGesture(
             DragGesture(minimumDistance: 4)
                 .onChanged { value in
-                    let width = max(barWidth, 1)
+                    let width = max(contentWidth, 1)
                     let x = max(0, min(width, value.location.x))
                     dragX = x
                     isDragging = true
@@ -147,13 +166,6 @@ struct FloatingTabBar: View {
                     }
                 }
         )
-    }
-}
-
-private struct TabBarWidthKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
     }
 }
 
@@ -177,7 +189,8 @@ struct LiquidDropIndicator: View {
         }
         .frame(width: segment, height: 48)
         .shadow(color: .black.opacity(0.08), radius: 8, y: 2)
-        .offset(x: progress - width / 2)
+        // GeometryReader places children at the top-leading origin, so center by segment/2.
+        .offset(x: progress - segment / 2)
         .allowsHitTesting(false)
     }
 }

@@ -70,12 +70,27 @@ jobs:
           /usr/libexec/PlistBuddy -c "Add :CFBundleExecutable string ReachNews" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable ReachNews" "$APP_PATH/Info.plist"
           /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Info.plist"
           xcrun simctl install "$DEVICE_ID" "$APP_PATH"
-          xcrun simctl launch "$DEVICE_ID" com.tangsong404.reachnews
-          sleep 5
           mkdir -p visual-preview
-          xcrun simctl io "$DEVICE_ID" screenshot visual-preview/reach-news-briefing.png
+          capture() {
+            local name="$1"
+            shift
+            xcrun simctl terminate "$DEVICE_ID" com.tangsong404.reachnews >/dev/null 2>&1 || true
+            xcrun simctl launch "$DEVICE_ID" com.tangsong404.reachnews "$@"
+            sleep 4
+            xcrun simctl io "$DEVICE_ID" screenshot "visual-preview/${name}.png"
+          }
+
+          # Selected-state frames
+          capture reach-news-briefing -REACH_PREVIEW_TAB briefing
+          capture reach-news-explore -REACH_PREVIEW_TAB explore
+          capture reach-news-following -REACH_PREVIEW_TAB following
+
+          # Drag-progress frames across the capsule
+          capture reach-news-drag-20 -REACH_PREVIEW_TAB briefing -REACH_PREVIEW_DRAG 0.20
+          capture reach-news-drag-50 -REACH_PREVIEW_TAB briefing -REACH_PREVIEW_DRAG 0.50
+          capture reach-news-drag-80 -REACH_PREVIEW_TAB briefing -REACH_PREVIEW_DRAG 0.80
       - uses: actions/upload-artifact@v4
         with:
           name: reach-news-ios-visual-preview
-          path: visual-preview/reach-news-briefing.png
+          path: visual-preview/*.png
 
