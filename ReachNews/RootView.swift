@@ -57,11 +57,12 @@ struct RootView: View {
 struct FloatingTabBar: View {
     @Binding var selection: AppTab
     @State private var dragX: CGFloat?
+    @State private var isDragging = false
 
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                LiquidDropIndicator(progress: dragX ?? (proxy.size.width * (CGFloat(AppTab.allCases.firstIndex(of: selection) ?? 0) + 0.5) / CGFloat(AppTab.allCases.count)), width: proxy.size.width)
+                LiquidDropIndicator(progress: dragX ?? (proxy.size.width * (CGFloat(AppTab.allCases.firstIndex(of: selection) ?? 0) + 0.5) / CGFloat(AppTab.allCases.count)), width: proxy.size.width, isDragging: isDragging)
                 HStack(spacing: 5) {
                     ForEach(AppTab.allCases, id: \.self) { tab in
                         Button {
@@ -89,6 +90,7 @@ struct FloatingTabBar: View {
                         .onChanged { value in
                             let x = max(0, min(proxy.size.width, value.location.x))
                             dragX = x
+                            isDragging = true
                             let segment = max(0, min(AppTab.allCases.count - 1, Int(x / max(proxy.size.width, 1) * CGFloat(AppTab.allCases.count))))
                             let tab = AppTab.allCases[segment]
                             if selection != tab {
@@ -96,7 +98,7 @@ struct FloatingTabBar: View {
                             }
                         }
                         .onEnded { _ in
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) { dragX = nil }
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) { dragX = nil; isDragging = false }
                         }
                 )
             }
@@ -111,17 +113,19 @@ struct FloatingTabBar: View {
 struct LiquidDropIndicator: View {
     let progress: CGFloat
     let width: CGFloat
+    let isDragging: Bool
 
     var body: some View {
         let segment = width / 3
         ZStack {
-            Capsule().fill(.white.opacity(0.72)).frame(width: segment - 10, height: 43)
-            Circle().fill(.white.opacity(0.34)).frame(width: 34, height: 24).blur(radius: 5).offset(x: segment * 0.18, y: -11)
-            Circle().fill(.white.opacity(0.28)).frame(width: 25, height: 20).blur(radius: 4).offset(x: -segment * 0.17, y: 13)
+            Capsule().fill(LinearGradient(colors: [.white.opacity(0.98), NewsTheme.left.opacity(0.28), .white.opacity(0.78)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .frame(width: segment - 10 + (isDragging ? 20 : 0), height: isDragging ? 46 : 43)
+            Circle().fill(.white.opacity(0.78)).frame(width: isDragging ? 46 : 34, height: isDragging ? 28 : 24).blur(radius: 5).offset(x: segment * 0.18, y: -11)
+            Circle().fill(NewsTheme.left.opacity(isDragging ? 0.30 : 0.18)).frame(width: isDragging ? 32 : 25, height: 20).blur(radius: 4).offset(x: -segment * 0.17, y: 13)
         }
         .frame(width: segment, height: 48)
-        .scaleEffect(x: 1.04, y: 0.96)
-        .shadow(color: .white.opacity(0.48), radius: 7, y: 2)
+        .scaleEffect(x: isDragging ? 1.12 : 1.04, y: isDragging ? 1.02 : 0.96)
+        .shadow(color: NewsTheme.left.opacity(isDragging ? 0.42 : 0.18), radius: isDragging ? 16 : 7, y: 2)
         .offset(x: progress - width / 2)
         .allowsHitTesting(false)
     }
