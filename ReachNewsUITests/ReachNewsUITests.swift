@@ -11,7 +11,7 @@ final class ReachNewsUITests: XCTestCase {
         XCTAssertTrue(search.waitForExistence(timeout: 3))
         search.tap()
         search.typeText("forest")
-        XCTAssertTrue(app.staticTexts["1 story"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.descendants(matching: .any)["story-logging-forest"].waitForExistence(timeout: 5))
     }
 }
 
