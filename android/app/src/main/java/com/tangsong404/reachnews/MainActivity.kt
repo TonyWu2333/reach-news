@@ -43,6 +43,7 @@ private val stories = listOf(
 
 class MainActivity : ComponentActivity() { override fun onCreate(savedInstanceState: Bundle?) { super.onCreate(savedInstanceState); setContent { ReachNewsApp() } } }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable fun ReachNewsApp() {
     var tab by remember { mutableIntStateOf(0) }
     var selected by remember { mutableStateOf<Story?>(null) }
@@ -87,6 +88,7 @@ class MainActivity : ComponentActivity() { override fun onCreate(savedInstanceSt
 
 @Composable fun BiasBar(story: Story) { Row(Modifier.fillMaxWidth().height(7.dp).clip(RoundedCornerShape(5.dp))) { Box(Modifier.weight(story.left.toFloat()).fillMaxHeight().background(Left)); Box(Modifier.weight(story.center.toFloat()).fillMaxHeight().background(Center)); Box(Modifier.weight(story.right.toFloat()).fillMaxHeight().background(Right)) } }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable fun StoryDetail(story: Story, onBack: () -> Unit) { Scaffold(topBar = { TopAppBar(title = { Text("Story") }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.Default.ArrowBack, null) } }, actions = { IconButton(onClick = {}) { Icon(Icons.Default.BookmarkBorder, null) }; IconButton(onClick = {}) { Icon(Icons.Default.Share, null) } }) }) { padding -> LazyColumn(Modifier.padding(padding).padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(18.dp), contentPadding = PaddingValues(bottom = 24.dp)) { item { StoryImage(story, 230) }; item { Text(story.title, fontSize = 39.sp, fontWeight = FontWeight.Black, color = Ink) }; item { Text(story.summary, fontSize = 18.sp, color = Secondary, lineHeight = 26.sp) }; item { Text("Coverage", fontWeight = FontWeight.Bold, fontSize = 18.sp) }; item { BiasBar(story) }; item { Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) { Metric("Coverage", "${story.sources} sources", Modifier.weight(1f)); Metric("Bias", "Balanced", Modifier.weight(1f)) } }; item { Text("Where sources agree", fontSize = 28.sp, fontWeight = FontWeight.Black) }; item { Text(story.title + ". " + story.summary, lineHeight = 24.sp) }; item { Text("Where sources disagree", fontSize = 28.sp, fontWeight = FontWeight.Black) }; item { Text("Coverage differs on responsibility, consequences and the path forward. Read the original reporting for the complete picture.", lineHeight = 24.sp) } } } }
 
 @Composable fun Metric(title: String, value: String, modifier: Modifier = Modifier) { Column(modifier.clip(RoundedCornerShape(12.dp)).background(Color(0xFFF5F5F5)).padding(14.dp)) { Text(title, color = Secondary); Text(value, fontWeight = FontWeight.Medium) } }
