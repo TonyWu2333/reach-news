@@ -32,6 +32,9 @@ targets:
       path: build/Info.plist
       properties:
         CFBundleDisplayName: Reach News
+        CFBundleIdentifier: com.tangsong404.reachnews
+        CFBundlePackageType: APPL
+        CFBundleExecutable: $(EXECUTABLE_NAME)
         CFBundleShortVersionString: "0.0.1"
         CFBundleVersion: "10001"
         UILaunchScreen: {}
