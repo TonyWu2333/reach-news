@@ -85,28 +85,28 @@ struct FloatingTabBar: View {
                 }
                 .padding(5)
                 .contentShape(Capsule())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
-                            let x = max(0, min(proxy.size.width, value.location.x))
-                            dragX = x
-                            isDragging = true
-                            let segment = max(0, min(AppTab.allCases.count - 1, Int(x / max(proxy.size.width, 1) * CGFloat(AppTab.allCases.count))))
-                            let tab = AppTab.allCases[segment]
-                            if selection != tab {
-                                withAnimation(.interactiveSpring(response: 0.2, dampingFraction: 0.82)) { selection = tab }
-                            }
-                        }
-                        .onEnded { _ in
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) { dragX = nil; isDragging = false }
-                        }
-                )
             }
             .padding(5)
             .liquidGlass(cornerRadius: 32)
+            .highPriorityGesture(
+                DragGesture(minimumDistance: 4)
+                    .onChanged { value in
+                        let x = max(0, min(proxy.size.width, value.location.x))
+                        dragX = x
+                        isDragging = true
+                        let segment = max(0, min(AppTab.allCases.count - 1, Int(x / max(proxy.size.width, 1) * CGFloat(AppTab.allCases.count))))
+                        let tab = AppTab.allCases[segment]
+                        if selection != tab {
+                            withAnimation(.interactiveSpring(response: 0.2, dampingFraction: 0.82)) { selection = tab }
+                        }
+                    }
+                    .onEnded { _ in
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.78)) { dragX = nil; isDragging = false }
+                    }
+            )
             .distortionEffect(
-                ShaderLibrary.liquidGlass(.float2(Float(proxy.size.width), Float(proxy.size.height)), .float(isDragging ? 18 : 0), .float((dragX ?? proxy.size.width / 2) / max(proxy.size.width, 1))),
-                maxSampleOffset: CGSize(width: 24, height: 16)
+                ShaderLibrary.liquidGlass(.float2(Float(proxy.size.width), Float(proxy.size.height)), .float(isDragging ? 7 : 0), .float((dragX ?? proxy.size.width / 2) / max(proxy.size.width, 1))),
+                maxSampleOffset: CGSize(width: 12, height: 10)
             )
         }
         .frame(height: 54)
@@ -122,24 +122,15 @@ struct LiquidDropIndicator: View {
     var body: some View {
         let segment = width / 3
         ZStack {
-            LiquidLensShape(bulge: isDragging ? 8 : 4)
+            Capsule()
                 .fill(.ultraThinMaterial)
-                .overlay {
-                    LiquidLensShape(bulge: isDragging ? 8 : 4)
-                        .fill(LinearGradient(colors: [.white.opacity(0.86), NewsTheme.left.opacity(isDragging ? 0.40 : 0.24), .white.opacity(0.62)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                }
-                .overlay {
-                    LiquidLensShape(bulge: isDragging ? 8 : 4).stroke(.white.opacity(0.90), lineWidth: 1.2)
-                }
-                .frame(width: segment - 10 + (isDragging ? 20 : 0), height: isDragging ? 46 : 43)
+                .overlay { Capsule().fill(LinearGradient(colors: [.white.opacity(0.86), NewsTheme.left.opacity(isDragging ? 0.44 : 0.25), .white.opacity(0.68)], startPoint: .topLeading, endPoint: .bottomTrailing)) }
+                .overlay { Capsule().stroke(.white.opacity(0.92), lineWidth: 1.2) }
+                .frame(width: segment - 10 + (isDragging ? 16 : 0), height: isDragging ? 42 : 39)
             Ellipse().fill(.white.opacity(0.82)).frame(width: isDragging ? 46 : 34, height: isDragging ? 15 : 11).blur(radius: 5).offset(x: segment * 0.18, y: -13)
             Ellipse().fill(NewsTheme.left.opacity(isDragging ? 0.38 : 0.22)).frame(width: isDragging ? 34 : 25, height: 11).blur(radius: 5).offset(x: -segment * 0.17, y: 13)
         }
         .frame(width: segment, height: 48)
-        .distortionEffect(
-            ShaderLibrary.liquidGlass(.float2(Float(segment), 48), .float(isDragging ? 5 : 2), .float(isDragging ? 1 : 0)),
-            maxSampleOffset: CGSize(width: 8, height: 8)
-        )
         .scaleEffect(x: isDragging ? 1.12 : 1.04, y: isDragging ? 1.02 : 0.96)
         .shadow(color: NewsTheme.left.opacity(isDragging ? 0.42 : 0.18), radius: isDragging ? 16 : 7, y: 2)
         .offset(x: progress - width / 2)
