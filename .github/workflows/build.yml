@@ -67,6 +67,7 @@ jobs:
           xcrun simctl bootstatus "$DEVICE_ID" -b
           APP_PATH="build/Build/Products/Debug-iphonesimulator/ReachNews.app"
           /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string com.tangsong404.reachnews" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.tangsong404.reachnews" "$APP_PATH/Info.plist"
+          /usr/libexec/PlistBuddy -c "Add :CFBundleExecutable string ReachNews" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable ReachNews" "$APP_PATH/Info.plist"
           /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Info.plist"
           xcrun simctl install "$DEVICE_ID" "$APP_PATH"
           xcrun simctl launch "$DEVICE_ID" com.tangsong404.reachnews

@@ -34,7 +34,7 @@ targets:
         CFBundleDisplayName: Reach News
         CFBundleIdentifier: com.tangsong404.reachnews
         CFBundlePackageType: APPL
-        CFBundleExecutable: $(EXECUTABLE_NAME)
+        CFBundleExecutable: ReachNews
         CFBundleShortVersionString: "0.0.1"
         CFBundleVersion: "10001"
         UILaunchScreen: {}
