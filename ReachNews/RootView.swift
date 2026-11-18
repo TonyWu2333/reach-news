@@ -2,12 +2,12 @@ import SwiftUI
 
 enum AppTab: String, CaseIterable {
     case briefing = "Briefing"
-    case explore = "Explore"
+    case explore = "Build"
     case following = "Following"
     var symbol: String {
         switch self {
         case .briefing: "book.pages.fill"
-        case .explore: "magnifyingglass"
+        case .explore: "slider.horizontal.3"
         case .following: "bookmark.fill"
         }
     }
@@ -64,6 +64,33 @@ struct BriefingView: View {
 
                 NavigationLink { Last24View() } label: { DailyBriefCard() }
                     .buttonStyle(.plain).accessibilityIdentifier("last24")
+
+                BriefingPulseCard()
+
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Your channels").font(.title3.bold())
+                        Spacer()
+                        NavigationLink("Manage") { ExploreView() }.font(.caption).underline()
+                    }
+                    ForEach(store.channels.filter { $0.isEnabled }) { channel in
+                        NavigationLink { ChannelDetailView(channel: channel) } label: {
+                            ChannelRow(channel: channel)
+                        }.buttonStyle(.plain)
+                    }
+                }
+
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Tracked events").font(.title3.bold())
+                        Spacer()
+                        NavigationLink("See all") { EventsView() }.font(.caption).underline()
+                    }
+                    ForEach(store.trackedEvents) { event in
+                        NavigationLink { EventDetailView(event: event) } label: { EventRow(event: event) }
+                            .buttonStyle(.plain)
+                    }
+                }
 
                 ScrollView(.horizontal, showsIndicators: false) {
                     HStack(spacing: 20) {
@@ -153,7 +180,27 @@ struct DailyBriefCard: View {
     }
 }
 
-struct ExploreView: View {
+struct BriefingPulseCard: View {
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle().fill(NewsTheme.ink)
+                Image(systemName: "arrow.triangle.2.circlepath").foregroundStyle(.white)
+            }.frame(width: 42, height: 42)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("COLLECTOR PULSE").font(.system(size: 9, weight: .bold)).tracking(1.3)
+                Text("3 collectors refreshed 73 cached items").font(.subheadline.weight(.semibold))
+                Text("Your next brief is ready at 08:30").font(.caption).foregroundStyle(NewsTheme.secondary)
+            }
+            Spacer()
+            Image(systemName: "chevron.right").font(.caption)
+        }
+        .padding(15)
+        .background(NewsTheme.gold.opacity(0.22), in: RoundedRectangle(cornerRadius: 14))
+    }
+}
+
+struct StoryExploreView: View {
     @Environment(NewsStore.self) private var store
     @State private var query = ""
     @State private var selectedTopic: String?
@@ -260,6 +307,17 @@ struct FollowingView: View {
                         ArticleList(articles: store.savedArticles)
                     }
                 } else {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("Tracked events").font(.headline)
+                            Spacer()
+                            NavigationLink("See all") { EventsView() }.font(.caption).underline()
+                        }
+                        ForEach(store.trackedEvents) { event in
+                            NavigationLink { EventDetailView(event: event) } label: { EventRow(event: event) }
+                                .buttonStyle(.plain)
+                        }
+                    }
                     HStack {
                         Text("Your topics").font(.headline)
                         Spacer()

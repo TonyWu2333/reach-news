@@ -42,6 +42,47 @@ struct Article: Codable, Identifiable, Hashable {
     func hash(into hasher: inout Hasher) { hasher.combine(id) }
 }
 
+struct Collector: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let source: String
+    let symbol: String
+    let cadence: String
+    let lastRun: String
+    let itemCount: Int
+    let status: String
+    let tint: String
+}
+
+struct BriefingChannel: Identifiable, Hashable {
+    let id: String
+    let name: String
+    let summary: String
+    let schedule: String
+    let collectorIDs: [String]
+    let unreadCount: Int
+    let symbol: String
+    let tint: String
+    var isEnabled: Bool
+}
+
+struct TrackedEvent: Identifiable, Hashable {
+    let id: String
+    let title: String
+    let query: String
+    let channelName: String
+    let updates: Int
+    let lastUpdated: String
+    let symbol: String
+    let tint: String
+}
+
+struct AIMessage: Identifiable, Hashable {
+    let id = UUID()
+    let role: String
+    let text: String
+}
+
 struct Outlet: Identifiable {
     let id: String
     let name: String
@@ -104,6 +145,22 @@ final class NewsStore {
     @ObservationIgnored private let defaults: UserDefaults
 
     static let topics = ["World", "United States", "Politics", "Environment", "Business", "Technology"]
+
+    let collectors: [Collector] = [
+        .init(id: "github", name: "GitHub Trending", source: "GitHub", symbol: "chevron.left.forwardslash.chevron.right", cadence: "Daily · 08:00", lastRun: "Today, 08:04", itemCount: 24, status: "Ready", tint: "blue"),
+        .init(id: "x", name: "X watchlist", source: "X", symbol: "at", cadence: "Every 2 hours", lastRun: "12 min ago", itemCount: 18, status: "Watching", tint: "ink"),
+        .init(id: "xiaohongshu", name: "小红书趋势", source: "小红书", symbol: "sparkles", cadence: "Daily · 09:30", lastRun: "Yesterday, 09:31", itemCount: 31, status: "Ready", tint: "coral")
+    ]
+    let channels: [BriefingChannel] = [
+        .init(id: "ai", name: "AI & Agents", summary: "Models, products and the people building them.", schedule: "Every day · 08:30", collectorIDs: ["github", "x"], unreadCount: 12, symbol: "wand.and.stars", tint: "purple", isEnabled: true),
+        .init(id: "tech", name: "Technology", summary: "The systems changing how we work and live.", schedule: "Every day · 12:00", collectorIDs: ["github", "x", "xiaohongshu"], unreadCount: 8, symbol: "cpu", tint: "blue", isEnabled: true),
+        .init(id: "markets", name: "Markets", summary: "Signals and context for the next trading day.", schedule: "Weekdays · 17:30", collectorIDs: ["x"], unreadCount: 4, symbol: "chart.line.uptrend.xyaxis", tint: "gold", isEnabled: true),
+        .init(id: "games", name: "Games", summary: "Releases, studios and the culture around play.", schedule: "Every day · 19:00", collectorIDs: ["xiaohongshu"], unreadCount: 0, symbol: "gamecontroller", tint: "coral", isEnabled: false)
+    ]
+    let trackedEvents: [TrackedEvent] = [
+        .init(id: "open-models", title: "Open models race", query: "open source foundation models", channelName: "AI & Agents", updates: 17, lastUpdated: "38 min ago", symbol: "arrow.triangle.2.circlepath", tint: "purple"),
+        .init(id: "chip-export", title: "AI chip export rules", query: "semiconductor export controls", channelName: "Markets", updates: 6, lastUpdated: "Yesterday", symbol: "scope", tint: "gold")
+    ]
 
     init(defaults: UserDefaults = .standard, articles: [Article]? = nil) {
         self.defaults = defaults

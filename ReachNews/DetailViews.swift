@@ -5,6 +5,7 @@ struct ArticleDetailView: View {
     @Environment(NewsStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var analysisShown = false
+    @State private var askAgentShown = false
 
     var body: some View {
         ScrollView {
@@ -22,6 +23,10 @@ struct ArticleDetailView: View {
                     }
                     ShareLink(item: article.title) { Label("Share", systemImage: "square.and.arrow.up") }
                 }.font(.subheadline.weight(.semibold))
+                Button { askAgentShown = true } label: {
+                    Label("Ask the agent about this story", systemImage: "sparkles")
+                        .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 14)
+                }.buttonStyle(.borderedProminent).tint(NewsTheme.ink)
                 Text(article.summary).font(.title3).foregroundStyle(NewsTheme.secondary).lineSpacing(4)
 
                 VStack(alignment: .leading, spacing: 15) {
@@ -59,6 +64,7 @@ struct ArticleDetailView: View {
             }
         }
         .onAppear { store.markRead(article) }
+        .sheet(isPresented: $askAgentShown) { AskAgentView(context: article.title) }
     }
 }
 
