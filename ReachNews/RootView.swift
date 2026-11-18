@@ -32,7 +32,6 @@ struct RootView: View {
                         .navigationDestination(for: NewsCollection.self) { CollectionDetailView(collection: $0) }
                     }
                     .tint(nil)
-                    .background(SwipeBackEnabler().frame(width: 0, height: 0))
                 } label: {
                     Label(tab.rawValue, systemImage: tab.symbol)
                 }
@@ -157,7 +156,7 @@ struct BriefingView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .sheet(isPresented: $showSettings) { SettingsView() }
+        .navigationDestination(isPresented: $showSettings) { SettingsView() }
     }
 }
 
@@ -349,7 +348,7 @@ struct FollowingView: View {
         }
         .background(NewsTheme.paper.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
-        .sheet(isPresented: $manageTopics) { TopicManagerView() }
+        .navigationDestination(isPresented: $manageTopics) { TopicManagerView() }
     }
 }
 
@@ -357,8 +356,7 @@ struct TopicManagerView: View {
     @Environment(NewsStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     var body: some View {
-        NavigationStack {
-            List {
+        List {
                 Section("Build your perspective") {
                     ForEach(NewsStore.topics, id: \.self) { topic in
                         Button { store.toggleTopic(topic) } label: {
@@ -372,10 +370,8 @@ struct TopicManagerView: View {
                     }
                 }
             }
-            .navigationTitle("Your topics").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-        }
-        .background(SwipeBackEnabler().frame(width: 0, height: 0))
+        .navigationTitle("Your topics").navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
     }
 }
 

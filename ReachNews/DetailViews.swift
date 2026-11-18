@@ -64,7 +64,7 @@ struct ArticleDetailView: View {
             }
         }
         .onAppear { store.markRead(article) }
-        .sheet(isPresented: $askAgentShown) { AskAgentView(context: article.title) }
+        .navigationDestination(isPresented: $askAgentShown) { AskAgentView(context: article.title) }
     }
 }
 

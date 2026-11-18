@@ -62,8 +62,7 @@ struct SettingsView: View {
     @State private var confirmReset = false
     @AppStorage("appLanguage") private var appLanguage = "system"
     var body: some View {
-        NavigationStack {
-            List {
+        List {
                 Section("Your account") {
                     Label("Reach News member", systemImage: "person.crop.circle.fill")
                     Label("Personalized briefing", systemImage: "sparkles")
@@ -84,13 +83,11 @@ struct SettingsView: View {
                     Text("Reach News helps you compare coverage, see blindspots and read across the spectrum.").foregroundStyle(NewsTheme.secondary)
                 }
             }
-            .navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-            .confirmationDialog("Clear your reading history?", isPresented: $confirmReset, titleVisibility: .visible) {
-                Button("Clear history", role: .destructive) { store.resetReadingHistory() }
-                Button("Cancel", role: .cancel) {}
-            }
+        .navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
+        .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+        .confirmationDialog("Clear your reading history?", isPresented: $confirmReset, titleVisibility: .visible) {
+            Button("Clear history", role: .destructive) { store.resetReadingHistory() }
+            Button("Cancel", role: .cancel) {}
         }
-        .background(SwipeBackEnabler().frame(width: 0, height: 0))
     }
 }

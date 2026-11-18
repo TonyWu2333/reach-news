@@ -198,7 +198,7 @@ struct EventDetailView: View {
                 Text("Latest updates").font(NewsTheme.headline(28))
                 ArticleList(articles: store.articles.prefix(3).map { $0 }, firstFeatured: true)
             }.padding(18).frame(maxWidth: 700).frame(maxWidth: .infinity)
-        }.background(NewsTheme.paper.ignoresSafeArea()).navigationTitle("Event").navigationBarTitleDisplayMode(.inline).sheet(isPresented: $showAsk) { AskAgentView(context: event.title) }
+        }.background(NewsTheme.paper.ignoresSafeArea()).navigationTitle("Event").navigationBarTitleDisplayMode(.inline).navigationDestination(isPresented: $showAsk) { AskAgentView(context: event.title) }
     }
 }
 
@@ -213,8 +213,7 @@ struct AskAgentView: View {
         _messages = State(initialValue: [AIMessage(role: "agent", text: "I’m watching \(context). Ask for a timeline, the latest change, or more context.")])
     }
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
+        VStack(spacing: 0) {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 12) {
                         ForEach(messages) { message in
@@ -226,9 +225,7 @@ struct AskAgentView: View {
                     TextField("Ask about this story…", text: $prompt).textFieldStyle(.roundedBorder)
                     Button { send() } label: { Image(systemName: "arrow.up.circle.fill").font(.title2) }.disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }.padding(12).background(.thinMaterial)
-            }.navigationTitle("Ask the agent").navigationBarTitleDisplayMode(.inline).toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
-        }
-        .background(SwipeBackEnabler().frame(width: 0, height: 0))
+        }.navigationTitle("Ask the agent").navigationBarTitleDisplayMode(.inline).toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
     }
     private func send() {
         let value = prompt.trimmingCharacters(in: .whitespacesAndNewlines); guard !value.isEmpty else { return }
