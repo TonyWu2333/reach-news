@@ -65,7 +65,7 @@ struct BiasBar: View {
     private func legend(_ title: String, value: Int, color: Color) -> some View {
         HStack(spacing: 4) {
             Circle().fill(color).frame(width: 5, height: 5)
-            Text("\(title) \(value)%").font(.caption2).foregroundStyle(NewsTheme.secondary)
+            Text("\(Text(LocalizedStringKey(title))) \(value)%").font(.caption2).foregroundStyle(NewsTheme.secondary)
         }
     }
 }
@@ -83,7 +83,7 @@ struct CoverageLabel: View {
                     }
                 }
             }
-            Text(coverage.label).font(.caption.weight(.medium))
+            Text(LocalizedStringKey(coverage.label)).font(.caption.weight(.medium))
         }
     }
 }
@@ -118,9 +118,9 @@ struct SectionHeading: View {
     var subtitle: String? = nil
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text(title).font(NewsTheme.headline(36)).foregroundStyle(NewsTheme.ink)
+            Text(LocalizedStringKey(title)).font(NewsTheme.headline(36)).foregroundStyle(NewsTheme.ink)
             if let subtitle {
-                Text(subtitle).font(.subheadline).foregroundStyle(NewsTheme.secondary).lineSpacing(3)
+                Text(LocalizedStringKey(subtitle)).font(.subheadline).foregroundStyle(NewsTheme.secondary).lineSpacing(3)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -132,7 +132,7 @@ struct Tag: View {
     var color: Color = NewsTheme.ink
     var filled = false
     var body: some View {
-        Text(text)
+        Text(LocalizedStringKey(text))
             .font(.caption2.weight(.medium))
             .foregroundStyle(filled ? .white : color)
             .padding(.horizontal, 8).padding(.vertical, 5)
@@ -157,8 +157,8 @@ struct EmptyState: View {
     var body: some View {
         VStack(spacing: 14) {
             Image(systemName: symbol).font(.system(size: 34, weight: .light))
-            Text(title).font(.title3.bold())
-            Text(message).font(.subheadline).foregroundStyle(NewsTheme.secondary).multilineTextAlignment(.center)
+            Text(LocalizedStringKey(title)).font(.title3.bold())
+            Text(LocalizedStringKey(message)).font(.subheadline).foregroundStyle(NewsTheme.secondary).multilineTextAlignment(.center)
         }
         .frame(maxWidth: .infinity).padding(.horizontal, 32).padding(.vertical, 60)
     }
@@ -191,7 +191,7 @@ struct StoryCard: View {
             }
             BiasBar(coverage: article.coverage)
             HStack(spacing: 7) {
-                Text(article.time)
+                Text(LocalizedStringKey(article.time))
                 Text("·")
                 Text("\(article.sources) sources")
                 Spacer()

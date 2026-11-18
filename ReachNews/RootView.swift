@@ -24,7 +24,7 @@ struct RootView: View {
                         Group {
                             switch tab {
                             case .briefing: BriefingView()
-                            case .explore: ExploreView()
+                            case .explore: ExploreView(isTabRoot: true)
                             case .following: FollowingView()
                             }
                         }
@@ -33,7 +33,7 @@ struct RootView: View {
                     }
                     .tint(nil)
                 } label: {
-                    Label(tab.rawValue, systemImage: tab.symbol)
+                    Label(LocalizedStringKey(tab.rawValue), systemImage: tab.symbol)
                 }
             }
         }
@@ -44,6 +44,7 @@ struct RootView: View {
 
 struct BriefingView: View {
     @Environment(NewsStore.self) private var store
+    @Environment(\.locale) private var locale
     @State private var category = "Top stories"
     @State private var showSettings = false
     private let categories = ["Top stories", "World", "United States", "Politics", "Environment"]
@@ -53,7 +54,7 @@ struct BriefingView: View {
             VStack(alignment: .leading, spacing: 24) {
                 HStack(alignment: .center) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day()).uppercased())
+                        Text(Date.now.formatted(.dateTime.weekday(.wide).month(.wide).day().locale(locale)).uppercased())
                             .font(.system(size: 10, weight: .semibold)).tracking(1.2).foregroundStyle(NewsTheme.secondary)
                         Text("Your daily perspective.").font(NewsTheme.headline(39)).tracking(-0.4)
                     }
@@ -97,7 +98,7 @@ struct BriefingView: View {
                         ForEach(categories, id: \.self) { item in
                             Button { withAnimation(.easeInOut(duration: 0.2)) { category = item } } label: {
                                 VStack(spacing: 10) {
-                                    Text(item).font(.subheadline.weight(category == item ? .bold : .regular))
+                                    Text(LocalizedStringKey(item)).font(.subheadline.weight(category == item ? .bold : .regular))
                                         .foregroundStyle(category == item ? NewsTheme.ink : NewsTheme.secondary)
                                     Rectangle().fill(category == item ? NewsTheme.ink : .clear).frame(height: 2)
                                 }
@@ -232,7 +233,7 @@ struct StoryExploreView: View {
                                 selectedTopic = selectedTopic == topic ? nil : topic
                             } label: {
                                 HStack {
-                                    Text(topic).font(.subheadline.weight(.medium))
+                                    Text(LocalizedStringKey(topic)).font(.subheadline.weight(.medium))
                                     Spacer(minLength: 0)
                                     Image(systemName: selectedTopic == topic ? "checkmark" : "arrow.up.right").font(.caption)
                                 }
@@ -245,7 +246,7 @@ struct StoryExploreView: View {
                 }
                 if isFiltering {
                     HStack {
-                        Text("\(results.count) \(results.count == 1 ? "story" : "stories")").font(.headline)
+                        (results.count == 1 ? Text("1 story") : Text("\(results.count) stories")).font(.headline)
                         Spacer()
                         Button("Reset") { query = ""; selectedTopic = nil }.font(.subheadline).underline()
                     }
@@ -282,7 +283,6 @@ struct StoryExploreView: View {
         }
         .scrollDismissesKeyboard(.interactively)
         .background(NewsTheme.paper.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
     }
 }
 
@@ -361,7 +361,7 @@ struct TopicManagerView: View {
                     ForEach(NewsStore.topics, id: \.self) { topic in
                         Button { store.toggleTopic(topic) } label: {
                             HStack {
-                                Text(topic)
+                                Text(LocalizedStringKey(topic))
                                 Spacer()
                                 Image(systemName: store.followedTopics.contains(topic) ? "checkmark.circle.fill" : "plus.circle")
                             }.foregroundStyle(NewsTheme.ink).padding(.vertical, 8)
@@ -371,6 +371,7 @@ struct TopicManagerView: View {
                 }
             }
         .navigationTitle("Your topics").navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
     }
 }

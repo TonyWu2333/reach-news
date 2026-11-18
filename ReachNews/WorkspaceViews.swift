@@ -13,6 +13,7 @@ private extension String {
 }
 
 struct ExploreView: View {
+    var isTabRoot = false
     @Environment(NewsStore.self) private var store
     @State private var section = "Channels"
 
@@ -70,7 +71,8 @@ struct ExploreView: View {
             .padding(18).padding(.bottom, 24).frame(maxWidth: 700).frame(maxWidth: .infinity)
         }
         .background(NewsTheme.paper.ignoresSafeArea())
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle("Build").navigationBarTitleDisplayMode(.inline)
+        .toolbar(isTabRoot ? .hidden : .visible, for: .navigationBar)
     }
 }
 
@@ -84,10 +86,10 @@ struct ChannelRow: View {
                 .frame(width: 40, height: 40).background(channel.tint.workspaceTint.opacity(0.14), in: RoundedRectangle(cornerRadius: 11))
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 7) {
-                    Text(channel.name).font(.headline)
+                    Text(LocalizedStringKey(channel.name)).font(.headline)
                     if !channel.isEnabled { Tag(text: "PAUSED", color: NewsTheme.secondary) }
                 }
-                Text(channel.schedule).font(.caption).foregroundStyle(NewsTheme.secondary)
+                Text(LocalizedStringKey(channel.schedule)).font(.caption).foregroundStyle(NewsTheme.secondary)
             }
             Spacer(minLength: 0)
             if channel.unreadCount > 0 {
@@ -109,18 +111,18 @@ struct CollectorCard: View {
             HStack {
                 Image(systemName: collector.symbol).font(.title3).foregroundStyle(collector.tint.workspaceTint)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(collector.name).font(.headline)
+                    Text(LocalizedStringKey(collector.name)).font(.headline)
                     Text(collector.source).font(.caption).foregroundStyle(NewsTheme.secondary)
                 }
                 Spacer()
                 Tag(text: collector.status.uppercased(), color: collector.tint.workspaceTint)
             }
             HStack {
-                Label(collector.cadence, systemImage: "clock")
+                Label(LocalizedStringKey(collector.cadence), systemImage: "clock")
                 Spacer()
                 Text("\(collector.itemCount) cached items")
             }.font(.caption).foregroundStyle(NewsTheme.secondary)
-            Text("Last run \(collector.lastRun)").font(.caption2).foregroundStyle(NewsTheme.secondary)
+            Text("Last run \(Text(LocalizedStringKey(collector.lastRun)))").font(.caption2).foregroundStyle(NewsTheme.secondary)
         }
         .padding(15).background(NewsTheme.card, in: RoundedRectangle(cornerRadius: 14))
     }
@@ -134,7 +136,7 @@ struct EventRow: View {
                 .frame(width: 40, height: 40).background(event.tint.workspaceTint.opacity(0.14), in: Circle())
             VStack(alignment: .leading, spacing: 4) {
                 Text(event.title).font(.headline)
-                Text("\(event.updates) updates · \(event.lastUpdated)").font(.caption).foregroundStyle(NewsTheme.secondary)
+                Text("\(event.updates) updates · \(Text(LocalizedStringKey(event.lastUpdated)))").font(.caption).foregroundStyle(NewsTheme.secondary)
             }
             Spacer()
             Image(systemName: "chevron.right").font(.caption).foregroundStyle(NewsTheme.secondary)
@@ -151,9 +153,9 @@ struct ChannelDetailView: View {
                 HStack(spacing: 13) {
                     Image(systemName: channel.symbol).font(.title).foregroundStyle(channel.tint.workspaceTint)
                         .frame(width: 54, height: 54).background(channel.tint.workspaceTint.opacity(0.14), in: RoundedRectangle(cornerRadius: 15))
-                    VStack(alignment: .leading, spacing: 4) { Text(channel.name).font(NewsTheme.headline(35)); Text(channel.schedule).font(.subheadline).foregroundStyle(NewsTheme.secondary) }
+                    VStack(alignment: .leading, spacing: 4) { Text(LocalizedStringKey(channel.name)).font(NewsTheme.headline(35)); Text(LocalizedStringKey(channel.schedule)).font(.subheadline).foregroundStyle(NewsTheme.secondary) }
                 }
-                Text(channel.summary).font(.title3).foregroundStyle(NewsTheme.secondary).lineSpacing(3)
+                Text(LocalizedStringKey(channel.summary)).font(.title3).foregroundStyle(NewsTheme.secondary).lineSpacing(3)
                 HStack(spacing: 10) {
                     MetricCard(title: "Collectors", value: "\(channel.collectorIDs.count)", icon: "bolt.fill")
                     MetricCard(title: "Unread", value: "\(channel.unreadCount)", icon: "newspaper")
@@ -164,6 +166,7 @@ struct ChannelDetailView: View {
                 ArticleList(articles: store.articles.filter { $0.category == "Technology" || $0.category == "Business" }.prefix(3).map { $0 }, firstFeatured: true)
             }.padding(18).frame(maxWidth: 700).frame(maxWidth: .infinity)
         }.background(NewsTheme.paper.ignoresSafeArea()).navigationTitle("Channel").navigationBarTitleDisplayMode(.inline)
+            .toolbar(.visible, for: .navigationBar)
     }
 }
 
@@ -176,7 +179,8 @@ struct EventsView: View {
                 ForEach(store.trackedEvents) { event in NavigationLink { EventDetailView(event: event) } label: { EventRow(event: event) }.buttonStyle(.plain) }
                 Button { } label: { Label("Track a new event", systemImage: "plus").frame(maxWidth: .infinity).padding(.vertical, 12) }.buttonStyle(.borderedProminent).tint(NewsTheme.ink)
             }.padding(18).frame(maxWidth: 700).frame(maxWidth: .infinity)
-        }.toolbar(.hidden, for: .navigationBar)
+        }.navigationTitle("Tracked events").navigationBarTitleDisplayMode(.inline)
+            .toolbar(.visible, for: .navigationBar)
     }
 }
 
@@ -190,7 +194,7 @@ struct EventDetailView: View {
                 HStack(spacing: 13) {
                     Image(systemName: event.symbol).font(.title).foregroundStyle(event.tint.workspaceTint)
                         .frame(width: 54, height: 54).background(event.tint.workspaceTint.opacity(0.14), in: Circle())
-                    VStack(alignment: .leading, spacing: 4) { Text(event.title).font(NewsTheme.headline(35)); Text("Watching · \(event.lastUpdated)").font(.subheadline).foregroundStyle(NewsTheme.secondary) }
+                    VStack(alignment: .leading, spacing: 4) { Text(event.title).font(NewsTheme.headline(35)); Text("Watching · \(Text(LocalizedStringKey(event.lastUpdated)))").font(.subheadline).foregroundStyle(NewsTheme.secondary) }
                 }
                 Text("\"\(event.query)\"").font(.title3).foregroundStyle(NewsTheme.secondary)
                 HStack(spacing: 10) { MetricCard(title: "Updates", value: "\(event.updates)", icon: "bell"); MetricCard(title: "Channel", value: event.channelName, icon: "rectangle.3.group") }
@@ -199,6 +203,7 @@ struct EventDetailView: View {
                 ArticleList(articles: store.articles.prefix(3).map { $0 }, firstFeatured: true)
             }.padding(18).frame(maxWidth: 700).frame(maxWidth: .infinity)
         }.background(NewsTheme.paper.ignoresSafeArea()).navigationTitle("Event").navigationBarTitleDisplayMode(.inline).navigationDestination(isPresented: $showAsk) { AskAgentView(context: event.title) }
+            .toolbar(.visible, for: .navigationBar)
     }
 }
 
@@ -226,6 +231,7 @@ struct AskAgentView: View {
                     Button { send() } label: { Image(systemName: "arrow.up.circle.fill").font(.title2) }.disabled(prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }.padding(12).background(.thinMaterial)
         }.navigationTitle("Ask the agent").navigationBarTitleDisplayMode(.inline).toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
+            .toolbar(.visible, for: .navigationBar)
     }
     private func send() {
         let value = prompt.trimmingCharacters(in: .whitespacesAndNewlines); guard !value.isEmpty else { return }

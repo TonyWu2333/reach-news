@@ -10,7 +10,8 @@ struct CollectionsView: View {
                     NavigationLink(value: collection) { CollectionCard(collection: collection) }.buttonStyle(.plain)
                 }
             }.padding(18).frame(maxWidth: 700).frame(maxWidth: .infinity)
-        }.toolbar(.hidden, for: .navigationBar)
+        }.navigationTitle("Collections").navigationBarTitleDisplayMode(.inline)
+            .toolbar(.visible, for: .navigationBar)
     }
 }
 
@@ -28,8 +29,8 @@ struct CollectionCard: View {
                 }
                 Spacer(minLength: compact ? 5 : 12)
                 Image(systemName: collection.symbol).font(.system(size: compact ? 34 : 46, weight: .bold)).foregroundStyle(.white.opacity(0.88))
-                Text(collection.rawValue).font(NewsTheme.headline(compact ? 27 : 35)).foregroundStyle(.white)
-                Text(collection.subtitle).font(.subheadline).foregroundStyle(.white.opacity(0.9)).lineLimit(compact ? 1 : 2)
+                Text(LocalizedStringKey(collection.rawValue)).font(NewsTheme.headline(compact ? 27 : 35)).foregroundStyle(.white)
+                Text(LocalizedStringKey(collection.subtitle)).font(.subheadline).foregroundStyle(.white.opacity(0.9)).lineLimit(compact ? 1 : 2)
             }
             .padding(compact ? 16 : 20)
         }
@@ -48,11 +49,12 @@ struct CollectionDetailView: View {
                 HStack {
                     Text("\(collection.articles(from: store.articles).count) stories").font(.subheadline).foregroundStyle(NewsTheme.secondary)
                     Spacer()
-                    Button(store.followedCollections.contains(collection.rawValue) ? "Following" : "Follow") { store.toggleCollection(collection) }.buttonStyle(.borderedProminent).tint(NewsTheme.ink)
+                    Button(LocalizedStringKey(store.followedCollections.contains(collection.rawValue) ? "Following" : "Follow")) { store.toggleCollection(collection) }.buttonStyle(.borderedProminent).tint(NewsTheme.ink)
                 }
                 ArticleList(articles: collection.articles(from: store.articles), firstFeatured: true)
             }.padding(18).frame(maxWidth: 700).frame(maxWidth: .infinity)
-        }.toolbar(.hidden, for: .navigationBar)
+        }.navigationTitle(LocalizedStringKey(collection.rawValue)).navigationBarTitleDisplayMode(.inline)
+            .toolbar(.visible, for: .navigationBar)
     }
 }
 
@@ -84,6 +86,7 @@ struct SettingsView: View {
                 }
             }
         .navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         .confirmationDialog("Clear your reading history?", isPresented: $confirmReset, titleVisibility: .visible) {
             Button("Clear history", role: .destructive) { store.resetReadingHistory() }

@@ -12,14 +12,14 @@ struct ArticleDetailView: View {
             VStack(alignment: .leading, spacing: 24) {
                 StoryImage(article: article, height: 230)
                 HStack {
-                    Text(article.category).font(.subheadline.weight(.medium)).foregroundStyle(NewsTheme.secondary)
+                    Text(LocalizedStringKey(article.category)).font(.subheadline.weight(.medium)).foregroundStyle(NewsTheme.secondary)
                     Spacer()
-                    Text(article.time).font(.subheadline).foregroundStyle(NewsTheme.secondary)
+                    Text(LocalizedStringKey(article.time)).font(.subheadline).foregroundStyle(NewsTheme.secondary)
                 }
                 Text(article.title).font(NewsTheme.headline(42)).tracking(-0.8).fixedSize(horizontal: false, vertical: true)
                 HStack(spacing: 18) {
                     Button { store.toggleSave(article) } label: {
-                        Label(store.savedIDs.contains(article.id) ? "Saved" : "Save", systemImage: store.savedIDs.contains(article.id) ? "bookmark.fill" : "bookmark")
+                        Label(LocalizedStringKey(store.savedIDs.contains(article.id) ? "Saved" : "Save"), systemImage: store.savedIDs.contains(article.id) ? "bookmark.fill" : "bookmark")
                     }
                     ShareLink(item: article.title) { Label("Share", systemImage: "square.and.arrow.up") }
                 }.font(.subheadline.weight(.semibold))
@@ -35,14 +35,14 @@ struct ArticleDetailView: View {
                 }.padding(18).background(NewsTheme.card, in: RoundedRectangle(cornerRadius: 14))
                 HStack(spacing: 12) {
                     MetricCard(title: "Coverage", value: "\(article.sources) sources", icon: "newspaper")
-                    MetricCard(title: "Bias", value: article.coverage.label.replacingOccurrences(of: " coverage", with: ""), icon: "chart.bar.xaxis")
+                    MetricCard(title: "Bias", value: article.coverage.label, icon: "chart.bar.xaxis")
                 }
                 HStack(spacing: 12) {
                     MetricCard(title: "Factuality", value: "High", icon: "checkmark.seal")
                     MetricCard(title: "Ownership", value: "Diverse", icon: "circle.grid.2x2")
                 }
                 Button { withAnimation(.easeInOut) { analysisShown.toggle() } } label: {
-                    HStack { Text(analysisShown ? "Hide analysis" : "Full analysis").font(.headline).underline(); Spacer(); Image(systemName: analysisShown ? "arrow.up.right" : "arrow.right") }
+                    HStack { Text(LocalizedStringKey(analysisShown ? "Hide analysis" : "Full analysis")).font(.headline).underline(); Spacer(); Image(systemName: analysisShown ? "arrow.up.right" : "arrow.right") }
                 }.buttonStyle(.plain)
                 if analysisShown { AnalysisView(article: article) }
                 Text("Where sources agree").font(NewsTheme.headline(31))
@@ -58,6 +58,7 @@ struct ArticleDetailView: View {
         }
         .background(NewsTheme.paper.ignoresSafeArea())
         .navigationTitle("Story").navigationBarTitleDisplayMode(.inline)
+        .toolbar(.visible, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button { store.toggleSave(article) } label: { Image(systemName: store.savedIDs.contains(article.id) ? "bookmark.fill" : "bookmark") }
@@ -74,8 +75,8 @@ struct MetricCard: View {
     let icon: String
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack { Text(title).font(.subheadline).foregroundStyle(NewsTheme.secondary); Spacer(); Image(systemName: icon).foregroundStyle(NewsTheme.secondary) }
-            Text(value).font(.subheadline.weight(.medium)).lineLimit(1, reservesSpace: true)
+            HStack { Text(LocalizedStringKey(title)).font(.subheadline).foregroundStyle(NewsTheme.secondary); Spacer(); Image(systemName: icon).foregroundStyle(NewsTheme.secondary) }
+            Text(LocalizedStringKey(value)).font(.subheadline.weight(.medium)).lineLimit(1, reservesSpace: true)
         }.padding(14).frame(maxWidth: .infinity, alignment: .leading).background(NewsTheme.card, in: RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -104,7 +105,7 @@ struct AnalysisRing: View {
                 Circle().trim(from: 0, to: CGFloat(value) / 100).stroke(color, style: StrokeStyle(lineWidth: 8, lineCap: .round)).rotationEffect(.degrees(-90))
                 Text("\(value)%").font(.caption.bold())
             }.frame(width: 64, height: 64)
-            Text(label).font(.caption).foregroundStyle(NewsTheme.secondary)
+            Text(LocalizedStringKey(label)).font(.caption).foregroundStyle(NewsTheme.secondary)
         }.frame(maxWidth: .infinity)
     }
 }
@@ -113,7 +114,7 @@ struct PerspectiveCard: View {
     let perspective: Perspective
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(perspective.side).font(.subheadline.weight(.semibold)).foregroundStyle(NewsTheme.secondary)
+            Text(LocalizedStringKey(perspective.side)).font(.subheadline.weight(.semibold)).foregroundStyle(NewsTheme.secondary)
             Text(perspective.title).font(.title3.bold())
             Text(perspective.summary).font(.body).foregroundStyle(NewsTheme.secondary)
             Text("“\(perspective.quote)”").font(.title3.bold()).multilineTextAlignment(.center).frame(maxWidth: .infinity).padding(.top, 8)
@@ -132,7 +133,8 @@ struct BlindspotsView: View {
                     EmptyState(symbol: "checkmark.circle", title: "No blindspots today", message: "We’ll show stories here when coverage is concentrated on one side.")
                 } else { ArticleList(articles: store.blindspots, firstFeatured: true) }
             }.padding(18).frame(maxWidth: 700).frame(maxWidth: .infinity)
-        }.toolbar(.hidden, for: .navigationBar)
+        }.navigationTitle("The Blindspots").navigationBarTitleDisplayMode(.inline)
+            .toolbar(.visible, for: .navigationBar)
     }
 }
 
@@ -162,7 +164,8 @@ struct Last24View: View {
                     }.padding(.vertical, 8)
                 }
             }.padding(18).frame(maxWidth: 700).frame(maxWidth: .infinity)
-        }.toolbar(.hidden, for: .navigationBar)
+        }.navigationTitle("The Last 24").navigationBarTitleDisplayMode(.inline)
+            .toolbar(.visible, for: .navigationBar)
     }
 }
 
