@@ -206,7 +206,12 @@ struct AskAgentView: View {
     let context: String
     @Environment(\.dismiss) private var dismiss
     @State private var prompt = ""
-    @State private var messages = [AIMessage(role: "agent", text: "I’m watching \(context). Ask for a timeline, the latest change, or more context.")]
+    @State private var messages: [AIMessage]
+
+    init(context: String) {
+        self.context = context
+        _messages = State(initialValue: [AIMessage(role: "agent", text: "I’m watching \(context). Ask for a timeline, the latest change, or more context.")])
+    }
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
