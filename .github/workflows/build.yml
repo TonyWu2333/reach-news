@@ -38,8 +38,12 @@ jobs:
       - name: Archive device app
         run: |
           xcodebuild archive -project ReachNews.xcodeproj -scheme ReachNews -destination 'generic/platform=iOS' -archivePath build/ReachNews.xcarchive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO
+          APP_PATH="build/ReachNews.xcarchive/Products/Applications/ReachNews.app"
+          cp ReachNews/Resources/stories.json "$APP_PATH/stories.json"
+          mkdir -p "$APP_PATH/zh-Hans.lproj"
+          cp ReachNews/Resources/zh-Hans.lproj/Localizable.strings "$APP_PATH/zh-Hans.lproj/Localizable.strings"
           mkdir -p build/Payload
-          cp -R build/ReachNews.xcarchive/Products/Applications/ReachNews.app build/Payload/ReachNews.app
+          cp -R "$APP_PATH" build/Payload/ReachNews.app
           /usr/bin/ditto -c -k --sequesterRsrc --keepParent build/Payload ReachNews.ipa
       - uses: actions/upload-artifact@v4
         with:
@@ -66,6 +70,9 @@ jobs:
           xcrun simctl boot "$DEVICE_ID" 2>/dev/null || true
           xcrun simctl bootstatus "$DEVICE_ID" -b
           APP_PATH="build/Build/Products/Debug-iphonesimulator/ReachNews.app"
+          cp ReachNews/Resources/stories.json "$APP_PATH/stories.json"
+          mkdir -p "$APP_PATH/zh-Hans.lproj"
+          cp ReachNews/Resources/zh-Hans.lproj/Localizable.strings "$APP_PATH/zh-Hans.lproj/Localizable.strings"
           /usr/libexec/PlistBuddy -c "Add :CFBundleIdentifier string com.tangsong404.reachnews" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :CFBundleIdentifier com.tangsong404.reachnews" "$APP_PATH/Info.plist"
           /usr/libexec/PlistBuddy -c "Add :CFBundleExecutable string ReachNews" "$APP_PATH/Info.plist" 2>/dev/null || /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable ReachNews" "$APP_PATH/Info.plist"
           /usr/libexec/PlistBuddy -c "Print :CFBundleIdentifier" "$APP_PATH/Info.plist"
