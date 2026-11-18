@@ -60,6 +60,7 @@ struct SettingsView: View {
     @Environment(NewsStore.self) private var store
     @Environment(\.dismiss) private var dismiss
     @State private var confirmReset = false
+    @AppStorage("appLanguage") private var appLanguage = "system"
     var body: some View {
         NavigationStack {
             List {
@@ -70,6 +71,13 @@ struct SettingsView: View {
                 Section("Reading") {
                     NavigationLink { TopicManagerView() } label: { Label("Manage topics", systemImage: "list.bullet") }
                     Button { confirmReset = true } label: { Label("Clear reading history", systemImage: "arrow.counterclockwise") }.foregroundStyle(NewsTheme.ink)
+                }
+                Section("Language") {
+                    Picker("App language", selection: $appLanguage) {
+                        Text("System").tag("system")
+                        Text("English").tag("en")
+                        Text("中文").tag("zh-Hans")
+                    }
                 }
                 Section("About") {
                     LabeledContent("Version", value: "0.0.1 (10008)")
@@ -83,5 +91,6 @@ struct SettingsView: View {
                 Button("Cancel", role: .cancel) {}
             }
         }
+        .background(SwipeBackEnabler().frame(width: 0, height: 0))
     }
 }

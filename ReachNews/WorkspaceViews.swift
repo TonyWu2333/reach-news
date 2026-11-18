@@ -228,6 +228,7 @@ struct AskAgentView: View {
                 }.padding(12).background(.thinMaterial)
             }.navigationTitle("Ask the agent").navigationBarTitleDisplayMode(.inline).toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
+        .background(SwipeBackEnabler().frame(width: 0, height: 0))
     }
     private func send() {
         let value = prompt.trimmingCharacters(in: .whitespacesAndNewlines); guard !value.isEmpty else { return }

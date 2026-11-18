@@ -32,6 +32,7 @@ struct RootView: View {
                         .navigationDestination(for: NewsCollection.self) { CollectionDetailView(collection: $0) }
                     }
                     .tint(nil)
+                    .background(SwipeBackEnabler().frame(width: 0, height: 0))
                 } label: {
                     Label(tab.rawValue, systemImage: tab.symbol)
                 }
@@ -374,6 +375,7 @@ struct TopicManagerView: View {
             .navigationTitle("Your topics").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } } }
         }
+        .background(SwipeBackEnabler().frame(width: 0, height: 0))
     }
 }
 
