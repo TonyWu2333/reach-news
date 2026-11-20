@@ -14,7 +14,7 @@
 | `/cursor` 的 `enabled: 1 \| 0` | `Bool` | 整数与布尔混用，不可直接传下去 |
 | 时间戳 `2026-11-20T02:01:50.774Z` | `Date`（UTC） + 展示时转 `Asia/Shanghai` | 不存储格式化字符串 |
 | `missedReason` 任意字符串 | 枚举 + `.unknown(String)` | 服务端会新增原因，未知值不得丢弃 |
-| `error.code` | 枚举 + `.unknown` | 已实测：`unauthorized` `not_found` `invalid_input` `busy` `bad_request` `internal_error` |
+| `error.code` | 枚举 + `.unknown` | 已实测：`unauthorized` `not_found` `invalid_input` `busy` `bad_request` `internal_error` `too_many_attempts` |
 
 `not_found` 有两义（端点不存在 / 资源不存在），只能靠请求路径区分，不得用 code 推断。
 
@@ -51,6 +51,7 @@
 |---|---|
 | 无频道 | 说明频道由管理员开通；不提供无效的「新建」入口 |
 | 频道 `connectorIds` 为空且 `enabled` | 提示「未配置连接器，运行将不会产出日报」 |
+| 频道 `kind: "preset"` | 管理员模板频道，会参与调度；普通用户列表不展示 |
 | 频道运行中（`queued`/`collecting`/`writing`）改配置 | 服务端返回 `409 busy`，保留已填内容并提示稍后 |
 | 断网 | 直接提示当前无网络，不展示缓存内容（见 ADR 0003） |
 | 素材 `content` | **永不渲染**。RSS 为原始 XML、GitHub 为原始 JSON 字符串。只显示 `title`、来源域名、`url` 外开 |
@@ -58,10 +59,17 @@
 
 ## 鉴权
 
-- `Authorization: Bearer <token>`。Token 由管理员签发，明文只返回一次。
-- 首次启动无 Token 进入连接页；`GET /health`（免鉴权）+ `GET /api/v1/channels`（需鉴权）双验证通过才写入 Keychain 并覆盖旧凭证。
+后端已改为账号密码换取短期会话凭证。**旧的长期 Bearer Token 已全部失效，这是硬切换、没有兼容期。**
+
+- `POST /api/v1/login`（唯一无需凭证的端点）`{username, password}` → `200 {token, expiresAt, user}`，凭证明文不落日志。
+- 请求体必须是 JSON；form-encoded 会得到 `500 internal_error`（只有 `/login` 这样）。
+- 凭据错误 `401 unauthorized`，**不区分「用户不存在」与「密码错误」**，不要据此提示具体原因。
+- 限流：同一用户名 5 分钟内累计 5 次失败后，第 6 次起 `429 too_many_attempts`，**期间正确密码也会被拒**；每个被拦请求仍计一次失败，因此**客户端绝不能自动重试**，否则一直延长锁定。没有 `Retry-After`，需自行冷却。
+- 会话有效期 7 天，服务端按 `expires_at` 校验。**没有 refresh 接口**，过期即重新登录。
+- `POST /api/v1/logout` 需凭证，返回 `200 {ok:true}`；无论结果如何，客户端都应立即清本地凭证。
+- 管理员重置密码会清空该用户全部会话 → 客户端收到 401 应回登录页，不要无限重试。
+- 手机端凭证 `scope=mobile`，打 `/admin/*` 与 `/admin/api/*` 一律被拒（302/401），不要尝试。
 - Base URL 预填 `reachapi.niuma.art`，允许编辑以便本地调试。
-- 管理端 cookie 与 Bearer 完全隔离；Bearer 打 `/admin/api/*` 一律 401，不要尝试。
 
 ## Fixture
 

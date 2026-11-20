@@ -10,22 +10,26 @@ import Observation
 @Observable
 final class SessionStore {
     enum State: Equatable {
-        case unconfigured
-        case connecting
-        case connected
+        case signedOut
+        case signingIn
+        case signedIn
         case failed(APIError)
     }
 
-    private(set) var state: State = .unconfigured
-    private(set) var hasStoredToken: Bool
+    private(set) var state: State = .signedOut
+    private(set) var session: AuthSession?
     private(set) var serviceTime: Date?
 
     var baseURLString: String
-    var tokenInput: String = ""
+    var username: String = ""
+    /// 密码不常驻内存：登录成功后立即清空。
+    var password: String = ""
 
     @ObservationIgnored private let credentials: CredentialProviding
     @ObservationIgnored private let preferences: PreferencesStoring
     @ObservationIgnored private let makeClient: (URL) -> APIClient
+    /// 限流后到此时刻前禁止再提交，避免每一次重试都延长锁定。
+    @ObservationIgnored private var blockedUntil: Date?
 
     init(
         credentials: CredentialProviding,
@@ -36,74 +40,92 @@ final class SessionStore {
         self.preferences = preferences
         self.makeClient = makeClient
         self.baseURLString = preferences.baseURLString
-        self.hasStoredToken = credentials.token()?.isEmpty == false
-        if hasStoredToken {
-            state = .connected
+        if let token = credentials.token(), !token.isEmpty,
+           let expires = credentials.expiresAt(), expires > Date() {
+            session = AuthSession(token: token, expiresAt: expires, userName: "")
+            state = .signedIn
+        } else if credentials.token()?.isEmpty == false {
+            // 有 token 但已过期：清掉，回登录页。
+            credentials.clearToken()
         }
     }
 
-    var isConnected: Bool {
-        if case .connected = state { return true }
+    var isSignedIn: Bool {
+        if case .signedIn = state { return true }
         return false
     }
 
-    var isConnecting: Bool {
-        if case .connecting = state { return true }
+    var isSigningIn: Bool {
+        if case .signingIn = state { return true }
         return false
     }
 
-    /// 当前生效的基础地址；地址不合法时回落默认值。
     var resolvedBaseURL: URL {
         BaseURLDefaults.parse(baseURLString) ?? BaseURLDefaults.url
     }
 
-    /// 已保存的凭证别名，用于「我的」页展示，不暴露 token 本身。
     var credentialSummaryKey: String {
-        hasStoredToken ? "connection.credential.stored" : "connection.credential.missing"
+        session == nil ? "connection.credential.missing" : "connection.credential.stored"
     }
 
-    /// 首次连接或更换凭证：执行双验证，通过后才落库。
-    /// 未经验证的凭证绝不写入 Keychain，也不覆盖已有凭证。
-    func connect(tokenOverride: String? = nil) async -> Bool {
+    var canSubmit: Bool {
+        !username.trimmingCharacters(in: .whitespaces).isEmpty
+            && !password.isEmpty
+            && !isSigningIn
+            && !isThrottled
+    }
+
+    /// 限流冷却中；此时连正确密码也会被拒，因此直接禁用提交。
+    var isThrottled: Bool {
+        guard let blockedUntil else { return false }
+        return blockedUntil > Date()
+    }
+
+    var throttleRemainingSeconds: Int {
+        guard let blockedUntil else { return 0 }
+        return max(0, Int(blockedUntil.timeIntervalSinceNow.rounded(.up)))
+    }
+
+    /// 账号密码登录，成功后才写入会话凭证。
+    func signIn() async -> Bool {
         guard let url = BaseURLDefaults.parse(baseURLString) else {
             state = .failed(.invalidConfiguration)
             return false
         }
-
-        let candidate = (tokenOverride ?? tokenInput).trimmingCharacters(in: .whitespacesAndNewlines)
-        let existing = credentials.token() ?? ""
-        let effectiveToken = candidate.isEmpty ? existing : candidate
-
-        guard !effectiveToken.isEmpty else {
+        let name = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty, !password.isEmpty else {
             state = .failed(.unauthorized)
             return false
         }
+        if isThrottled { return false }
 
-        state = .connecting
-
-        // 用候选凭证临时构造客户端，验证通过后才真正落库。
-        let probeCredentials = TemporaryCredentials(token: effectiveToken)
-        let client = makeClient(url).withCredentials(probeCredentials)
+        state = .signingIn
+        let client = makeClient(url)
 
         do {
-            let health = try await client.health()
-            guard health.ok else {
-                state = .failed(.server("health-not-ok"))
-                return false
-            }
-            serviceTime = JSONDate.parse(health.time)
+            let newSession = try await client.login(username: name, password: password)
 
-            _ = try await client.channels(limit: 1)
+            // 凭证只有在登录成功后才会落到 Keychain。
+            try credentials.store(token: newSession.token)
+            credentials.store(expiresAt: newSession.expiresAt)
 
-            // 两项都通过：此刻才写入 Keychain 并覆盖旧凭证。
-            try credentials.store(token: effectiveToken)
             preferences.baseURLString = url.absoluteString
             baseURLString = url.absoluteString
-            tokenInput = ""
-            hasStoredToken = true
-            state = .connected
+            session = AuthSession(
+                token: newSession.token,
+                expiresAt: newSession.expiresAt,
+                userName: newSession.userName.isEmpty ? name : newSession.userName
+            )
+            password = ""
+            blockedUntil = nil
+            state = .signedIn
             return true
         } catch let error as APIError {
+            if error.isTooManyAttempts {
+                // 服务端 5 分钟窗口；本地同样冷却，绝不自动重试。
+                blockedUntil = Date().addingTimeInterval(5 * 60)
+            }
+            // 登录失败不写入任何凭证，也不覆盖既有会话。
             state = .failed(error)
             return false
         } catch {
@@ -112,44 +134,63 @@ final class SessionStore {
         }
     }
 
-    /// 启动时若已有凭证，只验证而不改动存储。
-    func validateStoredCredentials() async {
-        guard hasStoredToken else {
-            state = .unconfigured
+    /// 启动时校验已保存的会话是否仍可用。
+    func validateStoredSession() async {
+        guard let session else {
+            state = .signedOut
+            return
+        }
+        if session.isExpired() {
+            clearSession()
+            state = .signedOut
             return
         }
         let client = makeClient(resolvedBaseURL)
         do {
-            let health = try await client.health()
-            guard health.ok else {
-                state = .failed(.server("health-not-ok"))
-                return
-            }
-            serviceTime = JSONDate.parse(health.time)
             _ = try await client.channels(limit: 1)
-            state = .connected
+            state = .signedIn
         } catch let error as APIError {
-            state = error == .unauthorized ? .failed(.unauthorized) : .failed(error)
+            if error == .unauthorized {
+                // 管理员重置密码会清空所有会话；直接回登录页。
+                clearSession()
+                state = .signedOut
+            } else {
+                state = .signedIn
+            }
         } catch {
-            state = .failed(.transport(error.localizedDescription))
+            state = .signedIn
         }
     }
 
-    /// 凭证失效（401）时回到连接页。
-    func handleUnauthorized() {
-        state = .failed(.unauthorized)
+    /// 注销：先通知服务端，无论结果如何都清本地凭证。
+    func signOut() async {
+        let client = makeClient(resolvedBaseURL)
+        _ = try? await client.logout()
+        clearSession()
+        username = ""
+        password = ""
+        state = .signedOut
     }
 
-    func forgetCredentials() {
+    /// 任何请求收到 401 都调用这里：清会话并回登录页，不自动重试。
+    func handleUnauthorized() {
+        clearSession()
+        state = .signedOut
+    }
+
+    /// 凭证到期时间。
+    var expiresAt: Date? {
+        session?.expiresAt
+    }
+
+    private func clearSession() {
         credentials.clearToken()
-        hasStoredToken = false
-        tokenInput = ""
-        state = .unconfigured
+        session = nil
     }
 
     func resetError() {
         if case .failed = state {
-            state = hasStoredToken ? .connected : .unconfigured
+            state = session == nil ? .signedOut : .signedIn
         }
     }
 }
@@ -164,6 +205,7 @@ extension APIError {
         case .offline: return "error.offline"
         case .transport: return "error.transport"
         case .unauthorized: return "error.unauthorized"
+        case .tooManyAttempts: return "error.tooManyAttempts"
         case .notFound: return "error.notFound"
         case .invalidInput: return "error.invalidInput"
         case .busy: return "error.busy"
@@ -181,7 +223,7 @@ extension APIError {
             return message.isEmpty ? nil : message
         case .transport(let message):
             return message.isEmpty ? nil : message
-        case .offline, .unauthorized, .notFound, .decodingFailed, .invalidConfiguration:
+        case .offline, .unauthorized, .tooManyAttempts, .notFound, .decodingFailed, .invalidConfiguration:
             return nil
         }
     }

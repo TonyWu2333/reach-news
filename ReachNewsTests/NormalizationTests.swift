@@ -57,9 +57,34 @@ final class NormalizationTests: XCTestCase {
     func testChannelKindParsing() {
         XCTAssertEqual(ChannelKind(apiValue: "channel"), .channel)
         XCTAssertEqual(ChannelKind(apiValue: "follow"), .follow)
+        // 后端 CHANNEL_KINDS 已含 preset。
+        XCTAssertEqual(ChannelKind(apiValue: "preset"), .preset)
         // 未知值回落为普通频道，不崩溃、不丢数据。
         XCTAssertEqual(ChannelKind(apiValue: "something-new"), .channel)
         XCTAssertEqual(ChannelKind(apiValue: nil), .channel)
+    }
+
+    func testPresetChannelsAreNotUserVisible() {
+        // preset 是管理员模板且会参与调度，不能混进用户列表。
+        XCTAssertFalse(ChannelKind.preset.isUserVisible)
+        XCTAssertTrue(ChannelKind.channel.isUserVisible)
+        XCTAssertTrue(ChannelKind.follow.isUserVisible)
+    }
+
+    func testSessionExpiry() {
+        let expired = AuthSession(
+            token: "t",
+            expiresAt: Date(timeIntervalSinceNow: -1),
+            userName: "a"
+        )
+        XCTAssertTrue(expired.isExpired())
+
+        let live = AuthSession(
+            token: "t",
+            expiresAt: Date(timeIntervalSinceNow: 3600),
+            userName: "a"
+        )
+        XCTAssertFalse(live.isExpired())
     }
 
     func testScheduleParsingAndNormalization() {

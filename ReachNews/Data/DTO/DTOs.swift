@@ -62,6 +62,7 @@ struct ErrorEnvelope: Decodable {
     var normalized: APIError {
         switch APIErrorCode.parse(error.code) {
         case .unauthorized: return .unauthorized
+        case .tooManyAttempts: return .tooManyAttempts
         case .notFound: return .notFound
         case .invalidInput: return .invalidInput(error.message)
         case .busy: return .busy(error.message)
@@ -299,6 +300,35 @@ struct CursorDTO: Decodable {
             channels: (channels ?? []).map { $0.toDomain() }
         )
     }
+}
+
+// MARK: - 登录
+
+struct LoginRequest: Encodable {
+    let username: String
+    let password: String
+}
+
+struct LoginUserDTO: Decodable {
+    let id: String
+    let name: String
+}
+
+struct LoginResponseDTO: Decodable {
+    let token: String
+    let expiresAt: String?
+    let user: LoginUserDTO?
+
+    func session() throws -> AuthSession {
+        guard let expires = JSONDate.parse(expiresAt) else {
+            throw APIError.decodingFailed
+        }
+        return AuthSession(token: token, expiresAt: expires, userName: user?.name ?? "")
+    }
+}
+
+struct LogoutResponseDTO: Decodable {
+    let ok: Bool?
 }
 
 // MARK: - 健康检查

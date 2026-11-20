@@ -1,13 +1,22 @@
 import Foundation
 
 // MARK: - 频道类型
+//
+// 服务端 CHANNEL_KINDS 为 channel / follow / preset。
+// preset 是管理员账号的模板频道，且会参与调度，因此不能当作普通频道渲染。
 
 enum ChannelKind: String, Equatable {
     case channel
     case follow
+    case preset
 
     init(apiValue: String?) {
         self = ChannelKind(rawValue: apiValue ?? "") ?? .channel
+    }
+
+    /// 是否出现在用户的频道列表中（preset 归管理员，普通用户看不到）。
+    var isUserVisible: Bool {
+        self != .preset
     }
 }
 
@@ -75,6 +84,7 @@ enum MissedReason: Equatable, Hashable {
 
 enum APIErrorCode: Equatable {
     case unauthorized
+    case tooManyAttempts
     case notFound
     case invalidInput
     case busy
@@ -85,6 +95,7 @@ enum APIErrorCode: Equatable {
     static func parse(_ raw: String) -> APIErrorCode {
         switch raw {
         case "unauthorized": return .unauthorized
+        case "too_many_attempts": return .tooManyAttempts
         case "not_found": return .notFound
         case "invalid_input": return .invalidInput
         case "busy": return .busy
@@ -97,6 +108,7 @@ enum APIErrorCode: Equatable {
     var rawValue: String {
         switch self {
         case .unauthorized: return "unauthorized"
+        case .tooManyAttempts: return "too_many_attempts"
         case .notFound: return "not_found"
         case .invalidInput: return "invalid_input"
         case .busy: return "busy"
@@ -142,6 +154,7 @@ enum APIError: Error, Equatable {
     case unauthorized
     case notFound
     case invalidInput(String)
+    case tooManyAttempts
     case busy(String)
     case badRequest(String)
     case server(String)
@@ -151,6 +164,7 @@ enum APIError: Error, Equatable {
     var errorCode: APIErrorCode? {
         switch self {
         case .unauthorized: return .unauthorized
+        case .tooManyAttempts: return .tooManyAttempts
         case .notFound: return .notFound
         case .invalidInput: return .invalidInput
         case .busy: return .busy
@@ -167,6 +181,12 @@ enum APIError: Error, Equatable {
 
     var isBusy: Bool {
         if case .busy = self { return true }
+        return false
+    }
+
+    /// 登录限流：不得自动重试，否则会把锁定时间一直续期。
+    var isTooManyAttempts: Bool {
+        if case .tooManyAttempts = self { return true }
         return false
     }
 }

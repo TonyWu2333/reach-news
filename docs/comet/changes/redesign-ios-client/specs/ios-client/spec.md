@@ -7,7 +7,7 @@
 客户端在与服务端边界处一次性完成归一化，内部只使用本节的类型与命名。术语严格遵循 `GLOSSARY.md`：`items` 在日报 payload 里是**条目**（`Entry`），`itemId` 指向的是**素材**（`Material`），两者不可混称。
 
 - `Channel`：`id`、`name`、`prompt`、`tone`、`schedule: Schedule`、`enabled: Bool`、`connectorIDs: [String]`、`lastBriefAt: Date?`、`kind: ChannelKind`、`createdAt`、`updatedAt`。
-- `ChannelKind`：`.channel` / `.follow`。`follow` 在频道卡上显示「跟踪」徽标。
+- `ChannelKind`：`.channel` / `.follow` / `.preset`。`follow` 显示「跟踪」徽标；`preset` 是管理员模板频道且会参与调度，普通用户列表不展示。
 - `Schedule`：周一到周日各可配零到多个 `HH:MM`；未配置的星期视为无触发。所有时刻按 `Asia/Shanghai` 解释。
 - `Brief`：`id`、`channelID`、`title`、`sections: [BriefSection]`、`memorySummary`、`createdAt: Date`。
 - `BriefSection`：`title`、`entries: [Entry]`。
@@ -25,7 +25,7 @@ DTO 层一次完成，UI 与 Store 只见归一化后的类型：
 - `/cursor` 的 `enabled: 1 | 0` 转为 `Bool`。
 - 所有时间戳按 UTC ISO 8601 带毫秒解析为 `Date`；展示时转 `Asia/Shanghai`。不存储格式化字符串。
 - `missedReason` 归一化为 `.noMaterial` / `.queueTimeout` / `.resumeWriting` / `.unknown(String)`；未知值保留原始字符串，不丢弃。
-- `error.code` 归一化为 `.unauthorized` / `.notFound` / `.invalidInput` / `.busy` / `.badRequest` / `.internalError` / `.unknown(String)`。
+- `error.code` 归一化为 `.unauthorized` / `.tooManyAttempts` / `.notFound` / `.invalidInput` / `.busy` / `.badRequest` / `.internalError` / `.unknown(String)`。
 - `not_found` 的两义不参与判断：资源是否存在由发起请求的路径和调用点决定，不由 `code` 推断。
 
 ## 应用外壳与导航
@@ -134,12 +134,19 @@ DTO 层一次完成，UI 与 Store 只见归一化后的类型：
 
 ## 鉴权与连接
 
-- 首次启动无 token 进入连接页。
-- 连接页：Base URL 预填 `reachapi.niuma.art`，允许编辑；Token 输入框；连接按钮。
-- 连接时先 `GET /health`（免鉴权）确认服务可达，再 `GET /api/v1/channels`（需鉴权）确认 token 有效；两者都通过才写入 Keychain 并覆盖旧凭证。
-- 任一失败给出对应原因（地址不可达 / 凭证无效），不写入凭证。
-- Token 存 Keychain。所有 `/api/v1` 请求带 `Authorization: Bearer <token>`。
-- 不访问 `/admin/api/*`；管理员 cookie 与 Bearer 完全隔离。
+后端以账号密码换取短期会话凭证；旧的长期 Bearer Token 已全部失效。
+
+- 首次启动无会话进入登录页：Base URL 预填 `reachapi.niuma.art` 且可编辑；填写账号与密码。
+- 登录调用 `POST /api/v1/login`，请求体为 JSON `{username, password}`。
+- 成功后保存 `token` 与 `expiresAt` 到 Keychain 与本机偏好，进入主界面。
+- 失败时给出归一化原因且**不写入任何凭证**；凭据错误不区分「用户不存在」与「密码错误」。
+- 密码只在提交时使用，成功后立即从内存清空；不落盘、不写日志。
+- `429 too_many_attempts`：显示锁定提示并禁用提交按钮，**不自动重试**，冷却结束前不放行；冷却期内的提交直接拦在本地。
+- 会话 7 天有效；启动时若已过期则丢弃并回登录页。
+- 任何请求收到 401：清本地凭证并回登录页，不自动重试。
+- 退出登录调用 `POST /api/v1/logout`；无论返回值如何都立即清本地凭证。
+- 所有 `/api/v1` 请求带 `Authorization: Bearer <会话凭证>`；不访问 `/admin/*` 与 `/admin/api/*`。
+- 「我的」页展示当前地址、凭证是否已保存、到期时间，并提供退出登录。
 
 ## 分页
 

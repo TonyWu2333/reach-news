@@ -55,7 +55,8 @@ final class ChannelStore {
                 cursor = page.nextCursor
                 rounds += 1
             } while cursor != nil && rounds < 20
-            channels = collected
+            // preset 频道归管理员，普通用户列表不展示（但仍会参与调度）。
+            channels = collected.filter { $0.kind.isUserVisible }
             await refreshVisibleRuns()
         } catch let apiError as APIError {
             error = apiError

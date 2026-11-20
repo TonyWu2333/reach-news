@@ -111,6 +111,21 @@ struct Schedule: Equatable, Hashable {
     }
 }
 
+// MARK: - 会话凭证
+//
+// 后端以账号密码换 7 天会话凭证；本地保存 token 与过期时刻，
+// 过期或收到 401 都应回到登录页，没有 refresh 接口。
+
+struct AuthSession: Equatable {
+    let token: String
+    let expiresAt: Date
+    let userName: String
+
+    func isExpired(now: Date = Date()) -> Bool {
+        expiresAt <= now
+    }
+}
+
 // MARK: - 频道
 
 struct Channel: Identifiable, Equatable, Hashable {

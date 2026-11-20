@@ -1,9 +1,9 @@
 import SwiftUI
 
-// MARK: - 连接页
+// MARK: - 登录页
 //
-// 首次启动无 token 时进入；更换凭证时复用同一页。
-// Base URL 预填 reachapi.niuma.art 且可编辑。
+// 后端以账号密码换 7 天会话凭证（POST /api/v1/login）。
+// 旧的长期 Bearer Token 已全部失效，因此这里不再有 Token 输入。
 
 struct ConnectionView: View {
     @Bindable var session: SessionStore
@@ -15,7 +15,8 @@ struct ConnectionView: View {
 
     private enum Field {
         case baseURL
-        case token
+        case username
+        case password
     }
 
     var body: some View {
@@ -28,79 +29,75 @@ struct ConnectionView: View {
                         text: L10n.string(error.messageKey, locale: locale),
                         detail: error.isOffline
                             ? L10n.string("error.offline.detail", locale: locale)
-                            : error.detailText,
+                            : (error.isTooManyAttempts
+                                ? L10n.string("login.throttled.detail", locale: locale)
+                                : error.detailText),
                         kind: .error
                     )
                     .accessibilityIdentifier("connection-error")
                 }
 
-                VStack(alignment: .leading, spacing: Space.xs) {
-                    Text(L10n.string("connection.baseURL.heading", locale: locale))
-                        .font(TypeFace.label(11))
-                        .tracking(1)
-                        .foregroundStyle(Palette.inkTertiary)
+                if session.isThrottled {
+                    InlineNotice(
+                        text: L10n.string("login.throttled.title", locale: locale),
+                        detail: L10n.format("login.throttled.wait", locale: locale, session.throttleRemainingSeconds),
+                        kind: .warning
+                    )
+                    .accessibilityIdentifier("connection-throttled")
+                }
+
+                field(labelKey: "connection.baseURL.heading") {
                     TextField(
                         L10n.string("connection.baseURL.placeholder", locale: locale),
                         text: $session.baseURLString
                     )
-                    .font(TypeFace.body(14))
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .keyboardType(.URL)
                     .focused($focusedField, equals: .baseURL)
-                    .padding(.horizontal, 13)
-                    .padding(.vertical, 11)
-                    .background(Palette.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .strokeBorder(Palette.line, lineWidth: 1)
-                    }
+                    .submitLabel(.next)
+                    .onSubmit { focusedField = .username }
                     .accessibilityIdentifier("connection-baseurl")
-                    .onSubmit { focusedField = .token }
                 }
 
-                VStack(alignment: .leading, spacing: Space.xs) {
-                    Text(L10n.string("connection.token.heading", locale: locale))
-                        .font(TypeFace.label(11))
-                        .tracking(1)
-                        .foregroundStyle(Palette.inkTertiary)
-                    SecureField(
-                        L10n.string("connection.token.placeholder", locale: locale),
-                        text: $session.tokenInput
+                field(labelKey: "login.username.heading") {
+                    TextField(
+                        L10n.string("login.username.placeholder", locale: locale),
+                        text: $session.username
                     )
-                    .font(TypeFace.body(14))
-                    .focused($focusedField, equals: .token)
-                    .padding(.horizontal, 13)
-                    .padding(.vertical, 11)
-                    .background(Palette.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 10, style: .continuous)
-                            .strokeBorder(Palette.line, lineWidth: 1)
-                    }
-                    .accessibilityIdentifier("connection-token")
-                    Text(L10n.string("connection.token.hint", locale: locale))
-                        .font(TypeFace.body(11))
-                        .foregroundStyle(Palette.inkTertiary)
-                        .fixedSize(horizontal: false, vertical: true)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .textContentType(.username)
+                    .focused($focusedField, equals: .username)
+                    .submitLabel(.next)
+                    .onSubmit { focusedField = .password }
+                    .accessibilityIdentifier("login-username")
+                }
+
+                field(labelKey: "login.password.heading") {
+                    SecureField(
+                        L10n.string("login.password.placeholder", locale: locale),
+                        text: $session.password
+                    )
+                    .textContentType(.password)
+                    .focused($focusedField, equals: .password)
+                    .submitLabel(.go)
+                    .onSubmit { submit() }
+                    .accessibilityIdentifier("login-password")
                 }
 
                 PrimaryButton(
-                    title: session.isConnecting
-                        ? L10n.string("connection.connecting", locale: locale)
-                        : L10n.string("connection.submit", locale: locale)
+                    title: session.isSigningIn
+                        ? L10n.string("login.signingIn", locale: locale)
+                        : L10n.string("login.submit", locale: locale)
                 ) {
-                    focusedField = nil
-                    Task {
-                        let ok = await session.connect()
-                        if ok && isReplacingCredential {
-                            dismiss()
-                        }
-                    }
+                    submit()
                 }
-                .disabled(session.isConnecting)
+                .disabled(!session.canSubmit)
+                .opacity(session.canSubmit ? 1 : 0.5)
                 .accessibilityIdentifier("connection-submit")
 
-                Text(L10n.string("connection.verificationNote", locale: locale))
+                Text(L10n.string("login.note", locale: locale))
                     .font(TypeFace.body(11))
                     .foregroundStyle(Palette.inkTertiary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -125,6 +122,40 @@ struct ConnectionView: View {
             }
         }
         .accessibilityIdentifier("connection-view")
+        .task {
+            // 每次进入登录页都从干净的密码框开始。
+            session.password = ""
+        }
+    }
+
+    private func submit() {
+        guard session.canSubmit else { return }
+        focusedField = nil
+        Task {
+            let ok = await session.signIn()
+            if ok && isReplacingCredential {
+                dismiss()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func field<Content: View>(labelKey: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: Space.xs) {
+            Text(L10n.string(labelKey, locale: locale))
+                .font(TypeFace.label(11))
+                .tracking(1)
+                .foregroundStyle(Palette.inkTertiary)
+            content()
+                .font(TypeFace.body(14))
+                .padding(.horizontal, 13)
+                .padding(.vertical, 11)
+                .background(Palette.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(Palette.line, lineWidth: 1)
+                }
+        }
     }
 
     private var header: some View {

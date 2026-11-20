@@ -49,9 +49,11 @@ final class StubTransport: HTTPTransporting, @unchecked Sendable {
 
 final class InMemoryCredentials: CredentialProviding {
     private(set) var storedToken: String?
+    private(set) var storedExpiry: Date?
 
-    init(token: String? = nil) {
+    init(token: String? = nil, expiresAt: Date? = nil) {
         self.storedToken = token
+        self.storedExpiry = expiresAt
     }
 
     func token() -> String? { storedToken }
@@ -64,7 +66,12 @@ final class InMemoryCredentials: CredentialProviding {
 
     func clearToken() {
         storedToken = nil
+        storedExpiry = nil
     }
+
+    func expiresAt() -> Date? { storedExpiry }
+
+    func store(expiresAt: Date) { storedExpiry = expiresAt }
 }
 
 final class InMemoryPreferences: PreferencesStoring {

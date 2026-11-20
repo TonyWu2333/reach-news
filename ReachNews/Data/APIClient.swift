@@ -71,6 +71,8 @@ extension APIError {
 
 enum Endpoint {
     case health
+    case login
+    case logout
     case channels(cursor: String?, limit: Int)
     case channel(id: String)
     case briefs(channelID: String, cursor: String?, limit: Int)
@@ -86,6 +88,10 @@ enum Endpoint {
         switch self {
         case .health:
             return "/health"
+        case .login:
+            return "/api/v1/login"
+        case .logout:
+            return "/api/v1/logout"
         case .channels:
             return "/api/v1/channels"
         case .channel(let id):
@@ -119,14 +125,16 @@ enum Endpoint {
             return Pagination.queryItems(cursor: cursor, limit: limit)
         case .cursor(let since):
             return [URLQueryItem(name: "since", value: PollingBaseline.sinceString(since))]
-        case .health, .channel, .brief, .material, .run, .ask:
+        case .health, .login, .channel, .brief, .material, .run, .ask:
             return []
         }
     }
 
     var requiresAuthorization: Bool {
-        if case .health = self { return false }
-        return true
+        switch self {
+        case .health, .login: return false
+        default: return true
+        }
     }
 }
 
@@ -161,6 +169,22 @@ final class APIClient {
 
     func health() async throws -> HealthDTO {
         try await get(Endpoint.health)
+    }
+
+    /// 账号密码换会话凭证。这是唯一无需凭证的写端点。
+    func login(username: String, password: String) async throws -> AuthSession {
+        let body = try JSONEncoder().encode(LoginRequest(username: username, password: password))
+        do {
+            let dto: LoginResponseDTO = try await send(Endpoint.login, method: "POST", body: body)
+            return try dto.session()
+        } catch let error as APIError {
+            throw error
+        }
+    }
+
+    /// 注销当前会话凭证；失败不阻碍本地清理。
+    func logout() async throws {
+        let _: LogoutResponseDTO = try await send(Endpoint.logout, method: "POST", body: nil)
     }
 
     func channels(cursor: String? = nil, limit: Int = Pagination.defaultLimit) async throws -> Page<Channel> {

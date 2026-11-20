@@ -245,28 +245,31 @@ struct ConnectionInfoView: View {
                     Spacer(minLength: Space.s)
                     Text(L10n.string(session.credentialSummaryKey, locale: locale))
                         .font(TypeFace.label(12.5))
-                        .foregroundStyle(session.hasStoredToken ? Palette.runningForeground : Palette.inkTertiary)
+                        .foregroundStyle(session.isSignedIn ? Palette.runningForeground : Palette.inkTertiary)
                 }
             }
             .listRowBackground(Palette.surface)
 
             Section {
-                NavigationLink {
-                    ConnectionView(session: session, isReplacingCredential: true)
-                } label: {
-                    Text(L10n.string("connection.replace", locale: locale))
-                        .font(TypeFace.heading(13.5))
-                        .foregroundStyle(Palette.ink)
+                if let expires = session.expiresAt {
+                    HStack {
+                        Text(L10n.string("connection.expires", locale: locale))
+                            .font(TypeFace.body(13))
+                            .foregroundStyle(Palette.inkSecondary)
+                        Spacer(minLength: Space.s)
+                        Text(DisplayTime.monthDayTime(expires, locale: locale))
+                            .font(TypeFace.condensed(12.5, weight: .medium))
+                            .foregroundStyle(Palette.ink)
+                    }
                 }
-                .accessibilityIdentifier("connection-replace")
 
                 Button(role: .destructive) {
-                    session.forgetCredentials()
+                    Task { await session.signOut() }
                 } label: {
-                    Text(L10n.string("connection.forget", locale: locale))
+                    Text(L10n.string("connection.signOut", locale: locale))
                         .font(TypeFace.body(13.5))
                 }
-                .accessibilityIdentifier("connection-forget")
+                .accessibilityIdentifier("connection-signout")
             } footer: {
                 Text(L10n.string("connection.footer", locale: locale))
             }

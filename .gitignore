@@ -34,3 +34,4 @@ ReachNews.xcodeproj/
 .comet-state.lock
 .comet-state-transaction.json
 # <<< Comet managed project state <<<
+dist/

@@ -227,7 +227,9 @@ final class BriefFeedStore {
 
         if !collected.isEmpty {
             var map: [String: Channel] = [:]
-            for channel in collected { map[channel.id] = channel }
+            for channel in collected where channel.kind.isUserVisible {
+                map[channel.id] = channel
+            }
             channelsByID = map
         }
     }

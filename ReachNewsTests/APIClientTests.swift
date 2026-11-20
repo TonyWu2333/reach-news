@@ -158,6 +158,58 @@ final class APIClientTests: XCTestCase {
         XCTAssertNil(page.nextCursor)
     }
 
+    func testLoginEndpointSendsCredentialsAndParsesSession() async throws {
+        let transport = StubTransport(
+            json: #"{"token":"tok-123","expiresAt":"2026-11-27T11:43:51.860Z","user":{"id":"usr_1","name":"admin"}}"#
+        )
+        let client = TestClient.make(transport: transport, token: nil)
+
+        let session = try await client.login(username: "admin", password: "pw")
+
+        XCTAssertEqual(session.token, "tok-123")
+        XCTAssertEqual(session.userName, "admin")
+        XCTAssertFalse(session.isExpired())
+
+        let request = try XCTUnwrap(transport.recorded.first)
+        XCTAssertEqual(request.method, "POST")
+        XCTAssertEqual(request.url.path, "/api/v1/login")
+        // 登录本身不需要 Authorization。
+        XCTAssertNil(request.authorization)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: try XCTUnwrap(request.body)) as? [String: String])
+        XCTAssertEqual(json["username"], "admin")
+        XCTAssertEqual(json["password"], "pw")
+    }
+
+    func testTooManyAttemptsIsItsOwnError() async {
+        let transport = StubTransport(
+            json: #"{"error":{"code":"too_many_attempts","message":"Too many failed login attempts"}}"#,
+            status: 429
+        )
+        let client = TestClient.make(transport: transport, token: nil)
+
+        do {
+            _ = try await client.login(username: "admin", password: "pw")
+            XCTFail("Expected tooManyAttempts")
+        } catch let error as APIError {
+            XCTAssertTrue(error.isTooManyAttempts)
+            XCTAssertEqual(error.messageKey, "error.tooManyAttempts")
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+    }
+
+    func testLogoutRequiresAuthorization() async throws {
+        let transport = StubTransport(json: #"{"ok":true}"#)
+        let client = TestClient.make(transport: transport, token: "session-token")
+
+        try await client.logout()
+
+        let request = try XCTUnwrap(transport.recorded.first)
+        XCTAssertEqual(request.url.path, "/api/v1/logout")
+        XCTAssertEqual(request.method, "POST")
+        XCTAssertEqual(request.authorization, "Bearer session-token")
+    }
+
     func testWithBaseURLProducesIndependentClient() async throws {
         let transport = StubTransport(json: #"{"ok":true,"service":"reach-news","time":null}"#)
         let client = TestClient.make(transport: transport)
@@ -170,145 +222,160 @@ final class APIClientTests: XCTestCase {
     }
 }
 
-// MARK: - 会话双验证
+// MARK: - 会话登录
 
 final class SessionStoreTests: XCTestCase {
-    @MainActor
-    func testConnectRequiresBothHealthAndChannelAccess() async {
-        let credentials = InMemoryCredentials()
-        let preferences = InMemoryPreferences()
-        let transport = StubTransport { request in
-            if request.url?.path == "/health" {
-                return (200, Data(#"{"ok":true,"service":"reach-news","time":"2026-11-20T02:01:50.774Z"}"#.utf8))
-            }
-            return (200, Data(#"{"items":[],"nextCursor":null}"#.utf8))
-        }
+    private func makeSession(
+        credentials: InMemoryCredentials = InMemoryCredentials(),
+        transport: StubTransport
+    ) -> SessionStore {
         let client = TestClient.make(transport: transport, token: nil)
-        let session = SessionStore(
+        return SessionStore(
             credentials: credentials,
-            preferences: preferences,
+            preferences: InMemoryPreferences(),
             makeClient: { _ in client }
         )
-        session.tokenInput = "new-token"
-
-        let ok = await session.connect()
-
-        XCTAssertTrue(ok)
-        XCTAssertEqual(credentials.storedToken, "new-token")
-        XCTAssertTrue(session.isConnected)
-        XCTAssertEqual(transport.recorded.map(\.url.path), ["/health", "/api/v1/channels"])
     }
 
     @MainActor
-    func testInvalidTokenDoesNotPersistCredential() async {
+    func testSignInStoresSessionFromLoginResponse() async {
         let credentials = InMemoryCredentials()
-        let preferences = InMemoryPreferences()
-        let transport = StubTransport { request in
-            if request.url?.path == "/health" {
-                return (200, Data(#"{"ok":true,"service":"reach-news","time":null}"#.utf8))
-            }
-            return (401, Data(#"{"error":{"code":"unauthorized","message":"Bearer token required"}}"#.utf8))
-        }
-        let client = TestClient.make(transport: transport, token: nil)
-        let session = SessionStore(
-            credentials: credentials,
-            preferences: preferences,
-            makeClient: { _ in client }
-        )
-        session.tokenInput = "bad-token"
+        let transport = StubTransport(json: #"{"token":"session-abc","expiresAt":"2099-01-01T00:00:00.000Z","user":{"id":"usr_1","name":"admin"}}"#)
+        let session = makeSession(credentials: credentials, transport: transport)
+        session.username = "admin"
+        session.password = "secret"
 
-        let ok = await session.connect()
+        let ok = await session.signIn()
+
+        XCTAssertTrue(ok)
+        XCTAssertTrue(session.isSignedIn)
+        XCTAssertEqual(credentials.storedToken, "session-abc")
+        XCTAssertNotNil(credentials.storedExpiry)
+        // 密码不驻留。
+        XCTAssertEqual(session.password, "")
+        XCTAssertEqual(transport.recorded.first?.method, "POST")
+        XCTAssertEqual(transport.recorded.first?.url.path, "/api/v1/login")
+    }
+
+    @MainActor
+    func testSignInFailureDoesNotStoreCredential() async {
+        let credentials = InMemoryCredentials()
+        let transport = StubTransport(
+            json: #"{"error":{"code":"unauthorized","message":"Invalid username or password"}}"#,
+            status: 401
+        )
+        let session = makeSession(credentials: credentials, transport: transport)
+        session.username = "admin"
+        session.password = "wrong"
+
+        let ok = await session.signIn()
 
         XCTAssertFalse(ok)
         XCTAssertNil(credentials.storedToken)
-        XCTAssertFalse(session.isConnected)
+        XCTAssertFalse(session.isSignedIn)
     }
 
     @MainActor
-    func testExistingCredentialSurvivesFailedReplacement() async {
-        // 更换凭证时验证失败，旧凭证必须保留（用户可能只是地址填错）。
-        let credentials = InMemoryCredentials(token: "existing-token")
-        let preferences = InMemoryPreferences()
-        let transport = StubTransport { request in
-            if request.url?.path == "/health" {
-                return (200, Data(#"{"ok":true,"service":"reach-news","time":null}"#.utf8))
-            }
-            return (401, Data(#"{"error":{"code":"unauthorized","message":"bad"}}"#.utf8))
-        }
-        let client = TestClient.make(transport: transport, token: nil)
-        let session = SessionStore(
-            credentials: credentials,
-            preferences: preferences,
-            makeClient: { _ in client }
-        )
-        session.tokenInput = "rejected-token"
-
-        let ok = await session.connect(tokenOverride: "rejected-token")
-
-        XCTAssertFalse(ok)
-        XCTAssertEqual(credentials.storedToken, "existing-token")
-    }
-
-    @MainActor
-    func testUnreachableServiceReportsOffline() async {
+    func testThrottledLoginBlocksFurtherAttempts() async {
         let credentials = InMemoryCredentials()
-        let preferences = InMemoryPreferences()
-        let transport = StubTransport { _ in throw URLError(.cannotConnectToHost) }
-        let client = TestClient.make(transport: transport, token: nil)
-        let session = SessionStore(
-            credentials: credentials,
-            preferences: preferences,
-            makeClient: { _ in client }
+        let transport = StubTransport(
+            json: #"{"error":{"code":"too_many_attempts","message":"Too many failed login attempts; try again later"}}"#,
+            status: 429
         )
-        session.tokenInput = "token"
+        let session = makeSession(credentials: credentials, transport: transport)
+        session.username = "admin"
+        session.password = "secret"
 
-        let ok = await session.connect()
+        _ = await session.signIn()
+        XCTAssertTrue(session.isThrottled)
+        XCTAssertFalse(session.canSubmit)
+        XCTAssertGreaterThan(session.throttleRemainingSeconds, 0)
 
-        XCTAssertFalse(ok)
-        if case .failed(let error) = session.state {
-            XCTAssertTrue(error.isOffline || error == .offline)
-        } else {
-            XCTFail("Expected failed state")
-        }
+        // 冷却期内不得再发请求（否则会把锁定续期）。
+        let recorded = transport.recorded.count
+        let second = await session.signIn()
+        XCTAssertFalse(second)
+        XCTAssertEqual(transport.recorded.count, recorded)
+    }
+
+    @MainActor
+    func testExpiredStoredSessionIsDiscardedOnInit() {
+        let credentials = InMemoryCredentials(
+            token: "old-session",
+            expiresAt: Date(timeIntervalSinceNow: -60)
+        )
+        let session = makeSession(credentials: credentials, transport: StubTransport(json: "{}"))
+
+        XCTAssertFalse(session.isSignedIn)
+        XCTAssertNil(credentials.storedToken)
+    }
+
+    @MainActor
+    func testValidStoredSessionRestoresSignedIn() {
+        let credentials = InMemoryCredentials(
+            token: "live-session",
+            expiresAt: Date(timeIntervalSinceNow: 3600)
+        )
+        let session = makeSession(credentials: credentials, transport: StubTransport(json: "{}"))
+
+        XCTAssertTrue(session.isSignedIn)
+        XCTAssertEqual(credentials.storedToken, "live-session")
+    }
+
+    @MainActor
+    func testUnauthorizedClearsSession() async {
+        let credentials = InMemoryCredentials(
+            token: "live-session",
+            expiresAt: Date(timeIntervalSinceNow: 3600)
+        )
+        let session = makeSession(credentials: credentials, transport: StubTransport(json: "{}"))
+        XCTAssertTrue(session.isSignedIn)
+
+        session.handleUnauthorized()
+
+        XCTAssertFalse(session.isSignedIn)
+        XCTAssertNil(credentials.storedToken)
+    }
+
+    @MainActor
+    func testSignOutClearsSessionEvenIfLogoutFails() async {
+        let credentials = InMemoryCredentials(
+            token: "live-session",
+            expiresAt: Date(timeIntervalSinceNow: 3600)
+        )
+        let transport = StubTransport(json: #"{"error":{"code":"unauthorized","message":"no"}}"#, status: 401)
+        let session = makeSession(credentials: credentials, transport: transport)
+
+        await session.signOut()
+
+        XCTAssertFalse(session.isSignedIn)
         XCTAssertNil(credentials.storedToken)
     }
 
     @MainActor
     func testInvalidBaseURLIsRejectedBeforeRequest() async {
-        let credentials = InMemoryCredentials()
-        let preferences = InMemoryPreferences()
         let transport = StubTransport(json: "{}")
-        let client = TestClient.make(transport: transport, token: nil)
-        let session = SessionStore(
-            credentials: credentials,
-            preferences: preferences,
-            makeClient: { _ in client }
-        )
+        let session = makeSession(transport: transport)
         session.baseURLString = "ftp://nope"
-        session.tokenInput = "token"
+        session.username = "admin"
+        session.password = "secret"
 
-        let ok = await session.connect()
+        let ok = await session.signIn()
 
         XCTAssertFalse(ok)
         XCTAssertTrue(transport.recorded.isEmpty)
     }
 
     @MainActor
-    func testForgetCredentialsClearsStore() {
-        let credentials = InMemoryCredentials(token: "existing")
-        let preferences = InMemoryPreferences()
-        let client = TestClient.make(transport: StubTransport(json: "{}"))
-        let session = SessionStore(
-            credentials: credentials,
-            preferences: preferences,
-            makeClient: { _ in client }
-        )
-        XCTAssertTrue(session.hasStoredToken)
+    func testEmptyUsernameIsRejected() async {
+        let transport = StubTransport(json: "{}")
+        let session = makeSession(transport: transport)
+        session.username = "   "
+        session.password = "secret"
 
-        session.forgetCredentials()
+        let ok = await session.signIn()
 
-        XCTAssertNil(credentials.storedToken)
-        XCTAssertFalse(session.hasStoredToken)
-        XCTAssertFalse(session.isConnected)
+        XCTAssertFalse(ok)
+        XCTAssertTrue(transport.recorded.isEmpty)
     }
 }

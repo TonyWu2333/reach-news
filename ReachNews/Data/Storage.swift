@@ -7,6 +7,9 @@ protocol CredentialProviding: AnyObject {
     func token() -> String?
     func store(token: String) throws
     func clearToken()
+    /// 会话的过期时刻；与 token 分开存，便于过期判断。
+    func expiresAt() -> Date?
+    func store(expiresAt: Date)
 }
 
 // MARK: - Keychain
@@ -22,10 +25,18 @@ enum KeychainError: Error, Equatable {
 final class KeychainCredentials: CredentialProviding {
     private let service: String
     private let account: String
+    private let expiryAccount: String
+    private let defaults: UserDefaults
 
-    init(service: String = "com.tangsong404.reachnews", account: String = "bearer-token") {
+    init(
+        service: String = "com.tangsong404.reachnews",
+        account: String = "session-token",
+        defaults: UserDefaults = .standard
+    ) {
         self.service = service
         self.account = account
+        self.expiryAccount = account + ".expiresAt"
+        self.defaults = defaults
     }
 
     private var baseQuery: [String: Any] {
@@ -73,6 +84,17 @@ final class KeychainCredentials: CredentialProviding {
 
     func clearToken() {
         SecItemDelete(baseQuery as CFDictionary)
+        defaults.removeObject(forKey: "keychain." + expiryAccount)
+    }
+
+    /// 过期时刻不是敏感信息，放 UserDefaults，避免多一次 Keychain 读取。
+    func expiresAt() -> Date? {
+        let interval = defaults.double(forKey: "keychain." + expiryAccount)
+        return interval > 0 ? Date(timeIntervalSince1970: interval) : nil
+    }
+
+    func store(expiresAt: Date) {
+        defaults.set(expiresAt.timeIntervalSince1970, forKey: "keychain." + expiryAccount)
     }
 }
 
@@ -87,6 +109,8 @@ final class TemporaryCredentials: CredentialProviding {
     func token() -> String? { value }
     func store(token: String) throws {}
     func clearToken() {}
+    func expiresAt() -> Date? { nil }
+    func store(expiresAt: Date) {}
 }
 
 // MARK: - 应用偏好

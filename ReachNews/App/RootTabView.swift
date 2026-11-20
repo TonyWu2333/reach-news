@@ -18,7 +18,7 @@ struct RootTabView: View {
 
     var body: some View {
         Group {
-            if env.session.isConnected {
+            if env.session.isSignedIn {
                 tabs
             } else {
                 NavigationStack {
@@ -29,7 +29,7 @@ struct RootTabView: View {
         .tint(Palette.ink)
         .task {
             // 启动时若已有凭证，静默验证一次，不弹连接页。
-            await env.session.validateStoredCredentials()
+            await env.session.validateStoredSession()
         }
     }
 
