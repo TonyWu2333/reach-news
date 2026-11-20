@@ -116,17 +116,19 @@ final class APIClientTests: XCTestCase {
         }
     }
 
-    func testAskPostsMessageAndReturnsAnswer() async throws {
+    func testAskPostsMessageAndReturnsCitedItems() async throws {
         let transport = StubTransport(
-            json: #"{"message":"这条哪来的","answer":"已基于归档摘要记录问题"}"#,
+            json: #"{"message":"这条哪来的","answer":"已基于归档摘要记录问题","citedItemIds":["itm_1","itm_2"],"deterministic":true}"#,
             status: 201
         )
         let client = TestClient.make(transport: transport)
 
-        let turn = try await client.ask(briefID: "brf_1", message: "这条哪来的")
+        let reply = try await client.ask(briefID: "brf_1", message: "这条哪来的")
 
-        XCTAssertEqual(turn.role, .assistant)
-        XCTAssertEqual(turn.message, "已基于归档摘要记录问题")
+        XCTAssertEqual(reply.turn.role, .assistant)
+        XCTAssertEqual(reply.turn.message, "已基于归档摘要记录问题")
+        XCTAssertEqual(reply.citedItemIDs, ["itm_1", "itm_2"])
+        XCTAssertTrue(reply.isDeterministic)
 
         let request = try XCTUnwrap(transport.recorded.first)
         XCTAssertEqual(request.method, "POST")
@@ -378,5 +380,106 @@ final class SessionStoreTests: XCTestCase {
 
         XCTAssertFalse(ok)
         XCTAssertTrue(transport.recorded.isEmpty)
+    }
+}
+
+// MARK: - 新端点（2026-11-21）
+
+final class NewEndpointTests: XCTestCase {
+    func testAllBriefsEndpointReturnsChannelInfo() async throws {
+        let json = """
+        {"items":[{"id":"brf_1","channelId":"chn_1","title":"t","sections":[],"memorySummary":"m",
+                   "createdAt":"2026-11-20T02:01:50.774Z","channelName":"AI 前沿","channelKind":"channel"}],
+         "nextCursor":"20"}
+        """
+        let transport = StubTransport(json: json)
+        let client = TestClient.make(transport: transport)
+
+        let page = try await client.allBriefs(cursor: nil, limit: 20)
+
+        XCTAssertEqual(page.items.count, 1)
+        // 全量端点自带频道信息，无需回查。
+        XCTAssertEqual(page.items.first?.channelName, "AI 前沿")
+        XCTAssertEqual(page.items.first?.channelKind, .channel)
+        XCTAssertEqual(page.nextCursor, "20")
+        XCTAssertEqual(transport.recorded.first?.url.path, "/api/v1/briefs")
+    }
+
+    func testAllBriefsSendsPaginationParameters() async throws {
+        let transport = StubTransport(json: #"{"items":[],"nextCursor":null}"#)
+        let client = TestClient.make(transport: transport)
+
+        _ = try await client.allBriefs(cursor: "40", limit: 20)
+
+        let components = try XCTUnwrap(
+            URLComponents(url: try XCTUnwrap(transport.recorded.first?.url), resolvingAgainstBaseURL: false)
+        )
+        let items = try XCTUnwrap(components.queryItems)
+        XCTAssertEqual(items.first { $0.name == "cursor" }?.value, "40")
+        XCTAssertEqual(items.first { $0.name == "limit" }?.value, "20")
+    }
+
+    func testConnectorsEndpoint() async throws {
+        let transport = StubTransport(
+            json: #"{"items":[{"id":"cnn_homepage","name":"HN 首页","kind":"rss"}],"nextCursor":null}"#
+        )
+        let client = TestClient.make(transport: transport)
+
+        let connectors = try await client.connectors()
+
+        XCTAssertEqual(connectors.count, 1)
+        XCTAssertEqual(connectors.first?.id, "cnn_homepage")
+        XCTAssertEqual(connectors.first?.name, "HN 首页")
+        XCTAssertEqual(transport.recorded.first?.url.path, "/api/v1/connectors")
+    }
+
+    func testPresetsEndpoint() async throws {
+        let json = """
+        {"items":[{"id":"prs_1","name":"每日 AI","prompt":"总结 AI 进展","tone":"简洁",
+                   "schedule":{"mon":["08:00"]},"connectorIds":["cnn_homepage"]}],"nextCursor":null}
+        """
+        let transport = StubTransport(json: json)
+        let client = TestClient.make(transport: transport)
+
+        let presets = try await client.presets()
+
+        XCTAssertEqual(presets.first?.id, "prs_1")
+        XCTAssertEqual(presets.first?.schedule.times(for: Schedule.Weekday.all[0]), ["08:00"])
+        XCTAssertEqual(presets.first?.connectorIDs, ["cnn_homepage"])
+    }
+
+    func testInstantiatePresetPostsToPresetPath() async throws {
+        let channelJSON = """
+        {"id":"chn_new","name":"每日 AI","prompt":"p","tone":"t","schedule":{},"enabled":true,
+         "connectorIds":[],"lastBriefAt":null,"kind":"channel",
+         "createdAt":"2026-11-20T02:01:50.774Z","updatedAt":"2026-11-20T02:01:50.774Z"}
+        """
+        let transport = StubTransport(json: channelJSON, status: 201)
+        let client = TestClient.make(transport: transport)
+
+        let channel = try await client.instantiatePreset(id: "prs_1")
+
+        XCTAssertEqual(channel.id, "chn_new")
+        XCTAssertEqual(channel.kind, .channel)
+        let request = try XCTUnwrap(transport.recorded.first)
+        XCTAssertEqual(request.method, "POST")
+        XCTAssertEqual(request.url.path, "/api/v1/presets/prs_1/instantiate")
+    }
+
+    func testPresetChannelIsExcludedFromUserVisibleSet() async throws {
+        // 预设不参与调度，也不进用户频道列表。
+        let json = """
+        {"items":[{"id":"chn_p","name":"模板","prompt":"","tone":"","schedule":{},"enabled":true,
+                   "connectorIds":[],"lastBriefAt":null,"kind":"preset",
+                   "createdAt":"2026-11-20T02:01:50.774Z","updatedAt":"2026-11-20T02:01:50.774Z"}],
+         "nextCursor":null}
+        """
+        let transport = StubTransport(json: json)
+        let client = TestClient.make(transport: transport)
+
+        let page = try await client.channels()
+
+        XCTAssertEqual(page.items.first?.kind, .preset)
+        XCTAssertFalse(page.items.first?.kind.isUserVisible ?? true)
     }
 }

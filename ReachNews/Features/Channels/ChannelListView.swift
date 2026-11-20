@@ -8,7 +8,7 @@ struct ChannelListView: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.appLocale) private var locale
     @State private var path = NavigationPath()
-    @State private var showsUnavailableAlert = false
+    @State private var showsCreateSheet = false
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -23,7 +23,7 @@ struct ChannelListView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
-                        showsUnavailableAlert = true
+                        showsCreateSheet = true
                     } label: {
                         Image(systemName: "plus")
                             .font(.system(size: 18, weight: .regular))
@@ -49,14 +49,17 @@ struct ChannelListView: View {
         .onDisappear {
             env.channels.stopPolling()
         }
-        .alert(
-            L10n.string("channel.create.unavailable.title", locale: locale),
-            isPresented: $showsUnavailableAlert
-        ) {
-            Button(L10n.string("common.ok", locale: locale), role: .cancel) {}
-        } message: {
-            // ADR 0004：/api/v1 没有连接器枚举端点，创建出来必然是 missed 的频道。
-            Text(L10n.string("channel.create.unavailable.message", locale: locale))
+        .sheet(isPresented: $showsCreateSheet) {
+            if let env {
+                ChannelCreateSheet(
+                    store: env.channels,
+                    isPresented: $showsCreateSheet,
+                    onCreated: { channel in
+                        env.channels.replace(channel)
+                    }
+                )
+                .presentationDetents([.large])
+            }
         }
     }
 

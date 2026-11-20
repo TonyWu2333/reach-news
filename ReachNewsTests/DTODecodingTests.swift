@@ -3,7 +3,8 @@ import XCTest
 
 // MARK: - DTO 解码
 //
-// 用仓库里的 Fixtures 验证真实形状，包括 /cursor 与 /ask 的 snake_case。
+// 用仓库里的 Fixtures 验证真实形状。后端已统一 camelCase，
+// 但仍保留对旧 snake_case 与整数 enabled 的兼容解析。
 
 final class DTODecodingTests: XCTestCase {
     func testChannelFixtureDecodesAllFields() throws {
@@ -91,16 +92,29 @@ final class DTODecodingTests: XCTestCase {
         XCTAssertNil(runs.first { $0.state == .published }?.missedReason)
     }
 
-    func testCursorFixtureNormalizesSnakeCaseAndIntegerEnabled() throws {
+    func testCursorFixtureDecodesLegacySnakeCase() throws {
+        // 旧样本仍是 snake_case + 整数 enabled；灰度期间必须还能解析。
         let data = try Fixture.data("cursor")
         let payload = try JSONDecoder().decode(CursorDTO.self, from: data).toDomain()
 
         XCTAssertFalse(payload.briefs.isEmpty)
         XCTAssertFalse(payload.channels.isEmpty)
         XCTAssertEqual(payload.briefs.first?.channelID.hasPrefix("chn_"), true)
-        // enabled 是整数 1/0，必须归一化成 Bool。
         XCTAssertTrue(payload.channels.allSatisfy { $0.enabled == true || $0.enabled == false })
         XCTAssertNotNil(payload.latestBriefAt)
+    }
+
+    func testCursorDecodesNewCamelCaseShape() throws {
+        // 后端 2026-11-21 起返回 camelCase + 布尔。
+        let json = """
+        {"briefs":[{"id":"brf_1","channelId":"chn_1","title":"t","createdAt":"2026-11-20T02:01:50.774Z"}],
+         "channels":[{"id":"chn_1","name":"AI","enabled":true,"updatedAt":"2026-11-20T02:01:50.774Z"}]}
+        """
+        let payload = try JSONDecoder().decode(CursorDTO.self, from: Data(json.utf8)).toDomain()
+
+        XCTAssertEqual(payload.briefs.first?.channelID, "chn_1")
+        XCTAssertEqual(payload.channels.first?.enabled, true)
+        XCTAssertEqual(payload.channels.first?.name, "AI")
     }
 
     func testAskFixtureNormalizesSnakeCaseCreatedAt() throws {

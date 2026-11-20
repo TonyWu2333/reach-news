@@ -141,6 +141,9 @@ struct BriefDTO: Decodable {
     let sections: [BriefSectionDTO]?
     let memorySummary: String?
     let createdAt: String
+    /// 仅全量日报端点返回，用于免去回查频道。
+    let channelName: String?
+    let channelKind: String?
 
     func toDomain() -> Brief {
         Brief(
@@ -149,7 +152,41 @@ struct BriefDTO: Decodable {
             title: title,
             sections: (sections ?? []).map { $0.toDomain() },
             memorySummary: memorySummary ?? "",
-            createdAt: JSONDate.parse(createdAt) ?? .distantPast
+            createdAt: JSONDate.parse(createdAt) ?? .distantPast,
+            channelName: channelName,
+            channelKind: channelKind.map(ChannelKind.init(apiValue:))
+        )
+    }
+}
+
+// MARK: - 连接器与预设
+
+struct ConnectorDTO: Decodable {
+    let id: String
+    let name: String
+    let kind: String?
+
+    func toDomain() -> Connector {
+        Connector(id: id, name: name, kind: kind ?? "")
+    }
+}
+
+struct PresetDTO: Decodable {
+    let id: String
+    let name: String
+    let prompt: String?
+    let tone: String?
+    let schedule: [String: [String]]?
+    let connectorIds: [String]?
+
+    func toDomain() -> ChannelPreset {
+        ChannelPreset(
+            id: id,
+            name: name,
+            prompt: prompt ?? "",
+            tone: tone ?? "",
+            schedule: Schedule(timesByWeekday: schedule ?? [:]),
+            connectorIDs: connectorIds ?? []
         )
     }
 }
@@ -222,7 +259,17 @@ struct AskTurnDTO: Decodable {
         case id
         case role
         case message
-        case createdAt = "created_at"
+        case createdAt
+        case createdAtLegacy = "created_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        role = try c.decodeIfPresent(String.self, forKey: .role)
+        message = try c.decode(String.self, forKey: .message)
+        createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt)
+            ?? c.decode(String.self, forKey: .createdAtLegacy)
     }
 
     func toDomain() -> AskTurn {
@@ -238,11 +285,16 @@ struct AskTurnDTO: Decodable {
 struct AskResponseDTO: Decodable {
     let message: String?
     let answer: String
+    /// 这条回答依据的素材 ID；服务端从本期 sections 汇总去重。
+    let citedItemIds: [String]?
+    /// 服务端明确标注：确定性应答，未接 LLM。
+    let deterministic: Bool?
 }
 
 // MARK: - 轮询
 //
-// 全部 snake_case，`enabled` 是整数。
+// 后端已统一为 camelCase + 布尔。仍兼容旧的 snake_case 与整数 enabled，
+// 避免服务端灰度期间解析失败。
 
 struct CursorBriefDTO: Decodable {
     let id: String
@@ -252,9 +304,21 @@ struct CursorBriefDTO: Decodable {
 
     private enum CodingKeys: String, CodingKey {
         case id
-        case channelId = "channel_id"
+        case channelId
+        case channelIdLegacy = "channel_id"
         case title
-        case createdAt = "created_at"
+        case createdAt
+        case createdAtLegacy = "created_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        channelId = try c.decodeIfPresent(String.self, forKey: .channelId)
+            ?? c.decode(String.self, forKey: .channelIdLegacy)
+        title = try c.decode(String.self, forKey: .title)
+        createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt)
+            ?? c.decode(String.self, forKey: .createdAtLegacy)
     }
 
     func toDomain() -> CursorBrief {
@@ -277,7 +341,17 @@ struct CursorChannelDTO: Decodable {
         case id
         case name
         case enabled
-        case updatedAt = "updated_at"
+        case updatedAt
+        case updatedAtLegacy = "updated_at"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        name = try c.decode(String.self, forKey: .name)
+        enabled = try c.decodeIfPresent(FlexibleBool.self, forKey: .enabled)
+        updatedAt = try c.decodeIfPresent(String.self, forKey: .updatedAt)
+            ?? c.decode(String.self, forKey: .updatedAtLegacy)
     }
 
     func toDomain() -> CursorChannel {

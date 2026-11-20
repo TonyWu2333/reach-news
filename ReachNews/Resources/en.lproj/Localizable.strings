@@ -1,9 +1,10 @@
 /* Reach News — 界面文案 */
 
-"ask.action.expandMaterial" = "Expand material (in development)";
 "ask.action.sections" = "View sections";
+"ask.cited.count" = "%d items";
+"ask.cited.deterministic" = "Deterministic reply; these are all materials in this brief.";
+"ask.cited.empty" = "This answer has no associated materials.";
 "ask.cited.heading" = "Cited materials";
-"ask.cited.inProgress" = "The server doesn't report which materials an answer cites, so none are listed here.";
 "ask.composer.add" = "More";
 "ask.composer.placeholder" = "Ask about this brief";
 "ask.composer.send" = "Send";
@@ -19,9 +20,12 @@
 "briefDetail.materialCount" = "%d materials";
 "briefDetail.materialFailed" = "Couldn't load material";
 "channel.count" = "%d channels";
+"channel.create.action" = "Use";
 "channel.create.accessibility" = "New channel";
-"channel.create.unavailable.message" = "Creating a channel requires enumerating connectors, which the mobile API doesn't expose yet. Please create it in the admin console.";
-"channel.create.unavailable.title" = "Not available yet";
+"channel.create.empty.message" = "An administrator hasn't created any presets yet.";
+"channel.create.empty.title" = "No templates available";
+"channel.create.hint" = "Pick a template to instantiate as your own channel. Templates themselves are never scheduled.";
+"channel.create.title" = "New channel";
 "channel.empty.message" = "Channels are created by an administrator and appear here once provisioned.";
 "channel.empty.title" = "No channels yet";
 "channel.kind.follow" = "Follow";
@@ -73,6 +77,7 @@
 "error.busy" = "The channel is running and can't be saved";
 "error.configuration" = "Invalid service address";
 "error.decoding" = "The server returned something unreadable";
+"error.invalidConnector" = "Connector unavailable";
 "error.invalidInput" = "The request wasn't accepted";
 "error.notFound" = "That content doesn't exist";
 "error.offline" = "No network";

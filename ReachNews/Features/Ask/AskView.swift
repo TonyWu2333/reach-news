@@ -89,7 +89,7 @@ struct AskView: View {
                         // 引用素材卡：服务端不返回引用关系，按稿子留位并标开发中。
                         if store.turns.last?.role == .assistant {
                             VStack(alignment: .leading, spacing: Space.s) {
-                                citedMaterialsPlaceholder
+                                citedMaterialsCard
                                 askQuickActions
                             }
                             .padding(.top, Space.xs)
@@ -118,25 +118,72 @@ struct AskView: View {
         )
     }
 
-    /// 稿子里的「引用的素材 · N 条」内嵌卡。
-    /// 服务端 answer 不返回引用关系，这里只留位，不填任何素材。
-    private var citedMaterialsPlaceholder: some View {
+    /// 「引用的素材 · N 条」内嵌卡。
+    /// 服务端从本期 sections 汇总 `citedItemIds`，这里如实呈现，不伪造归属。
+    private var citedMaterialsCard: some View {
         VStack(alignment: .leading, spacing: Space.s) {
-            Text(L10n.string("ask.cited.heading", locale: locale))
-                .font(TypeFace.label(11))
-                .foregroundStyle(Palette.inkTertiary)
-            FeatureInProgressView(detail: L10n.string("ask.cited.inProgress", locale: locale))
+            HStack(spacing: Space.xs) {
+                Text(L10n.string("ask.cited.heading", locale: locale))
+                    .font(TypeFace.label(11))
+                    .foregroundStyle(Palette.inkTertiary)
+                Spacer(minLength: 0)
+                Text(L10n.format("ask.cited.count", locale: locale, store.lastCitedItemIDs.count))
+                    .font(TypeFace.condensed(10.5, weight: .medium))
+                    .foregroundStyle(Palette.inkTertiary)
+            }
+
+            if store.lastCitedItemIDs.isEmpty {
+                Text(L10n.string("ask.cited.empty", locale: locale))
+                    .font(TypeFace.body(11.5))
+                    .foregroundStyle(Palette.inkTertiary)
+            } else {
+                ForEach(Array(store.lastCitedItemIDs.enumerated()), id: \.offset) { index, itemID in
+                    HStack(alignment: .top, spacing: Space.s) {
+                        Text(Self.indexLabel(index))
+                            .font(TypeFace.condensed(10, weight: .bold))
+                            .foregroundStyle(Palette.inkTertiary)
+                            .frame(width: 11, alignment: .leading)
+                            .padding(.top, 2)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(store.materialTitle(for: itemID))
+                                .font(TypeFace.body(12.5))
+                                .foregroundStyle(Palette.ink)
+                                .lineLimit(1)
+                            if let host = store.materialHost(for: itemID) {
+                                Text(host)
+                                    .font(TypeFace.condensed(10, weight: .medium))
+                                    .foregroundStyle(Palette.inkTertiary)
+                                    .lineLimit(1)
+                            }
+                        }
+                        Spacer(minLength: 0)
+                    }
+                }
+            }
+
+            if store.lastAnswerWasDeterministic {
+                Text(L10n.string("ask.cited.deterministic", locale: locale))
+                    .font(TypeFace.body(10.5))
+                    .foregroundStyle(Palette.inkTertiary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 2)
+            }
         }
         .padding(Space.m)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Palette.askSurface, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-        .accessibilityIdentifier("ask-cited-placeholder")
+        .accessibilityIdentifier("ask-cited-card")
+    }
+
+    /// A、B、C… 序号，与稿子一致。
+    private static func indexLabel(_ index: Int) -> String {
+        guard let scalar = UnicodeScalar(65 + index % 26) else { return "A" }
+        return String(Character(scalar))
     }
 
     private var askQuickActions: some View {
         HStack(spacing: 7) {
             Button(L10n.string("ask.action.sections", locale: locale)) {
-                // 「看这期分组」由现有数据支撑：返回详情页即可看到分组。
                 dismissToDetail()
             }
             .font(TypeFace.label(11.5))
@@ -146,15 +193,6 @@ struct AskView: View {
             .background(Palette.askSurface, in: Capsule())
             .overlay { Capsule().strokeBorder(Palette.lineStrong, lineWidth: 1) }
             .accessibilityIdentifier("ask-action-sections")
-
-            // 「展开素材 X」依赖服务端未提供的引用关系。
-            Text(L10n.string("ask.action.expandMaterial", locale: locale))
-                .font(TypeFace.label(11.5))
-                .foregroundStyle(Palette.inkTertiary)
-                .padding(.horizontal, Space.m)
-                .padding(.vertical, Space.xs)
-                .background(Palette.chip, in: Capsule())
-                .accessibilityIdentifier("ask-action-expand-disabled")
         }
     }
 

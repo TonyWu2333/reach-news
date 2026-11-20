@@ -22,9 +22,8 @@ final class BriefFeedStore {
     var searchText: String = ""
     var filter = FeedFilter()
 
-    /// 每个频道当前的分页游标；nil 表示还没取过或已经到底。
-    @ObservationIgnored private var channelCursors: [String: String] = [:]
-    @ObservationIgnored private var exhaustedChannels: Set<String> = []
+    /// 全量日报端点的分页游标。
+    @ObservationIgnored private var nextCursor: String?
     @ObservationIgnored private let client: APIClient
     @ObservationIgnored private let preferences: PreferencesStoring
 
@@ -64,6 +63,12 @@ final class BriefFeedStore {
 
     func channelName(for channelID: String) -> String {
         channelsByID[channelID]?.name ?? L10n.string("channel.unknown", locale: Locale.current)
+    }
+
+    /// 全量日报端点自带频道名，优先使用，避免频道表缺失时显示「未知频道」。
+    func displayName(for brief: Brief) -> String {
+        if let name = brief.channelName, !name.isEmpty { return name }
+        return channelName(for: brief.channelID)
     }
 
     func isNew(_ brief: Brief) -> Bool { newBriefIDs.contains(brief.id) }
@@ -167,47 +172,19 @@ final class BriefFeedStore {
     }
 
     private func resetPagination() {
-        channelCursors = [:]
-        exhaustedChannels = []
+        nextCursor = nil
         hasMore = true
     }
 
-    /// 取「一页」信息流：对每个还有更多内容的频道各取一页，合并后返回。
+    /// 取「一页」信息流。后端已提供跨频道全量日报端点，一次请求即可。
     private func fetchNextPage() async throws -> FeedPage {
-        let channelIDs = channelsByID.keys.sorted()
-        guard !channelIDs.isEmpty else { return FeedPage(items: [], hasMore: false) }
-
-        var collected: [Brief] = []
-        var anyProgress = false
-
-        for channelID in channelIDs where !exhaustedChannels.contains(channelID) {
-            do {
-                let page = try await client.briefs(
-                    channelID: channelID,
-                    cursor: channelCursors[channelID],
-                    limit: Pagination.defaultLimit
-                )
-                if page.items.isEmpty {
-                    exhaustedChannels.insert(channelID)
-                } else {
-                    anyProgress = true
-                    collected.append(contentsOf: page.items)
-                }
-                if let next = page.nextCursor {
-                    channelCursors[channelID] = next
-                } else {
-                    exhaustedChannels.insert(channelID)
-                }
-            } catch let apiError as APIError {
-                // 凭证失效要立刻向上抛；其余频道继续，避免一个频道拖垮整页。
-                if apiError == .unauthorized { throw apiError }
-                if apiError.isOffline { throw apiError }
-                exhaustedChannels.insert(channelID)
-            }
+        // 频道表仍用于着色与名称兜底；取失败不阻断日报加载。
+        if channelsByID.isEmpty {
+            await loadAllChannels()
         }
-
-        let remaining = channelIDs.contains { !exhaustedChannels.contains($0) }
-        return FeedPage(items: collected, hasMore: remaining && anyProgress)
+        let page = try await client.allBriefs(cursor: nextCursor, limit: Pagination.defaultLimit)
+        nextCursor = page.nextCursor
+        return FeedPage(items: page.items, hasMore: page.nextCursor != nil)
     }
 
     private func loadAllChannels() async {

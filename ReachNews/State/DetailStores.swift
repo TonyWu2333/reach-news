@@ -91,6 +91,12 @@ final class AskStore {
     private(set) var hasMore = false
     private(set) var error: APIError?
     private(set) var sendFailureMessage: String?
+    /// 最近一条回答引用的素材 ID（服务端 citedItemIds）。
+    private(set) var lastCitedItemIDs: [String] = []
+    /// 服务端明确标注这是确定性应答，未接 LLM。
+    private(set) var lastAnswerWasDeterministic = false
+    /// 引用素材的标题与来源域，按需拉取并缓存。
+    private(set) var citedMaterials: [String: Material] = [:]
 
     /// 输入框内容；发送失败时保留，不清空。
     var draft: String = ""
@@ -171,9 +177,12 @@ final class AskStore {
         turns.append(userTurn)
 
         do {
-            let answer = try await client.ask(briefID: briefID, message: message)
-            turns.append(answer)
+            let response = try await client.ask(briefID: briefID, message: message)
+            turns.append(response.turn)
+            lastCitedItemIDs = response.citedItemIDs
+            lastAnswerWasDeterministic = response.isDeterministic
             draft = ""
+            await loadCitedMaterials()
         } catch let apiError as APIError {
             // 失败时保留已输入内容，并把失败的那一轮留成可重试状态。
             draft = message
@@ -188,6 +197,28 @@ final class AskStore {
 
     func dismissSendFailure() {
         sendFailureMessage = nil
+    }
+
+    /// 引用卡只显示标题与来源域；`content` 永不渲染。
+    func materialTitle(for itemID: String) -> String {
+        citedMaterials[itemID]?.title ?? itemID
+    }
+
+    func materialHost(for itemID: String) -> String? {
+        citedMaterials[itemID]?.host
+    }
+
+    /// 按需拉取引用素材；单个失败不影响其余条目。
+    private func loadCitedMaterials() async {
+        let missing = lastCitedItemIDs.filter { citedMaterials[$0] == nil }
+        for itemID in missing {
+            do {
+                let material = try await client.material(briefID: briefID, materialID: itemID)
+                citedMaterials[itemID] = material
+            } catch {
+                // 取不到时引用卡退化显示 itemId 本身，不隐藏该条。
+            }
+        }
     }
 }
 

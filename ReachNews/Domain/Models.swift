@@ -177,6 +177,9 @@ struct Brief: Identifiable, Equatable, Hashable {
     let sections: [BriefSection]
     let memorySummary: String
     let createdAt: Date
+    /// 全量日报端点自带频道信息，避免为了渲染名称再回查频道。
+    var channelName: String?
+    var channelKind: ChannelKind?
 
     var entryCount: Int {
         sections.reduce(0) { $0 + $1.entries.count }
@@ -231,6 +234,27 @@ struct Material: Identifiable, Equatable, Hashable {
     }
 }
 
+// MARK: - 连接器
+
+struct Connector: Identifiable, Equatable, Hashable {
+    let id: String
+    let name: String
+    let kind: String
+}
+
+// MARK: - 预设模板
+//
+// 预设在服务端只作模板、不参与调度；客户端用它来新建频道。
+
+struct ChannelPreset: Identifiable, Equatable, Hashable {
+    let id: String
+    let name: String
+    let prompt: String
+    let tone: String
+    let schedule: Schedule
+    let connectorIDs: [String]
+}
+
 // MARK: - 运行
 
 struct Run: Identifiable, Equatable, Hashable {
@@ -251,6 +275,14 @@ struct AskTurn: Identifiable, Equatable, Hashable {
     let role: AskRole
     let message: String
     let createdAt: Date
+}
+
+/// 一次追问的结果：回答本体 + 它引用的素材。
+/// 服务端当前是确定性应答，`isDeterministic` 明确标注这一点。
+struct AskReply: Equatable {
+    let turn: AskTurn
+    let citedItemIDs: [String]
+    let isDeterministic: Bool
 }
 
 // MARK: - 轮询

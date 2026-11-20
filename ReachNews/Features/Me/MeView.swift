@@ -114,7 +114,7 @@ struct SavedBriefsView: View {
                                     .lineLimit(2)
                                 HStack(spacing: 7) {
                                     ChannelDot(channelID: brief.channelID)
-                                    Text(store.channelName(for: brief.channelID))
+                                    Text(store.displayName(for: brief))
                                         .font(TypeFace.label(11))
                                         .foregroundStyle(Palette.inkSecondary)
                                     DotSeparator()

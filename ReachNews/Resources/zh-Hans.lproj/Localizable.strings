@@ -1,9 +1,10 @@
 /* Reach News — 界面文案 */
 
-"ask.action.expandMaterial" = "展开素材（功能开发中）";
 "ask.action.sections" = "看这期分组";
+"ask.cited.count" = "%d 条";
+"ask.cited.deterministic" = "当前是确定性应答，引用为本期素材全集。";
+"ask.cited.empty" = "这一轮回答没有关联素材。";
 "ask.cited.heading" = "引用的素材";
-"ask.cited.inProgress" = "服务端暂不返回这条回答引用了哪些素材，因此这里不显示条目。";
 "ask.composer.add" = "更多";
 "ask.composer.placeholder" = "就这期日报提问";
 "ask.composer.send" = "发送";
@@ -19,9 +20,12 @@
 "briefDetail.materialCount" = "%d 条素材";
 "briefDetail.materialFailed" = "素材加载失败";
 "channel.count" = "%d 个频道";
+"channel.create.action" = "使用";
 "channel.create.accessibility" = "新建频道";
-"channel.create.unavailable.message" = "新建频道需要先枚举连接器，手机端暂时拿不到这份列表。请在管理后台创建。";
-"channel.create.unavailable.title" = "暂不可用";
+"channel.create.empty.message" = "管理员还没有创建预设模板。";
+"channel.create.empty.title" = "没有可用模板";
+"channel.create.hint" = "选择一个模板，实例化成你自己的频道。模板本身不会被调度。";
+"channel.create.title" = "新建频道";
 "channel.empty.message" = "频道由管理员开通。开通后会出现在这里。";
 "channel.empty.title" = "还没有频道";
 "channel.kind.follow" = "跟踪";
@@ -73,6 +77,7 @@
 "error.busy" = "频道正在运行，暂时无法保存";
 "error.configuration" = "服务地址无效";
 "error.decoding" = "服务端返回了无法解析的内容";
+"error.invalidConnector" = "连接器不可用";
 "error.invalidInput" = "请求参数不被接受";
 "error.notFound" = "请求的内容不存在";
 "error.offline" = "当前无网络";

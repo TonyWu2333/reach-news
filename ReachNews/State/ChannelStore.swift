@@ -18,6 +18,12 @@ final class ChannelStore {
     /// 当前可见的频道 ID，由视图上报；轮询只作用于这些行。
     private(set) var visibleChannelIDs: Set<String> = []
 
+    /// 新建频道用的模板与连接器（仅创建流程需要）。
+    private(set) var presets: [ChannelPreset] = []
+    private(set) var connectors: [Connector] = []
+    private(set) var isCreating = false
+    private(set) var createError: APIError?
+
     @ObservationIgnored private let client: APIClient
     @ObservationIgnored private var pollingTask: Task<Void, Never>?
 
@@ -95,6 +101,42 @@ final class ChannelStore {
                 channels[currentIndex].enabled = original
             }
             self.error = .transport(error.localizedDescription)
+        }
+    }
+
+    /// 创建流程所需的数据。任一失败都给出原因，不静默吞掉。
+    func loadCreationOptions() async {
+        createError = nil
+        do {
+            async let presetList = client.presets()
+            async let connectorList = client.connectors()
+            presets = try await presetList
+            connectors = try await connectorList
+        } catch let apiError as APIError {
+            createError = apiError
+        } catch {
+            createError = .transport(error.localizedDescription)
+        }
+    }
+
+    /// 从预设实例化一个自己的频道。
+    func instantiate(presetID: String) async -> Channel? {
+        guard !isCreating else { return nil }
+        isCreating = true
+        createError = nil
+        defer { isCreating = false }
+        do {
+            let created = try await client.instantiatePreset(id: presetID)
+            if created.kind.isUserVisible {
+                channels.insert(created, at: 0)
+            }
+            return created
+        } catch let apiError as APIError {
+            createError = apiError
+            return nil
+        } catch {
+            createError = .transport(error.localizedDescription)
+            return nil
         }
     }
 

@@ -254,7 +254,7 @@ struct BriefFeedView: View {
                         NavigationLink(value: brief) {
                             BriefRow(
                                 brief: brief,
-                                channelName: store.channelName(for: brief.channelID),
+                                channelName: store.displayName(for: brief),
                                 channelID: brief.channelID,
                                 isNew: store.isNew(brief)
                             )

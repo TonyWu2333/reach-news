@@ -83,6 +83,10 @@ enum Endpoint {
     case askHistory(briefID: String, cursor: String?, limit: Int)
     case ask(briefID: String)
     case cursor(since: Date?)
+    case allBriefs(cursor: String?, limit: Int)
+    case connectors
+    case presets
+    case instantiatePreset(id: String)
 
     var path: String {
         switch self {
@@ -112,6 +116,14 @@ enum Endpoint {
             return "/api/v1/briefs/\(briefID)/ask"
         case .cursor:
             return "/api/v1/cursor"
+        case .allBriefs:
+            return "/api/v1/briefs"
+        case .connectors:
+            return "/api/v1/connectors"
+        case .presets:
+            return "/api/v1/presets"
+        case .instantiatePreset(let id):
+            return "/api/v1/presets/\(id)/instantiate"
         }
     }
 
@@ -121,11 +133,13 @@ enum Endpoint {
              .askHistory(_, let cursor, let limit):
             return Pagination.queryItems(cursor: cursor, limit: limit)
         case .briefs(_, let cursor, let limit),
-             .runs(_, let cursor, let limit):
+             .runs(_, let cursor, let limit),
+             .allBriefs(let cursor, let limit):
             return Pagination.queryItems(cursor: cursor, limit: limit)
         case .cursor(let since):
             return [URLQueryItem(name: "since", value: PollingBaseline.sinceString(since))]
-        case .health, .login, .logout, .channel, .brief, .material, .run, .ask:
+        case .health, .login, .logout, .channel, .brief, .material, .run, .ask,
+             .connectors, .presets, .instantiatePreset:
             return []
         }
     }
@@ -230,6 +244,30 @@ final class APIClient {
         return dto.toDomain()
     }
 
+    /// 跨频道全量日报，按创建时间倒序。首屏只需一次请求。
+    func allBriefs(cursor: String? = nil, limit: Int = Pagination.defaultLimit) async throws -> Page<Brief> {
+        let envelope: PageEnvelope<BriefDTO> = try await get(
+            Endpoint.allBriefs(cursor: cursor, limit: limit)
+        )
+        return Page(items: envelope.items.map { $0.toDomain() },
+                    nextCursor: Pagination.sanitizedCursor(envelope.nextCursor))
+    }
+
+    func connectors() async throws -> [Connector] {
+        let envelope: PageEnvelope<ConnectorDTO> = try await get(Endpoint.connectors)
+        return envelope.items.map { $0.toDomain() }
+    }
+
+    func presets() async throws -> [ChannelPreset] {
+        let envelope: PageEnvelope<PresetDTO> = try await get(Endpoint.presets)
+        return envelope.items.map { $0.toDomain() }
+    }
+
+    func instantiatePreset(id: String) async throws -> Channel {
+        let dto: ChannelDTO = try await send(Endpoint.instantiatePreset(id: id), method: "POST", body: nil)
+        return dto.toDomain()
+    }
+
     func cursor(since: Date?) async throws -> CursorPayload {
         let dto: CursorDTO = try await get(Endpoint.cursor(since: since))
         return dto.toDomain()
@@ -243,14 +281,18 @@ final class APIClient {
                     nextCursor: Pagination.sanitizedCursor(envelope.nextCursor))
     }
 
-    func ask(briefID: String, message: String) async throws -> AskTurn {
+    func ask(briefID: String, message: String) async throws -> AskReply {
         let body = try JSONEncoder().encode(AskRequestBody(message: message))
         let dto: AskResponseDTO = try await send(Endpoint.ask(briefID: briefID), method: "POST", body: body)
-        return AskTurn(
-            id: UUID().uuidString,
-            role: .assistant,
-            message: dto.answer,
-            createdAt: Date()
+        return AskReply(
+            turn: AskTurn(
+                id: UUID().uuidString,
+                role: .assistant,
+                message: dto.answer,
+                createdAt: Date()
+            ),
+            citedItemIDs: dto.citedItemIds ?? [],
+            isDeterministic: dto.deterministic ?? false
         )
     }
 
