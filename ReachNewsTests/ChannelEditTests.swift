@@ -92,9 +92,8 @@ final class ChannelEditTests: XCTestCase {
     @MainActor
     func testSaveSubmitsPatchToChannelEndpoint() async throws {
         let channel = makeChannel()
-        // PATCH 返回单个频道对象；从 channels.json 里取第一项。
-        let envelope = try JSONDecoder().decode(PageEnvelope<ChannelDTO>.self, from: try Fixture.data("channels"))
-        let responseBody = try JSONEncoder().encode(try XCTUnwrap(envelope.items.first))
+        // PATCH 返回单个频道对象：从 channels.json 取出第一项的原始 JSON。
+        let responseBody = try firstChannelObjectJSON()
         let transport = StubTransport(handler: { request in
             XCTAssertEqual(request.httpMethod, "PATCH")
             XCTAssertEqual(request.url?.path, "/api/v1/channels/\(channel.id)")
@@ -113,6 +112,14 @@ final class ChannelEditTests: XCTestCase {
     }
 
     // MARK: 辅助
+
+    /// 从 channels.json 取出单个频道对象的原始 JSON（PATCH 的响应形状）。
+    private func firstChannelObjectJSON() throws -> Data {
+        let root = try JSONSerialization.jsonObject(with: try Fixture.data("channels")) as? [String: Any]
+        let items = try XCTUnwrap(root?["items"] as? [[String: Any]])
+        let first = try XCTUnwrap(items.first)
+        return try JSONSerialization.data(withJSONObject: first)
+    }
 
     private func makeChannel() -> Channel {
         Channel(
