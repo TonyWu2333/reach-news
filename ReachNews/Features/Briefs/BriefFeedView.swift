@@ -288,7 +288,7 @@ struct BriefFeedView: View {
         .accessibilityIdentifier("feed-list")
     }
 
-    private func emptyState: some View {
+    private func emptyState() -> some View {
         MessageStateView(
             title: L10n.string("feed.empty.title", locale: locale),
             message: L10n.string("feed.empty.message", locale: locale),
