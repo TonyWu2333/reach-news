@@ -22,8 +22,10 @@ targets:
       - path: ReachNews
         excludes: [Resources]
     resources:
-      - path: ReachNews/Resources/stories.json
+      - path: ReachNews/Resources/Assets.xcassets
       - path: ReachNews/Resources/zh-Hans.lproj
+        type: folder
+      - path: ReachNews/Resources/en.lproj
         type: folder
     settings:
       base:
@@ -43,7 +45,6 @@ targets:
         UILaunchScreen: {}
         UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
         UISupportedInterfaceOrientations~ipad: [UIInterfaceOrientationPortrait, UIInterfaceOrientationLandscapeLeft, UIInterfaceOrientationLandscapeRight]
-        UIAppFonts: [BarlowCondensed-Bold.ttf]
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
         ITSAppUsesNonExemptEncryption: false
@@ -51,6 +52,8 @@ targets:
     type: bundle.unit-test
     platform: iOS
     sources: [ReachNewsTests]
+    resources:
+      - path: Fixtures
     dependencies:
       - target: ReachNews
     settings:
