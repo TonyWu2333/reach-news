@@ -5,7 +5,8 @@ import XCTest
 
 final class APIClientTests: XCTestCase {
     func testAuthorizationHeaderIsAttached() async throws {
-        let transport = StubTransport(json: #"{"ok":true,"service":"reach-news","time":"2026-11-20T02:01:50.774Z"}"#)
+        // 频道端点返回分页信封，不是 health 形状。
+        let transport = StubTransport(json: #"{"items":[],"nextCursor":null}"#)
         let client = TestClient.make(transport: transport, token: "secret-token")
 
         _ = try await client.channels(limit: 1)

@@ -21,12 +21,14 @@ targets:
     sources:
       - path: ReachNews
         excludes: [Resources]
-    resources:
       - path: ReachNews/Resources/Assets.xcassets
+        buildPhase: resources
       - path: ReachNews/Resources/zh-Hans.lproj
         type: folder
+        buildPhase: resources
       - path: ReachNews/Resources/en.lproj
         type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.tangsong404.reachnews
