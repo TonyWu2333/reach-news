@@ -125,7 +125,7 @@ enum Endpoint {
             return Pagination.queryItems(cursor: cursor, limit: limit)
         case .cursor(let since):
             return [URLQueryItem(name: "since", value: PollingBaseline.sinceString(since))]
-        case .health, .login, .channel, .brief, .material, .run, .ask:
+        case .health, .login, .logout, .channel, .brief, .material, .run, .ask:
             return []
         }
     }
