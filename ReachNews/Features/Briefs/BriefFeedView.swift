@@ -10,7 +10,6 @@ struct BriefFeedView: View {
     @State private var store: BriefFeedStore?
     @State private var showFilter = false
     @State private var path = NavigationPath()
-    @State private var filterSheetDetent: PresentationDetent = .large
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -30,14 +29,12 @@ struct BriefFeedView: View {
                 }
             }
             .navigationDestination(for: Brief.self) { brief in
-                if let env {
-                    BriefDetailView(brief: brief, store: env.makeDetailStore(brief: brief))
-                }
+                BriefDetailView(brief: brief, store: env.makeDetailStore(brief: brief))
             }
         }
         .task {
             if store == nil {
-                store = env?.feed
+                store = env.feed
             }
             await store?.loadIfNeeded()
         }
@@ -76,7 +73,7 @@ struct BriefFeedView: View {
                 Spacer()
             } else if store.isEmpty {
                 Spacer()
-                emptyState
+                emptyState()
                 Spacer()
             } else if store.hasNoResults {
                 Spacer()

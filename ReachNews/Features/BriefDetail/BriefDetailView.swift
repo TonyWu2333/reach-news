@@ -77,12 +77,10 @@ struct BriefDetailView: View {
             .padding(.bottom, Space.xxl)
         }
         .navigationDestination(isPresented: $showsAsk) {
-            if let env {
-                AskView(
-                    brief: brief,
-                    store: env.makeAskStore(briefID: brief.id)
-                )
-            }
+            AskView(
+                brief: brief,
+                store: env.makeAskStore(briefID: brief.id)
+            )
         }
         .accessibilityIdentifier("brief-detail")
     }

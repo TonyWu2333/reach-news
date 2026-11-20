@@ -12,6 +12,8 @@ struct Schedule: Equatable, Hashable {
 
         var id: String { key }
 
+        static var allCases: [Weekday] { all }
+
         static let all: [Weekday] = [
             Weekday(key: "mon", calendarIndex: 2, symbolKey: "weekday.mon"),
             Weekday(key: "tue", calendarIndex: 3, symbolKey: "weekday.tue"),

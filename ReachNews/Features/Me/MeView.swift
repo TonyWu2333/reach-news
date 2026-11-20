@@ -10,26 +10,18 @@ struct MeView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                if let env {
-                    content(env)
-                } else {
-                    LoadingLine(text: L10n.string("common.loading", locale: locale))
-                }
-            }
+            content(env)
             .background(Palette.canvas)
             .navigationTitle(L10n.string("tab.me", locale: locale))
             .navigationBarTitleDisplayMode(.large)
             .navigationDestination(for: MeDestination.self) { destination in
-                if let env {
-                    switch destination {
-                    case .saved:
-                        SavedBriefsView(store: env.feed, saved: env.saved)
-                    case .preferences:
-                        PreferencesView(session: env.session, preferences: env.preferences)
-                    case .connection:
-                        ConnectionInfoView(session: env.session)
-                    }
+                switch destination {
+                case .saved:
+                    SavedBriefsView(store: env.feed, saved: env.saved)
+                case .preferences:
+                    PreferencesView(session: env.session, preferences: env.preferences)
+                case .connection:
+                    ConnectionInfoView(session: env.session)
                 }
             }
         }
@@ -148,9 +140,7 @@ struct SavedBriefsView: View {
         .navigationTitle(L10n.string("me.saved", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
         .navigationDestination(for: Brief.self) { brief in
-            if let env {
-                BriefDetailView(brief: brief, store: env.makeDetailStore(brief: brief))
-            }
+            BriefDetailView(brief: brief, store: env.makeDetailStore(brief: brief))
         }
         .accessibilityIdentifier("saved-list")
     }
@@ -234,7 +224,6 @@ struct PreferencesView: View {
 struct ConnectionInfoView: View {
     let session: SessionStore
     @Environment(\.appLocale) private var locale
-    @State private var showsReplace = false
 
     var body: some View {
         List {

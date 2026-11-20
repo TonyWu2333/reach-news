@@ -18,26 +18,22 @@ struct RootTabView: View {
 
     var body: some View {
         Group {
-            if let env {
-                if env.session.isConnected {
-                    tabs(env)
-                } else {
-                    NavigationStack {
-                        ConnectionView(session: env.session)
-                    }
-                }
+            if env.session.isConnected {
+                tabs
             } else {
-                ProgressView()
+                NavigationStack {
+                    ConnectionView(session: env.session)
+                }
             }
         }
         .tint(Palette.ink)
         .task {
             // 启动时若已有凭证，静默验证一次，不弹连接页。
-            await env?.session.validateStoredCredentials()
+            await env.session.validateStoredCredentials()
         }
     }
 
-    private func tabs(_ env: AppEnvironment) -> some View {
+    private var tabs: some View {
         TabView(selection: $selection) {
             BriefFeedView()
                 .tabItem {

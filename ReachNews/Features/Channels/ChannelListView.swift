@@ -12,13 +12,7 @@ struct ChannelListView: View {
 
     var body: some View {
         NavigationStack(path: $path) {
-            Group {
-                if let env {
-                    content(env.channels)
-                } else {
-                    LoadingLine(text: L10n.string("common.loading", locale: locale))
-                }
-            }
+            content(env.channels)
             .background(Palette.canvas)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -40,23 +34,20 @@ struct ChannelListView: View {
                 }
             }
             .navigationDestination(for: Channel.self) { channel in
-                if let env {
-                    ChannelEditView(
-                        channel: channel,
-                        editor: env.makeChannelEditor(channel: channel),
-                        onSaved: { updated in
-                            env.channels.replace(updated)
-                        }
-                    )
-                }
+                ChannelEditView(
+                    channel: channel,
+                    editor: env.makeChannelEditor(channel: channel),
+                    onSaved: { updated in
+                        env.channels.replace(updated)
+                    }
+                )
             }
         }
         .task {
-            guard let env else { return }
             await env.channels.load()
         }
         .onDisappear {
-            env?.channels.stopPolling()
+            env.channels.stopPolling()
         }
         .alert(
             L10n.string("channel.create.unavailable.title", locale: locale),
