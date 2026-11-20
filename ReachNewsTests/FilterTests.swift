@@ -106,8 +106,10 @@ final class FilterTests: XCTestCase {
         filter.endDate = day(10)
 
         let range = try? XCTUnwrap(filter.resolvedRange(now: Date()))
+        // 范围按整天解释：起点是当天零点，终点覆盖到当天结束。
         XCTAssertEqual(range?.lowerBound, calendar.startOfDay(for: day(10)))
-        XCTAssertEqual(range?.upperBound, calendar.startOfDay(for: day(20)))
+        let expectedUpper = calendar.startOfDay(for: day(20)).addingTimeInterval(24 * 3600 - 0.001)
+        XCTAssertEqual(range?.upperBound.timeIntervalSince1970 ?? 0, expectedUpper.timeIntervalSince1970, accuracy: 0.002)
     }
 
     func testActiveDimensionCount() {
@@ -130,6 +132,7 @@ final class FilterTests: XCTestCase {
         filter.startDate = day(10)
         filter.endDate = day(20)
 
+        XCTAssertEqual(filter.requiredLowerBound, calendar.startOfDay(for: day(10)))
         XCTAssertEqual(filter.requiredLowerBound, calendar.startOfDay(for: day(10)))
 
         filter.time = .all

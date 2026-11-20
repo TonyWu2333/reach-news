@@ -224,6 +224,31 @@ final class SessionStoreTests: XCTestCase {
     }
 
     @MainActor
+    func testExistingCredentialSurvivesFailedReplacement() async {
+        // 更换凭证时验证失败，旧凭证必须保留（用户可能只是地址填错）。
+        let credentials = InMemoryCredentials(token: "existing-token")
+        let preferences = InMemoryPreferences()
+        let transport = StubTransport { request in
+            if request.url?.path == "/health" {
+                return (200, Data(#"{"ok":true,"service":"reach-news","time":null}"#.utf8))
+            }
+            return (401, Data(#"{"error":{"code":"unauthorized","message":"bad"}}"#.utf8))
+        }
+        let client = TestClient.make(transport: transport, token: nil)
+        let session = SessionStore(
+            credentials: credentials,
+            preferences: preferences,
+            makeClient: { _ in client }
+        )
+        session.tokenInput = "rejected-token"
+
+        let ok = await session.connect(tokenOverride: "rejected-token")
+
+        XCTAssertFalse(ok)
+        XCTAssertEqual(credentials.storedToken, "existing-token")
+    }
+
+    @MainActor
     func testUnreachableServiceReportsOffline() async {
         let credentials = InMemoryCredentials()
         let preferences = InMemoryPreferences()

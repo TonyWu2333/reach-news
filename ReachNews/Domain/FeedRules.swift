@@ -116,9 +116,11 @@ struct FeedFilter: Equatable {
             return start...now
         case .custom:
             guard let start = startDate, let end = endDate else { return nil }
-            let lower = min(start, end)
-            let upper = max(start, end)
-            return lower...upper
+            // 自定义范围按整天解释：起点取当天零点，终点取当天结束。
+            let lowerDay = calendar.startOfDay(for: min(start, end))
+            let upperDay = calendar.startOfDay(for: max(start, end))
+            guard let upper = calendar.date(byAdding: .day, value: 1, to: upperDay) else { return nil }
+            return lowerDay...upper.addingTimeInterval(-0.001)
         }
     }
 

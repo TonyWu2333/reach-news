@@ -76,6 +76,19 @@ final class KeychainCredentials: CredentialProviding {
     }
 }
 
+/// 只用于写入前的临时验证：不触碰 Keychain。
+final class TemporaryCredentials: CredentialProviding {
+    private let value: String
+
+    init(token: String) {
+        self.value = token
+    }
+
+    func token() -> String? { value }
+    func store(token: String) throws {}
+    func clearToken() {}
+}
+
 // MARK: - 应用偏好
 //
 // 只存用户偏好与一个轮询基线时间戳（ADR 0003）。

@@ -44,6 +44,29 @@ struct URLSessionTransport: HTTPTransporting {
     }
 }
 
+extension APIError {
+    /// 把底层传输错误归一化成 .offline 或 .transport。
+    static func normalize(transportError error: Error) -> APIError {
+        let nsError = error as NSError
+        guard nsError.domain == NSURLErrorDomain else {
+            return .transport(error.localizedDescription)
+        }
+        switch nsError.code {
+        case NSURLErrorNotConnectedToInternet,
+             NSURLErrorNetworkConnectionLost,
+             NSURLErrorCannotConnectToHost,
+             NSURLErrorCannotFindHost,
+             NSURLErrorTimedOut,
+             NSURLErrorDataNotAllowed,
+             NSURLErrorSecureConnectionFailed,
+             NSURLErrorCannotLoadFromNetwork:
+            return .offline
+        default:
+            return .transport(nsError.localizedDescription)
+        }
+    }
+}
+
 // MARK: - 端点
 
 enum Endpoint {
@@ -127,6 +150,11 @@ final class APIClient {
     /// 复制成指向另一个基础地址的客户端；已有实例不变。
     func withBaseURL(_ url: URL) -> APIClient {
         APIClient(baseURL: url, transport: transport, credentials: credentials)
+    }
+
+    /// 复制成使用另一组凭证的客户端，用于写入前的临时验证。
+    func withCredentials(_ credentials: CredentialProviding) -> APIClient {
+        APIClient(baseURL: baseURL, transport: transport, credentials: credentials)
     }
 
     // MARK: 端点调用
@@ -216,7 +244,15 @@ final class APIClient {
 
     private func send<T: Decodable>(_ endpoint: Endpoint, method: String, body: Data?) async throws -> T {
         let request = try makeRequest(endpoint, method: method, body: body)
-        let (data, response) = try await transport.send(request)
+        let (data, response): (Data, HTTPURLResponse)
+        do {
+            (data, response) = try await transport.send(request)
+        } catch let error as APIError {
+            throw error
+        } catch {
+            // 传输层可能直接抛出 URLError（测试替身或自定义实现），在此统一归一化。
+            throw APIError.normalize(transportError: error)
+        }
 
         guard (200..<300).contains(response.statusCode) else {
             if let envelope = try? JSONDecoder().decode(ErrorEnvelope.self, from: data) {

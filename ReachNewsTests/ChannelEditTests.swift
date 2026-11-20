@@ -92,7 +92,9 @@ final class ChannelEditTests: XCTestCase {
     @MainActor
     func testSaveSubmitsPatchToChannelEndpoint() async throws {
         let channel = makeChannel()
-        let responseBody = try Fixture.data("channels")
+        // PATCH 返回单个频道对象；从 channels.json 里取第一项。
+        let envelope = try JSONDecoder().decode(PageEnvelope<ChannelDTO>.self, from: try Fixture.data("channels"))
+        let responseBody = try JSONEncoder().encode(try XCTUnwrap(envelope.items.first))
         let transport = StubTransport(handler: { request in
             XCTAssertEqual(request.httpMethod, "PATCH")
             XCTAssertEqual(request.url?.path, "/api/v1/channels/\(channel.id)")

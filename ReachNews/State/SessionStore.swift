@@ -63,20 +63,27 @@ final class SessionStore {
     }
 
     /// 首次连接或更换凭证：执行双验证，通过后才落库。
+    /// 未经验证的凭证绝不写入 Keychain，也不覆盖已有凭证。
     func connect(tokenOverride: String? = nil) async -> Bool {
-        let rawURL = baseURLString
-        guard let url = BaseURLDefaults.parse(rawURL) else {
+        guard let url = BaseURLDefaults.parse(baseURLString) else {
             state = .failed(.invalidConfiguration)
             return false
         }
-        let candidateToken = (tokenOverride ?? tokenInput).trimmingCharacters(in: .whitespacesAndNewlines)
-        let existingToken = credentials.token() ?? ""
 
-        // 更换凭证时必须有新 token；首次连接时用输入值。
-        let effectiveToken = candidateToken.isEmpty ? existingToken : candidateToken
+        let candidate = (tokenOverride ?? tokenInput).trimmingCharacters(in: .whitespacesAndNewlines)
+        let existing = credentials.token() ?? ""
+        let effectiveToken = candidate.isEmpty ? existing : candidate
+
+        guard !effectiveToken.isEmpty else {
+            state = .failed(.unauthorized)
+            return false
+        }
 
         state = .connecting
-        let client = makeClient(url)
+
+        // 用候选凭证临时构造客户端，验证通过后才真正落库。
+        let probeCredentials = TemporaryCredentials(token: effectiveToken)
+        let client = makeClient(url).withCredentials(probeCredentials)
 
         do {
             let health = try await client.health()
@@ -86,19 +93,10 @@ final class SessionStore {
             }
             serviceTime = JSONDate.parse(health.time)
 
-            // 校验 token 是否可读频道。health 之后才验证，便于区分「地址错」与「凭证错」。
-            guard !effectiveToken.isEmpty else {
-                state = .failed(.unauthorized)
-                return false
-            }
-            do {
-                try credentials.store(token: effectiveToken)
-            } catch {
-                state = .failed(.invalidConfiguration)
-                return false
-            }
             _ = try await client.channels(limit: 1)
 
+            // 两项都通过：此刻才写入 Keychain 并覆盖旧凭证。
+            try credentials.store(token: effectiveToken)
             preferences.baseURLString = url.absoluteString
             baseURLString = url.absoluteString
             tokenInput = ""
@@ -106,15 +104,6 @@ final class SessionStore {
             state = .connected
             return true
         } catch let error as APIError {
-            // 校验失败时不留下未经验证的凭证。
-            if error == .unauthorized {
-                if !existingToken.isEmpty {
-                    // 保留旧凭证：用户可能只是地址填错。
-                } else {
-                    credentials.clearToken()
-                    hasStoredToken = false
-                }
-            }
             state = .failed(error)
             return false
         } catch {

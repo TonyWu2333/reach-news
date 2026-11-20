@@ -51,9 +51,10 @@ targets:
   ReachNewsTests:
     type: bundle.unit-test
     platform: iOS
-    sources: [ReachNewsTests]
-    resources:
+    sources:
+      - path: ReachNewsTests
       - path: Fixtures
+        buildPhase: resources
     dependencies:
       - target: ReachNews
     settings:

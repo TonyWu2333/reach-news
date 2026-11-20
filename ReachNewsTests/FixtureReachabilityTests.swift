@@ -66,6 +66,9 @@ final class FixtureReachabilityTests: XCTestCase {
 //
 // 中英文键集必须完全一致，且界面不残留硬编码文案。
 
+/// 仅用于取得 App 所在的 bundle。
+private final class APIErrorProbe {}
+
 final class LocalizationTests: XCTestCase {
     func testChineseAndEnglishKeySetsMatch() throws {
         let zh = try keys(in: "Localizable", table: nil, language: "zh-Hans")
@@ -95,9 +98,10 @@ final class LocalizationTests: XCTestCase {
         }
     }
 
+    /// 文案随 App 目标打包，因此从主 bundle 的 .lproj 读取。
     private func keys(in name: String, table: String?, language: String) throws -> Set<String> {
-        let bundle = try XCTUnwrap(Bundle(for: Self.self))
-        guard let path = bundle.path(forResource: name, ofType: "strings", inDirectory: nil, forLocalization: language) else {
+        let appBundle = Bundle(for: APIErrorProbe.self)
+        guard let path = appBundle.path(forResource: name, ofType: "strings", inDirectory: nil, forLocalization: language) else {
             XCTFail("missing \(language) strings table")
             return []
         }
