@@ -50,16 +50,14 @@ struct ChannelListView: View {
             env.channels.stopPolling()
         }
         .sheet(isPresented: $showsCreateSheet) {
-            if let env {
-                ChannelCreateSheet(
-                    store: env.channels,
-                    isPresented: $showsCreateSheet,
-                    onCreated: { channel in
-                        env.channels.replace(channel)
-                    }
-                )
-                .presentationDetents([.large])
-            }
+            ChannelCreateSheet(
+                store: env.channels,
+                isPresented: $showsCreateSheet,
+                onCreated: { channel in
+                    env.channels.replace(channel)
+                }
+            )
+            .presentationDetents([.large])
         }
     }
 
