@@ -39,13 +39,24 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          DEVICE="$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/ {print $1; exit}' | sed -e 's/[[:space:]]*$//')"
-          if [ -z "$DEVICE" ]; then echo "No available iPhone simulator"; exit 1; fi
-          echo "Using simulator: $DEVICE"
+          UDID="$(xcrun simctl list devices available --json | python3 -c "
+          import json,sys
+          data=json.load(sys.stdin)['devices']
+          for runtime, devices in data.items():
+              if 'iOS' not in runtime:
+                  continue
+              for device in devices:
+                  if device.get('isAvailable') and 'iPhone' in device['name']:
+                      print(device['udid'])
+                      raise SystemExit
+          raise SystemExit(1)
+          ")"
+          if [ -z "$UDID" ]; then echo "No available iPhone simulator"; exit 1; fi
+          echo "Using simulator UDID: $UDID"
           xcodebuild test \
             -project ReachNews.xcodeproj \
             -scheme ReachNews \
-            -destination "platform=iOS Simulator,name=$DEVICE" \
+            -destination "platform=iOS Simulator,id=$UDID" \
             -resultBundlePath build/TestResults.xcresult \
             -only-testing:ReachNewsTests \
             CODE_SIGNING_ALLOWED=NO
