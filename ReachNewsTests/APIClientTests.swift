@@ -225,6 +225,7 @@ final class APIClientTests: XCTestCase {
 // MARK: - 会话登录
 
 final class SessionStoreTests: XCTestCase {
+    @MainActor
     private func makeSession(
         credentials: InMemoryCredentials = InMemoryCredentials(),
         transport: StubTransport
