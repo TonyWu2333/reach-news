@@ -72,7 +72,7 @@ final class PaginationTests: XCTestCase {
         XCTAssertEqual(items.count, 1)
         XCTAssertEqual(items.first?.name, "since")
         XCTAssertEqual(items.first?.value, PollingBaseline.sinceString(nil))
-        XCTAssertTrue(items.first?.value.hasPrefix("1970-01-01") == true)
+        XCTAssertEqual(items.first?.value?.hasPrefix("1970-01-01"), true)
 
         let baseline = Date(timeIntervalSince1970: 1795140110.774)
         let withBaseline = Endpoint.cursor(since: baseline).queryItems
