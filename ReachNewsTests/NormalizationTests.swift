@@ -181,8 +181,8 @@ final class NormalizationTests: XCTestCase {
 
     func testChannelTintIsStablePerID() {
         let id = "chn_c7e81f00-3a2f-4f7b-9a1e-0d5c2b7e4a11"
-        let first = ChannelTint.color(for: id)
-        let second = ChannelTint.color(for: id)
+        let first = ChannelTint.fallbackColor(for: id)
+        let second = ChannelTint.fallbackColor(for: id)
         XCTAssertEqual(first, second)
         // 同一 id 永远落在同一索引。
         XCTAssertEqual(Palette.channelTints.firstIndex(of: first),
