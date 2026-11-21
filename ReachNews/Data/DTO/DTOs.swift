@@ -63,6 +63,7 @@ struct ErrorEnvelope: Decodable {
         switch APIErrorCode.parse(error.code) {
         case .unauthorized: return .unauthorized
         case .tooManyAttempts: return .tooManyAttempts
+        case .invalidConnector: return .invalidConnector(error.message)
         case .notFound: return .notFound
         case .invalidInput: return .invalidInput(error.message)
         case .busy: return .busy(error.message)

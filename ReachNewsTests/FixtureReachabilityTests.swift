@@ -83,7 +83,7 @@ final class LocalizationTests: XCTestCase {
             "channel.state.running", "channel.state.missed", "channel.state.failed",
             "channelEdit.busy.title", "channelEdit.busy.detail",
             "ask.pill", "ask.cited.heading", "ask.cited.deterministic",
-            "channel.create.title", "channel.create.action",
+            "channel.create.title", "channel.create.submit",
             "error.offline", "error.unauthorized", "error.busy",
             "me.saved", "me.preferences", "me.connection",
             "common.featureInProgress"

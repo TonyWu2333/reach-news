@@ -369,6 +369,6 @@ final class ChannelConnectorTests: XCTestCase {
         )
 
         XCTAssertNil(created)
-        XCTAssertEqual(store.createError, .invalidInput("Unknown or disabled connector: x"))
+        XCTAssertEqual(store.createError, .invalidConnector("Unknown or disabled connector: x"))
     }
 }

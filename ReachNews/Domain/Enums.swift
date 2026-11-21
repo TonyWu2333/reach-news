@@ -85,6 +85,7 @@ enum MissedReason: Equatable, Hashable {
 enum APIErrorCode: Equatable {
     case unauthorized
     case tooManyAttempts
+    case invalidConnector
     case notFound
     case invalidInput
     case busy
@@ -96,6 +97,7 @@ enum APIErrorCode: Equatable {
         switch raw {
         case "unauthorized": return .unauthorized
         case "too_many_attempts": return .tooManyAttempts
+        case "invalid_connector": return .invalidConnector
         case "not_found": return .notFound
         case "invalid_input": return .invalidInput
         case "busy": return .busy
@@ -109,6 +111,7 @@ enum APIErrorCode: Equatable {
         switch self {
         case .unauthorized: return "unauthorized"
         case .tooManyAttempts: return "too_many_attempts"
+        case .invalidConnector: return "invalid_connector"
         case .notFound: return "not_found"
         case .invalidInput: return "invalid_input"
         case .busy: return "busy"
@@ -155,6 +158,7 @@ enum APIError: Error, Equatable {
     case notFound
     case invalidInput(String)
     case tooManyAttempts
+    case invalidConnector(String)
     case busy(String)
     case badRequest(String)
     case server(String)
@@ -165,6 +169,7 @@ enum APIError: Error, Equatable {
         switch self {
         case .unauthorized: return .unauthorized
         case .tooManyAttempts: return .tooManyAttempts
+        case .invalidConnector: return .invalidConnector
         case .notFound: return .notFound
         case .invalidInput: return .invalidInput
         case .busy: return .busy

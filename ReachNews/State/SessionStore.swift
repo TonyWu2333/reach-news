@@ -206,6 +206,7 @@ extension APIError {
         case .transport: return "error.transport"
         case .unauthorized: return "error.unauthorized"
         case .tooManyAttempts: return "error.tooManyAttempts"
+        case .invalidConnector: return "error.invalidConnector"
         case .notFound: return "error.notFound"
         case .invalidInput: return "error.invalidInput"
         case .busy: return "error.busy"
@@ -219,7 +220,8 @@ extension APIError {
     /// 服务端给出的原始说明，用于在通用文案下补充细节。
     var detailText: String? {
         switch self {
-        case .invalidInput(let message), .busy(let message), .badRequest(let message), .server(let message):
+        case .invalidConnector(let message), .invalidInput(let message), .busy(let message),
+             .badRequest(let message), .server(let message):
             return message.isEmpty ? nil : message
         case .transport(let message):
             return message.isEmpty ? nil : message
