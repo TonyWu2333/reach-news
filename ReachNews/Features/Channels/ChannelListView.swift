@@ -9,6 +9,7 @@ struct ChannelListView: View {
     @Environment(\.appLocale) private var locale
     @State private var path = NavigationPath()
     @State private var showsCreateSheet = false
+    @State private var editingChannel: Channel?
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -33,21 +34,22 @@ struct ChannelListView: View {
                     .accessibilityIdentifier("channel-create-button")
                 }
             }
-            .navigationDestination(for: Channel.self) { channel in
-                ChannelEditView(
-                    channel: channel,
-                    editor: env.makeChannelEditor(channel: channel),
-                    onSaved: { updated in
-                        env.channels.replace(updated)
-                    }
-                )
-            }
         }
         .task {
             await env.channels.load()
         }
         .onDisappear {
             env.channels.stopPolling()
+        }
+        .sheet(item: $editingChannel) { channel in
+            ChannelEditView(
+                channel: channel,
+                editor: env.makeChannelEditor(channel: channel),
+                onSaved: { updated in
+                    env.channels.replace(updated)
+                }
+            )
+            .presentationDetents([.large])
         }
         .sheet(isPresented: $showsCreateSheet) {
             ChannelCreateSheet(
@@ -124,7 +126,9 @@ struct ChannelListView: View {
         ScrollView {
             LazyVStack(spacing: Space.m) {
                 ForEach(store.channels) { channel in
-                    NavigationLink(value: channel) {
+                    Button {
+                        editingChannel = channel
+                    } label: {
                         ChannelCard(
                             channel: channel,
                             run: store.latestRun(for: channel.id),

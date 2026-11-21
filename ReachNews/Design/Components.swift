@@ -346,6 +346,31 @@ struct FeatureInProgressView: View {
     }
 }
 
+// MARK: - 圆角矩形输入框
+//
+// 与新建页、编辑页共用，避免各页各写一套圆角和内边距。
+
+struct FieldBox<Content: View>: View {
+    var minHeight: CGFloat = 0
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        content
+            .font(TypeFace.body(15))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 13)
+            .frame(minHeight: minHeight > 0 ? minHeight : nil, alignment: .topLeading)
+            .background(
+                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                    .fill(Palette.surface)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                    .strokeBorder(Palette.line, lineWidth: 1)
+            }
+    }
+}
+
 // MARK: - 品牌标识
 
 struct BrandMark: View {

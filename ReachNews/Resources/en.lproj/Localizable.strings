@@ -49,7 +49,7 @@
 "channelEdit.delete.confirm.message" = "It will disappear from the list. Briefs and materials already produced are kept.";
 "channelEdit.delete.confirm.title" = "Delete this channel?";
 "channelEdit.name" = "Name";
-"channelEdit.prompt" = "Prompt";
+"channelEdit.prompt" = "Direction";
 "channelEdit.save" = "Save";
 "channelEdit.schedule" = "Schedule";
 "channelEdit.title" = "Edit channel";
@@ -165,3 +165,4 @@
 "weekday.tue.short" = "Tue";
 "weekday.wed" = "Wednesday";
 "weekday.wed.short" = "Wed";
+"channelEdit.close" = "Cancel";

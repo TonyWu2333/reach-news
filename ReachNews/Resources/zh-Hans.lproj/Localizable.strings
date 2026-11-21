@@ -49,7 +49,7 @@
 "channelEdit.delete.confirm.message" = "频道会从列表消失，但已产出的日报与素材不会被删除。";
 "channelEdit.delete.confirm.title" = "删除这个频道？";
 "channelEdit.name" = "名称";
-"channelEdit.prompt" = "提示词";
+"channelEdit.prompt" = "频道方向";
 "channelEdit.save" = "保存";
 "channelEdit.schedule" = "采集时间表";
 "channelEdit.title" = "编辑频道";
@@ -165,3 +165,4 @@
 "weekday.tue.short" = "二";
 "weekday.wed" = "周三";
 "weekday.wed.short" = "三";
+"channelEdit.close" = "取消";

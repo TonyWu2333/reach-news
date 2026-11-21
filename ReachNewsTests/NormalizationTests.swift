@@ -109,7 +109,7 @@ final class NormalizationTests: XCTestCase {
         XCTAssertTrue(schedule.isEmpty)
 
         let monday = Schedule.Weekday.all[0]
-        schedule.toggle(monday)
+        schedule.toggle(monday, at: "08:00")
         XCTAssertTrue(schedule.isEnabled(monday))
         XCTAssertEqual(schedule.times(for: monday), ["08:00"])
 
@@ -119,7 +119,7 @@ final class NormalizationTests: XCTestCase {
         schedule.removeTime("08:00", from: monday)
         XCTAssertEqual(schedule.times(for: monday), ["18:00"])
 
-        schedule.toggle(monday)
+        schedule.toggle(monday, at: "18:00")
         XCTAssertFalse(schedule.isEnabled(monday))
         XCTAssertTrue(schedule.isEmpty)
     }
@@ -369,5 +369,66 @@ final class ScheduleCapTests: XCTestCase {
         XCTAssertTrue(schedule.canAddTime(to: tuesday))
         schedule.addTime("09:00", to: tuesday)
         XCTAssertEqual(schedule.times(for: tuesday), ["09:00"])
+    }
+}
+
+// MARK: - 闹钟式时间选择
+
+final class AlarmScheduleTests: XCTestCase {
+    func testSetTimeAppliesToSelectedWeekdaysOnly() {
+        var schedule = Schedule()
+        let monday = Schedule.Weekday.all[0]
+        let tuesday = Schedule.Weekday.all[1]
+        let friday = Schedule.Weekday.all[4]
+
+        schedule.setTime("08:30", for: [monday, friday])
+
+        XCTAssertEqual(schedule.times(for: monday), ["08:30"])
+        XCTAssertEqual(schedule.times(for: friday), ["08:30"])
+        XCTAssertTrue(schedule.times(for: tuesday).isEmpty)
+    }
+
+    func testWeekdaysAtTimeReturnsMatchingSelection() {
+        var schedule = Schedule()
+        schedule.setTime("09:00", for: [Schedule.Weekday.all[0], Schedule.Weekday.all[2]])
+        schedule.setTime("18:00", for: [Schedule.Weekday.all[1]])
+
+        XCTAssertEqual(schedule.weekdays(at: "09:00").map(\.key), ["mon", "wed"])
+        XCTAssertEqual(schedule.weekdays(at: "18:00").map(\.key), ["tue"])
+        XCTAssertEqual(schedule.weekdays(at: "23:00"), [])
+    }
+
+    func testChangingTimeUpdatesAllSelectedWeekdays() {
+        // 闹钟语义：改时间，已选星期一起变。
+        var schedule = Schedule()
+        let monday = Schedule.Weekday.all[0]
+        let wednesday = Schedule.Weekday.all[2]
+        schedule.setTime("08:00", for: [monday, wednesday])
+
+        schedule.setTime("07:15", for: schedule.weekdays(at: "08:00"))
+
+        XCTAssertEqual(schedule.times(for: monday), ["07:15"])
+        XCTAssertEqual(schedule.times(for: wednesday), ["07:15"])
+        XCTAssertTrue(schedule.weekdays(at: "08:00").isEmpty)
+    }
+
+    func testInvalidTimeIsRejected() {
+        var schedule = Schedule()
+        let monday = Schedule.Weekday.all[0]
+
+        schedule.setTime("25:99", for: [monday])
+
+        XCTAssertTrue(schedule.times(for: monday).isEmpty)
+    }
+
+    func testToggleWithTimeEnablesAndDisables() {
+        var schedule = Schedule()
+        let saturday = Schedule.Weekday.all[5]
+
+        schedule.toggle(saturday, at: "01:25")
+        XCTAssertEqual(schedule.times(for: saturday), ["01:25"])
+
+        schedule.toggle(saturday, at: "01:25")
+        XCTAssertTrue(schedule.times(for: saturday).isEmpty)
     }
 }

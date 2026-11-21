@@ -66,14 +66,34 @@ struct Schedule: Equatable, Hashable {
         Schedule.normalized(timesByWeekday.values.flatMap { $0 })
     }
 
-    mutating func toggle(_ weekday: Weekday) {
+    /// 闹钟式切换：把当前选中的时刻一次性应用到某个星期，或清空它。
+    mutating func toggle(_ weekday: Weekday, at time: String) {
         if isEnabled(weekday) {
             timesByWeekday[weekday.key] = []
         } else {
-            let fallback = allTimes.first ?? "08:00"
-            timesByWeekday[weekday.key] = [fallback]
+            timesByWeekday[weekday.key] = Schedule.normalized([time])
         }
     }
+
+    mutating func toggle(_ weekday: Weekday) {
+        toggle(weekday, at: allTimes.first ?? "08:00")
+    }
+
+    /// 把一组星期设为同一个时刻（闹钟里改时间后的行为）。
+    mutating func setTime(_ time: String, for weekdays: [Weekday]) {
+        guard isValid(time) else { return }
+        for weekday in weekdays {
+            timesByWeekday[weekday.key] = [time]
+        }
+    }
+
+    /// 该时刻覆盖了哪些星期；用于闹钟式选择器的初始选中。
+    func weekdays(at time: String) -> [Weekday] {
+        Schedule.weekdays.filter { times(for: $0) == [time] }
+    }
+
+    /// 所有已配置时刻的合集（空表示尚未配置）。
+    var configuredTimes: [String] { allTimes }
 
     /// 每个星期最多保留的触发时刻数（服务端限制）。
     static let maxTimesPerWeekday = 5
@@ -92,13 +112,6 @@ struct Schedule: Equatable, Hashable {
 
     mutating func removeTime(_ time: String, from weekday: Weekday) {
         timesByWeekday[weekday.key] = times(for: weekday).filter { $0 != time }
-    }
-
-    /// 把选中的星期对齐到某个时刻（编辑页里「统一加成同一时间」的行为）。
-    mutating func applyTimeToAllEnabled(_ time: String) {
-        for weekday in activeWeekdays {
-            timesByWeekday[weekday.key] = Schedule.normalized([time])
-        }
     }
 
     private static func normalized(_ times: [String]) -> [String] {

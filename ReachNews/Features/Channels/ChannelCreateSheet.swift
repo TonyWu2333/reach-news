@@ -41,32 +41,27 @@ struct ChannelCreateSheet: View {
                     }
 
                     field(titleKey: "channelEdit.name") {
-                        TextField("", text: $name)
-                            .font(TypeFace.body(14))
-                            .padding(.horizontal, 13)
-                            .padding(.vertical, 11)
-                            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            .accessibilityIdentifier("channel-create-name")
+                        FieldBox {
+                            TextField("", text: $name)
+                                .accessibilityIdentifier("channel-create-name")
+                        }
                     }
 
                     field(titleKey: "channelEdit.prompt") {
-                        TextEditor(text: $prompt)
-                            .font(TypeFace.body(13.5))
-                            .frame(minHeight: 80)
-                            .scrollContentBackground(.hidden)
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 6)
-                            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            .accessibilityIdentifier("channel-create-prompt")
+                        FieldBox(minHeight: 132) {
+                            TextEditor(text: $prompt)
+                                .scrollContentBackground(.hidden)
+                                .frame(maxWidth: .infinity, minHeight: 106, alignment: .topLeading)
+                                .accessibilityIdentifier("channel-create-prompt")
+                        }
                     }
 
                     field(titleKey: "channelEdit.tone") {
-                        TextField("", text: $tone)
-                            .font(TypeFace.body(14))
-                            .padding(.horizontal, 13)
-                            .padding(.vertical, 11)
-                            .background(Palette.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            .accessibilityIdentifier("channel-create-tone")
+                        FieldBox(minHeight: 52) {
+                            TextField("", text: $tone, axis: .vertical)
+                                .lineLimit(1...3)
+                                .accessibilityIdentifier("channel-create-tone")
+                        }
                     }
 
                     field(titleKey: "channelEdit.connectors") {
@@ -151,9 +146,15 @@ struct ChannelCreateSheet: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Palette.inkTertiary)
             }
-            .padding(.horizontal, 13)
-            .padding(.vertical, 12)
-            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Palette.field))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 13)
+            .background(
+                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous).fill(Palette.surface)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                    .strokeBorder(Palette.line, lineWidth: 1)
+            }
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("channel-create-connectors")
