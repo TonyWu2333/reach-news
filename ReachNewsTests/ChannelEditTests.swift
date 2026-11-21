@@ -137,3 +137,89 @@ final class ChannelEditTests: XCTestCase {
         )
     }
 }
+
+// MARK: - 删除频道（A43 / A44）
+
+final class ChannelDeleteTests: XCTestCase {
+    private func makeStore(_ transport: StubTransport) -> ChannelStore {
+        ChannelStore(client: TestClient.make(transport: transport))
+    }
+
+    @MainActor
+    func testDeleteCallsDeleteEndpoint() async {
+        let transport = StubTransport(json: #"{"id":"chn_1","deleted":true}"#)
+        let store = makeStore(transport)
+
+        let ok = await store.delete("chn_1")
+
+        XCTAssertTrue(ok)
+        let request = transport.recorded.first
+        XCTAssertEqual(request?.method, "DELETE")
+        XCTAssertEqual(request?.url.path, "/api/v1/channels/chn_1")
+    }
+
+    @MainActor
+    func testDeleteRemovesChannelFromList() async {
+        let channelsJSON = """
+        {"items":[{"id":"chn_1","name":"A","prompt":"","tone":"","schedule":{},"enabled":true,
+                   "connectorIds":[],"lastBriefAt":null,"kind":"channel",
+                   "createdAt":"2026-11-20T02:01:50.774Z","updatedAt":"2026-11-20T02:01:50.774Z"}],
+         "nextCursor":null}
+        """
+        var callCount = 0
+        let transport = StubTransport { request in
+            callCount += 1
+            if request.httpMethod == "DELETE" {
+                return (200, Data(#"{"id":"chn_1","deleted":true}"#.utf8))
+            }
+            return (200, Data(channelsJSON.utf8))
+        }
+        let store = makeStore(transport)
+        await store.load()
+        XCTAssertEqual(store.channels.count, 1)
+
+        _ = await store.delete("chn_1")
+
+        XCTAssertTrue(store.channels.isEmpty)
+    }
+
+    @MainActor
+    func testNotFoundIsTreatedAsAlreadyDeleted() async {
+        // 别人的频道或已删除的频道都返回 404：按已删除处理，不报错。
+        let transport = StubTransport(
+            json: #"{"error":{"code":"not_found","message":"Channel not found"}}"#,
+            status: 404
+        )
+        let store = makeStore(transport)
+
+        let ok = await store.delete("chn_missing")
+
+        XCTAssertTrue(ok)
+        XCTAssertNil(store.createError)
+    }
+
+    @MainActor
+    func testBusyDoesNotDelete() async {
+        // 有运行在跑返回 409：不删除，并把原因留给界面提示。
+        let transport = StubTransport(
+            json: #"{"error":{"code":"busy","message":"Channel is not idle"}}"#,
+            status: 409
+        )
+        let store = makeStore(transport)
+
+        let ok = await store.delete("chn_busy")
+
+        XCTAssertFalse(ok)
+        XCTAssertEqual(store.createError, .busy("Channel is not idle"))
+    }
+
+    @MainActor
+    func testDeleteSendsAuthorization() async {
+        let transport = StubTransport(json: #"{"id":"chn_1","deleted":true}"#)
+        let store = makeStore(transport)
+
+        _ = await store.delete("chn_1")
+
+        XCTAssertEqual(transport.recorded.first?.authorization, "Bearer test-token")
+    }
+}

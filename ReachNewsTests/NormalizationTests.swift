@@ -134,6 +134,12 @@ final class NormalizationTests: XCTestCase {
         XCTAssertFalse(Schedule.isValid(""))
     }
 
+    override func setUp() {
+        super.setUp()
+        // 默认回退 Asia/Shanghai；单个用例改了时区后在这里复位。
+        DisplayTime.setTimeZone(ServiceTimeZone.resolve(nil))
+    }
+
     func testDisplayTimeUsesShanghaiTimeZone() {
         // 02:01:50 UTC 在 Asia/Shanghai 是 10:01。
         let date = Date(timeIntervalSince1970: 1795140110.774)
@@ -194,5 +200,129 @@ final class NormalizationTests: XCTestCase {
             memorySummary: "",
             createdAt: createdAt
         )
+    }
+}
+
+// MARK: - 服务端时区（A45 / A46）
+
+final class ServiceTimeZoneTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        DisplayTime.setTimeZone(ServiceTimeZone.resolve(nil))
+    }
+
+    override func tearDown() {
+        DisplayTime.setTimeZone(ServiceTimeZone.resolve(nil))
+        super.tearDown()
+    }
+
+    func testResolveAcceptsValidIdentifier() {
+        XCTAssertEqual(ServiceTimeZone.resolve("Asia/Tokyo").identifier, "Asia/Tokyo")
+        XCTAssertEqual(ServiceTimeZone.resolve("UTC").identifier, "GMT")
+    }
+
+    func testResolveFallsBackOnMissingOrInvalid() {
+        // 缺失或非法都回退 Asia/Shanghai，与调度器一致。
+        XCTAssertEqual(ServiceTimeZone.resolve(nil).identifier, "Asia/Shanghai")
+        XCTAssertEqual(ServiceTimeZone.resolve("").identifier, "Asia/Shanghai")
+        XCTAssertEqual(ServiceTimeZone.resolve("   ").identifier, "Asia/Shanghai")
+        XCTAssertEqual(ServiceTimeZone.resolve("Not/AZone").identifier, "Asia/Shanghai")
+    }
+
+    func testDisplayIdentifierKeepsRawOrFallsBack() {
+        XCTAssertEqual(ServiceTimeZone.displayIdentifier("Asia/Tokyo"), "Asia/Tokyo")
+        XCTAssertEqual(ServiceTimeZone.displayIdentifier(nil), "Asia/Shanghai")
+        XCTAssertEqual(ServiceTimeZone.displayIdentifier("Bogus/Zone"), "Asia/Shanghai")
+    }
+
+    func testDisplayTimeFollowsActiveTimeZone() {
+        let date = Date(timeIntervalSince1970: 1795140110.774)  // 2026-11-20T02:01:50.774Z
+        let locale = Locale(identifier: "zh-Hans")
+
+        DisplayTime.setTimeZone(ServiceTimeZone.resolve("Asia/Shanghai"))
+        XCTAssertEqual(DisplayTime.clock(date, locale: locale), "10:01")
+
+        // 换成东京后同一时刻应显示 +1 小时。
+        DisplayTime.setTimeZone(ServiceTimeZone.resolve("Asia/Tokyo"))
+        XCTAssertEqual(DisplayTime.clock(date, locale: locale), "11:01")
+        XCTAssertEqual(DisplayTime.timeZoneIdentifier, "Asia/Tokyo")
+    }
+
+    func testDayGroupingFollowsActiveTimeZone() {
+        let utc = Date(timeIntervalSince1970: 1795140110.774)  // 02:01Z
+        let locale = Locale(identifier: "zh-Hans")
+        let now = utc
+
+        DisplayTime.setTimeZone(ServiceTimeZone.resolve("Asia/Shanghai"))
+        XCTAssertEqual(DisplayTime.dayRuleTitle(utc, now: now, locale: locale), "今天")
+
+        // 同一时刻在纽约仍在同一天，但日期可能不同；只验证不崩溃且一致。
+        DisplayTime.setTimeZone(ServiceTimeZone.resolve("America/New_York"))
+        let title = DisplayTime.dayRuleTitle(utc, now: now, locale: locale)
+        XCTAssertFalse(title.isEmpty)
+    }
+
+    func testServiceCalendarMatchesActiveTimeZone() {
+        DisplayTime.setTimeZone(ServiceTimeZone.resolve("Asia/Tokyo"))
+        XCTAssertEqual(Calendar.shanghai.timeZone.identifier, "Asia/Tokyo")
+
+        DisplayTime.setTimeZone(ServiceTimeZone.resolve(nil))
+        XCTAssertEqual(Calendar.shanghai.timeZone.identifier, "Asia/Shanghai")
+    }
+}
+
+// MARK: - 服务端时区接口
+
+final class SettingsStoreTests: XCTestCase {
+    @MainActor
+    func testLoadAppliesServerTimeZone() async {
+        let transport = StubTransport(json: #"{"timeZone":"Asia/Tokyo"}"#)
+        let client = TestClient.make(transport: transport)
+        let store = SettingsStore(client: client)
+
+        await store.load()
+
+        XCTAssertEqual(store.displayTimeZone, "Asia/Tokyo")
+        XCTAssertEqual(DisplayTime.timeZone.identifier, "Asia/Tokyo")
+        XCTAssertTrue(store.isLoaded)
+        XCTAssertEqual(transport.recorded.first?.url.path, "/api/v1/settings")
+        DisplayTime.setTimeZone(ServiceTimeZone.resolve(nil))
+    }
+
+    @MainActor
+    func testLoadFallsBackWhenFieldMissing() async {
+        let transport = StubTransport(json: #"{}"#)
+        let store = SettingsStore(client: TestClient.make(transport: transport))
+        DisplayTime.setTimeZone(ServiceTimeZone.resolve("Asia/Tokyo"))
+
+        await store.load()
+
+        XCTAssertEqual(store.displayTimeZone, "Asia/Shanghai")
+        XCTAssertEqual(DisplayTime.timeZone.identifier, "Asia/Shanghai")
+        DisplayTime.setTimeZone(ServiceTimeZone.resolve(nil))
+    }
+
+    @MainActor
+    func testLoadFallsBackWhenRequestFails() async {
+        let transport = StubTransport(json: #"{"error":{"code":"internal_error","message":"boom"}}"#, status: 500)
+        let store = SettingsStore(client: TestClient.make(transport: transport))
+
+        await store.load()
+
+        // 接口失败不阻断主流程：回退默认并记录错误。
+        XCTAssertEqual(store.displayTimeZone, "Asia/Shanghai")
+        XCTAssertTrue(store.isFallback)
+        DisplayTime.setTimeZone(ServiceTimeZone.resolve(nil))
+    }
+
+    @MainActor
+    func testLoadFallsBackOnInvalidZone() async {
+        let transport = StubTransport(json: #"{"timeZone":"Not/AZone"}"#)
+        let store = SettingsStore(client: TestClient.make(transport: transport))
+
+        await store.load()
+
+        XCTAssertEqual(store.displayTimeZone, "Asia/Shanghai")
+        DisplayTime.setTimeZone(ServiceTimeZone.resolve(nil))
     }
 }

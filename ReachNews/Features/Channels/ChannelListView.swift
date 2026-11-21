@@ -102,7 +102,13 @@ struct ChannelListView: View {
             HStack(spacing: Space.s) {
                 MetaLine(text: L10n.format("channel.count", locale: locale, store.channels.count))
                 DotSeparator()
-                MetaLine(text: L10n.string("channel.timezoneNote", locale: locale))
+                MetaLine(
+                    text: L10n.format(
+                        "channel.timezoneNote",
+                        locale: locale,
+                        env.settings.displayTimeZone
+                    )
+                )
             }
             if let error = store.error, !store.channels.isEmpty {
                 InlineNotice(text: L10n.string(error.messageKey, locale: locale))

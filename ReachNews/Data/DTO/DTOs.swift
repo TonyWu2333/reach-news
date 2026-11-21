@@ -405,6 +405,17 @@ struct LogoutResponseDTO: Decodable {
     let ok: Bool?
 }
 
+struct DeleteChannelResponseDTO: Decodable {
+    let id: String
+    let deleted: Bool?
+}
+
+// MARK: - 服务端设置
+
+struct SettingsDTO: Decodable {
+    let timeZone: String?
+}
+
 // MARK: - 健康检查
 
 struct HealthDTO: Decodable {

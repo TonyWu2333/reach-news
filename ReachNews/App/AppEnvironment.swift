@@ -12,6 +12,7 @@ final class AppEnvironment {
     let feed: BriefFeedStore
     let channels: ChannelStore
     let saved: SavedStore
+    let settings: SettingsStore
     let preferences: PreferencesStoring
 
     @ObservationIgnored private let client: APIClient
@@ -27,6 +28,7 @@ final class AppEnvironment {
         self.feed = BriefFeedStore(client: client, preferences: preferences)
         self.channels = ChannelStore(client: client)
         self.saved = SavedStore(storage: savedStorage)
+        self.settings = SettingsStore(client: client)
         self.session = SessionStore(
             credentials: credentials,
             preferences: preferences,

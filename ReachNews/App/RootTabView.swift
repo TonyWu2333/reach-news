@@ -28,8 +28,12 @@ struct RootTabView: View {
         }
         .tint(Palette.ink)
         .task {
-            // 启动时若已有凭证，静默验证一次，不弹连接页。
+            // 启动时若已有会话，静默验证一次，不弹登录页。
             await env.session.validateStoredSession()
+            // 时区失败不阻断主流程，内部回退 Asia/Shanghai。
+            if env.session.isSignedIn {
+                await env.settings.load()
+            }
         }
     }
 

@@ -87,6 +87,7 @@ enum Endpoint {
     case connectors
     case presets
     case instantiatePreset(id: String)
+    case settings
 
     var path: String {
         switch self {
@@ -124,6 +125,8 @@ enum Endpoint {
             return "/api/v1/presets"
         case .instantiatePreset(let id):
             return "/api/v1/presets/\(id)/instantiate"
+        case .settings:
+            return "/api/v1/settings"
         }
     }
 
@@ -139,7 +142,7 @@ enum Endpoint {
         case .cursor(let since):
             return [URLQueryItem(name: "since", value: PollingBaseline.sinceString(since))]
         case .health, .login, .logout, .channel, .brief, .material, .run, .ask,
-             .connectors, .presets, .instantiatePreset:
+             .connectors, .presets, .instantiatePreset, .settings:
             return []
         }
     }
@@ -251,6 +254,21 @@ final class APIClient {
         )
         return Page(items: envelope.items.map { $0.toDomain() },
                     nextCursor: Pagination.sanitizedCursor(envelope.nextCursor))
+    }
+
+    /// 服务端设置：目前只需要时区。
+    func settings() async throws -> SettingsDTO {
+        try await get(Endpoint.settings)
+    }
+
+    /// 软删除频道。成功返回被删除的 id。
+    func deleteChannel(id: String) async throws -> String {
+        let dto: DeleteChannelResponseDTO = try await send(
+            .channel(id: id),
+            method: "DELETE",
+            body: nil
+        )
+        return dto.id
     }
 
     func connectors() async throws -> [Connector] {

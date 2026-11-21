@@ -140,6 +140,31 @@ final class ChannelStore {
         }
     }
 
+    /// 软删除频道。
+    /// - 成功：从列表移除。
+    /// - 404（别人的或已删除）：按已删除处理，同样移除。
+    /// - 409（有运行在跑）：不删除，返回失败原因。
+    @discardableResult
+    func delete(_ channelID: String) async -> Bool {
+        createError = nil
+        do {
+            _ = try await client.deleteChannel(id: channelID)
+            channels.removeAll { $0.id == channelID }
+            return true
+        } catch let apiError as APIError {
+            if apiError == .notFound {
+                // 目标已不存在，本地也应当移除。
+                channels.removeAll { $0.id == channelID }
+                return true
+            }
+            createError = apiError
+            return false
+        } catch {
+            createError = .transport(error.localizedDescription)
+            return false
+        }
+    }
+
     func replace(_ channel: Channel) {
         if let index = channels.firstIndex(where: { $0.id == channel.id }) {
             channels[index] = channel

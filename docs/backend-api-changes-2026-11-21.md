@@ -1,193 +1,133 @@
-# 后端 API 变更说明（2026-11-21）
+# 后端 API 变更说明（2026-11-21 · 第二轮）
 
-对应你的 `backend-api-requests.md`。**清单里 9 条全部处理完毕**，另修 4 条你未列入但实际存在的缺陷。
+补第一轮遗漏，并回应 iOS 编辑频道页截图反馈。
 
-验证依据：后端测试套件 82/82 通过；生产环境（`reachapi.niuma.art`）实测；生产数据副本逐端点打真实请求。
+验证依据：后端测试 85/85 通过；生产数据副本逐项打真实请求（15/15）。
 
 ---
 
-## 一、你清单里的 9 条：全部已修
+## 一、后端已改（3 项）
 
-### P0-1 `/cursor` 泄漏已删频道日报
+### A45 频道 DTO 现在带连接器名称
 
-`cursor.briefs` 与 `cursor.channels` 都已补 `deleted_at` 过滤。
+**你截图里一屏 UUID 的原因**：`channel()` 只返回 `connectorIds` 这个 UUID 数组，从未返回名称。
+
+现在每个 Channel 对象额外含 `connectors`，结构与 `GET /api/v1/connectors` 一致：
 
 ```json
-{ "briefs": [ { "id": "brf_…", "channelId": "chn_…", "title": "…", "createdAt": "…" } ],
-  "channels": [ { "id": "chn_…", "name": "…", "enabled": true, "updatedAt": "…" } ] }
+{
+  "id": "chn_…",
+  "name": "安全频道",
+  "connectorIds": ["b5abd909-8bad-43e2-bcd3-b9b0a3d9838d"],
+  "connectors": [
+    { "id": "b5abd909-8bad-43e2-bcd3-b9b0a3d9838d", "name": "HN 首页", "kind": "hn", "removed": false }
+  ]
+}
 ```
 
-注意顺带改了字段名：`channel_id`→`channelId`、`created_at`→`createdAt`、`updated_at`→`updatedAt`，`enabled` 从 `1/0` 改成 `true/false`。**可以删掉 `FlexibleBool` 和 snake_case 映射了。**
+- `connectorIds` **保留**，兼容你现有解析
+- `removed: true` 表示该连接器已从后端代码移除，但仍给 `name` —— 你可以据此显示「HN 首页（已失效）」而不是裸 UUID
+- 极少数情况下后端完全查不到该 id（数据不一致），返回 `{ id, name: null, kind: null, removed: true }`，需要你兜底文案
 
-### P0-2 预设参与调度 → 孤儿日报
+**前端动作**：直接用 `connectors[].name` 渲染，删掉 UUID 显示逻辑。
 
-采纳你的方案 A，但有调整（产品补充要求）：
+### A46 连接器可由用户增删（后端本来就支持，是契约没写清）
 
-- **预设不再参与调度**，`dueChannels` 加 `kind != 'preset'`
-- `PATCH /channels/:id` 与 `POST /channels/:id/run` 对预设返回 `409 preset_read_only`
-- **但用户新建频道时要能看到预设作模板**，所以新增了两个端点：
-
-```
-GET  /api/v1/presets
-→ 200 { items: [ { id, name, prompt, tone, schedule, connectorIds } ], nextCursor: null }
-
-POST /api/v1/presets/:id/instantiate
-→ 201 返回新建的 kind='channel' 频道（复制预设的 prompt/tone/schedule/connectorIds）
-```
-
-**前端动作**：日报页和频道列表可以放心渲染，不会再有找不到频道的孤儿行；新建频道流程可以接入预设列表。
-
-### P1-3 日报级与运行级端点未过滤软删除
-
-抽了 `liveBrief()` / `liveRun()` 两个帮助函数统一过滤。覆盖：
-
-| 端点 | 已删频道 |
-|---|---|
-| `GET /briefs/:id` | 404 |
-| `GET /briefs/:id/items/:itemId` | 404 |
-| `GET\|POST /briefs/:id/ask` | 404 |
-| `POST /briefs/:id/regenerate` | 404 |
-| `GET /runs/:id` | 404 |
-| `POST /runs/:id/retry` | 404 |
-| `POST /runs/:id/resume` | 404 |
-| `POST /follows { sourceBriefId }` | 404 |
-
-`publishBrief` 也拒绝向已删频道发布，从源头杜绝孤儿日报。
-
-### P1-4 缺少全量日报端点
-
-```
-GET /api/v1/briefs?cursor=&limit=
-→ 200 { items: [...], nextCursor }
-```
-
-- 跨频道按 `created_at DESC, id DESC` 排序（**已采纳你的 id tie-breaker 建议**）
-- 每条额外含 `channelName`、`channelKind`，**不用再回查频道**
-- 你指出的 `test/rules.test.mjs:151` 同毫秒打平问题，已在这条排序里规避
-
-### P1-5 负 cursor 从尾部返回数据
-
-`cursorPage` 已改为 `Math.max(0, offset)`，且 `nextCursor` 用 clamp 后的值。
-
-实测：`cursor=-5&limit=2` 现在返回索引 0、1（而非你测到的 35、36），`nextCursor` 永不为负。补了完整真值表单测。
-
-### P2-6 `/ask` 不返回引用了哪些素材
+`PATCH /api/v1/channels/:id` 的 `connectorIds` 一直是可写的，传数组就是**整体替换**：
 
 ```json
-POST /api/v1/briefs/:id/ask
-→ 201 {
-    "message": "...",
-    "answer": "已基于「…」的归档摘要记录问题：…",
-    "citedItemIds": ["itm_…", "itm_…"],
-    "deterministic": true
-  }
+PATCH /api/v1/channels/chn_xxx
+{ "connectorIds": ["id-a", "id-b"] }   // 替换为这两个
+{ "connectorIds": [] }                  // 清空，不启用任何连接器
 ```
 
-`citedItemIds` 从该 brief 的 `sections[].items[].itemIds` 汇总去重，就是本期素材。`deterministic: true` 明确标注这是确定性应答（未接 LLM）。
+- 数组里含不可用（未启用或已从代码移除）的 id → `400 { "code": "invalid_connector" }`，**且不会修改**
+- 可用集合从 `GET /api/v1/connectors` 取
+- 频道有运行在跑时 `PATCH` 返回 `409 busy`
 
-**前端动作**：引用卡可以落地了。
+**前端动作**：把「Read-only / Connectors can't be changed on mobile — edit them in the admin console」**删掉**，改成可编辑列表 + 「+ 添加连接器」（数据源 `GET /api/v1/connectors`）。
 
-### P2-7 无法枚举连接器，不能创建频道
+### A47 无预设也能创建频道
+
+新增：
 
 ```
-GET /api/v1/connectors
-→ 200 { items: [ { id, name, kind } ], nextCursor: null }
+POST /api/v1/channels
+Content-Type: application/json
+
+{
+  "name": "我的频道",
+  "prompt": "追踪 AI 进展",
+  "tone": "冷静、具体",
+  "schedule": { "mon": ["08:00", "20:00"], "fri": ["09:30"] },
+  "connectorIds": ["b5ab…"],
+  "enabled": true
+}
+→ 201 返回完整 Channel 对象
 ```
 
-**只返回 id/name/kind，绝不返回 config**——按你说的，`connector-catalog.mjs` 的 config 含 headers 有凭证泄漏风险。
+- `kind` **固定为 `channel`**，客户端传 `kind: "preset"` 会被忽略（用户不能自建预设）
+- 缺 `name` 或 `prompt` → `400 invalid_input`
+- `connectorIds` 非法 → `400 invalid_connector`
+- `schedule` 结构错误 → `400 invalid_input`
+- `schedule` 支持**同一天多个时刻**（见下面第 3 点）
 
-`POST /api/v1/follows` 现在校验 `connectorIds` 必须落在可用集合内，否则：
+**前端动作**：`+` 入口现在可以真的建频道了，不再需要「没有预设」的提示。
+
+---
+
+## 二、你截图中纯 UI 问题（后端无改动，但确认数据侧支持）
+
+### 1. 返回箭头与 Cancel 按钮重复
+
+导航栏已有 `<` 返回，中间又放 `Cancel`，两者语义相同。
+
+**建议**：删掉 `Cancel`，保留左箭头；或把左箭头去掉只留 `Cancel`。二选一即可，后端无关。
+
+### 2. 连接器「Read-only」标注
+
+如 A46 所述，连接器**不是只读的**。这个标注源于后端契约没写清，现在已补。请一并去掉该标注和底部那句
+「Connectors can't be changed on mobile — edit them in the admin console」。
+
+### 3. 时间选择器排版
+
+**后端数据结构天生支持一天多个时刻**，不需要改：
 
 ```json
-400 { "error": { "code": "invalid_connector", "message": "Unknown or disabled connector: xxx" } }
+{ "mon": ["01:25", "08:00", "20:00"], "fri": ["09:30"] }
 ```
 
-**前端动作**：`+` 入口可以解开了，建频道时先 `GET /connectors` 让用户选。
+你截图里每天只渲染了一个时间槽，是前端布局问题。建议结构：
 
-### P2-8 字段风格不一致
+```
+Schedule
+┌ 周一 ─────────────────────────┐
+│  [01:25] ✕   [08:00] ✕   [+ 添加时间] │
+└───────────────────────────────┘
+┌ 周二 ─────────────────────────┐
+│  [01:25] ✕   [+ 添加时间]        │
+└───────────────────────────────┘
+...
+```
 
-`/cursor` 与 `/ask` 历史统一 `camelCase` + 布尔，与主体端点一致。`/ask` 历史条目现在是 `{ id, role, message, createdAt }`。
+要点：
+- 「+ 添加时间」在**每一天内部**，不是全局
+- 每个时刻可单独删除
+- 某天全部删完就是 `[]`，后端接受「该天不采集」
+- 星期标签建议用短名（Mon/Tue…），截图里 `Wednesday`/`Saturday` 换行断字了
 
-### P2-9 `retry` 返回 `queued: {}`
-
-根因是 `drain()` 未 `await`，Promise 被序列化。已去掉该字段（它也不具业务含义）。现在 `POST /runs/:id/retry` 返回 `202 { runId, state: "queued" }`。
+**提交时**：把每天的时间数组直接放进 `schedule` 的对应 key，后端会去重排序。
 
 ---
 
-## 二、你标注「既有缺陷、非本次引入」的 3 条：也修了
+## 三、附带说明
 
-### 非法 JSON 返回 500 → 400
+**时区**：截图底部提示「Interpreted in Asia/Shanghai」。这个值现在**可由管理员在后台设置页修改**（支持任意 IANA 名）。手机端目前没有时区端点，如果你要展示，建议先硬编码默认值或告诉我加一个 `GET /api/v1/settings`。
 
-```
-POST /api/v1/login  -d '{ this is not json'
-→ 400 { "error": { "code": "invalid_input", "message": "invalid JSON body" } }
-```
+**本轮之后仍未处理**：
+- `DELETE /api/v1/channels/:id`（手机端不能删频道）
+- `Ask` 不接 LLM（`deterministic: true` 已标注）
+- 「活跃频道至少一个连接器」未强制校验
+- `PUT` 等未实现方法返回 404 而非 405
 
-所有 JSON 端点一致。此前 `/api/v1/login` 因为解析在 try 块外，会漏成 500。
-
-### 限流补 `Retry-After`
-
-```
-HTTP 429
-retry-after: 300
-
-{ "error": { "code": "too_many_attempts", "message": "…" }, "retryAfterSeconds": 300 }
-```
-
-数值是 5 分钟窗口的剩余秒数。**按你现有的「429 不自动重试」策略继续即可**，现在有明确时间可以展示倒计时。
-
-### 同一频道可并发多次触发
-
-`POST /channels/:id/run` 与管理页触发都在**同一个写事务**（`BEGIN IMMEDIATE`）内完成「检查活跃运行 + 入队」，并发测试验证 10 次并发只成功 1 次。已有未结束运行返回 `409 busy`。
-
-之前是路由层先查再调 `start()`，两步非原子；现在收进 `runEngine.start()` 内部，靠数据库写锁互斥。
-
----
-
-## 三、额外发现的缺陷：时区配置从未生效
-
-这不在你的清单里，但属于同类问题——**配置了不生效**。
-
-`scheduleKey(date, timeZone = "Asia/Shanghai")` 本身支持传入时区，但所有调用方都只用默认值；管理页三处 `Asia/Shanghai` 是硬编码文本；`setting()` 只能读数字，时区字符串存不进去。
-
-**现在：**
-
-- 设置页可以改时区（IANA 名，如 `Asia/Tokyo`），**校验合法性**，非法则拒绝并保留上一个值
-- 调度守护进程**每轮**从数据库读取，改完下一轮即生效，不用重启
-- 管理页时区显示改为当前配置值
-
-实测：同一时刻 `Asia/Shanghai` 是 `00:20`、`Asia/Tokyo` 是 `01:20`，调度按配置判断。
-
-**对前端**：如果你有页面显示时区，建议从设置读取而不是写死。手机端 API 暂未暴露时区端点——需要的话告诉我。
-
----
-
-## 四、对前端的净影响
-
-**可以删除的防御代码**：
-
-1. `FlexibleBool`（`enabled` 已是布尔）
-2. `/cursor` 的 snake_case 映射
-3. 负 cursor 的防御性丢弃（服务端已 clamp，但保留也无害）
-4. preset 的剔除逻辑仍需保留（预设不进频道列表），但不再需要担心孤儿日报
-
-**需要适配的**：
-
-1. `/cursor` 字段名变化（`channel_id` → `channelId` 等）
-2. `/ask` 历史条目字段名变化
-3. 新增流程：`GET /connectors` 选连接器 → `POST /follows` 建频道
-4. 新增流程：`GET /presets` 选模板 → `POST /presets/:id/instantiate` 实例化
-5. `citedItemIds` 可渲染引用卡
-
-**破坏性变更：无。** 除字段名规范化外，没有删除或改名已有字段的结构；`sections` 只加了可选字段。
-
----
-
-## 五、仍未处理的（下次再说）
-
-1. 手机端不能直接 `POST /channels` / `DELETE /channels/:id`（靠 `/follows` 与 `/presets/:id/instantiate` 间接达到）
-2. `Ask` 不接 LLM（已明确标注 `deterministic: true`）
-3. 「活跃频道至少一个连接器」未强制校验，建频道时请自选
-4. `PUT` 等未实现方法返回 404 而非 405
-
-完整契约见后端仓库 `API.md`（已同步更新，含「已修复」清单）。
+完整契约见后端仓库 `API.md`。
