@@ -99,7 +99,8 @@ struct ChannelEditView: View {
                 field(titleKey: "channelEdit.tone") {
                     FieldBox(minHeight: 52) {
                         TextField("", text: $editor.draft.tone, axis: .vertical)
-                            .lineLimit(1...3)
+                            .lineLimit(2...4)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                             .accessibilityIdentifier("channel-edit-tone")
                     }
                 }
@@ -111,10 +112,14 @@ struct ChannelEditView: View {
                 field(titleKey: "channelEdit.connectors") {
                     connectorSummary
                 }
+
+                field(titleKey: "channelEdit.color") {
+                    colorPicker
+                }
             }
-            .padding(.horizontal, Space.xl)
+            .padding(.horizontal, Space.l)
             .padding(.top, Space.l)
-            .padding(.bottom, 44)
+            .padding(.bottom, Space.xxl)
         }
         .background(Palette.canvas)
     }
@@ -122,9 +127,7 @@ struct ChannelEditView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .principal) {
-            Text(L10n.string("channelEdit.title", locale: locale))
-                .font(TypeFace.heading(15))
-                .foregroundStyle(Palette.ink)
+            NavTitle(text: L10n.string("channelEdit.title", locale: locale))
         }
         ToolbarItem(placement: .topBarLeading) {
             Button {
@@ -188,6 +191,32 @@ struct ChannelEditView: View {
 
     private var fieldBackground: Color {
         Palette.surface
+    }
+
+    /// 频道标识色：只在本地保存，不改服务端。
+    private var colorPicker: some View {
+        HStack(spacing: Space.m) {
+            ForEach(0..<ChannelTint.count, id: \.self) { index in
+                let isOn = env.channelColors.effectiveIndex(for: channel.id) == index
+                Button {
+                    env.channelColors.setColorIndex(index, for: channel.id)
+                } label: {
+                    Circle()
+                        .fill(ChannelTint.color(at: index))
+                        .frame(width: 26, height: 26)
+                        .overlay {
+                            Circle()
+                                .strokeBorder(Palette.ink, lineWidth: isOn ? 2 : 0)
+                                .padding(-3)
+                        }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text(L10n.string("channelEdit.color", locale: locale)))
+                .accessibilityIdentifier("channel-color-\(index)")
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, Space.xs)
     }
 
     /// 连接器：不在页面平铺，点开弹出多选。
@@ -257,9 +286,112 @@ struct ScheduleEditor: View {
     @Binding var schedule: Schedule
     @Environment(\.appLocale) private var locale
 
-    /// 当前正在挑选的时刻；星期按钮把它写进去。
+    @State private var showsTimePicker = false
     @State private var draftTime = "08:00"
     @State private var selectedWeekdays: Set<String> = []
+
+    /// 表单里只显示一行摘要，不直接展开滚轮。
+    private var summary: String {
+        let weekdays = Schedule.weekdays.filter { selectedWeekdays.contains($0.key) }
+        guard !weekdays.isEmpty else {
+            return L10n.string("schedule.notSet", locale: locale)
+        }
+        let names = weekdays.map { L10n.string($0.shortKey, locale: locale) }.joined(separator: " ")
+        return "\(names)  \(draftTime)"
+    }
+
+    var body: some View {
+        Button {
+            showsTimePicker = true
+        } label: {
+            HStack(spacing: Space.s) {
+                Text(summary)
+                    .font(TypeFace.body(15))
+                    .foregroundStyle(selectedWeekdays.isEmpty ? Palette.inkTertiary : Palette.ink)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Palette.inkTertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 13)
+            .background(
+                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous).fill(Palette.surface)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                    .strokeBorder(Palette.line, lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("schedule-summary")
+        .sheet(isPresented: $showsTimePicker) {
+            timePickerSheet
+        }
+        .onAppear(perform: syncFromSchedule)
+    }
+
+    /// 闹钟样式：滚轮时间 + 周几选择。
+    private var timePickerSheet: some View {
+        NavigationStack {
+            VStack(spacing: Space.l) {
+                DatePicker(
+                    "",
+                    selection: displayedDate,
+                    displayedComponents: .hourAndMinute
+                )
+                .datePickerStyle(.wheel)
+                .labelsHidden()
+                .frame(maxWidth: .infinity)
+                .accessibilityIdentifier("schedule-time-wheel")
+
+                HStack(spacing: Space.xs) {
+                    ForEach(Schedule.weekdays) { weekday in
+                        let isOn = selectedWeekdays.contains(weekday.key)
+                        Button {
+                            toggle(weekday)
+                        } label: {
+                            Text(L10n.string(weekday.shortKey, locale: locale))
+                                .font(TypeFace.label(13))
+                                .foregroundStyle(isOn ? Palette.canvas : Palette.inkSecondary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, Space.s)
+                                .background(
+                                    RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
+                                        .fill(isOn ? Palette.ink : Palette.surface)
+                                )
+                                .overlay {
+                                    RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
+                                        .strokeBorder(Palette.line, lineWidth: isOn ? 0 : 1)
+                                }
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("schedule-weekday-\(weekday.key)")
+                    }
+                }
+                .padding(.horizontal, Space.xl)
+
+                Spacer(minLength: 0)
+            }
+            .padding(.top, Space.l)
+            .background(Palette.canvas)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    NavTitle(text: L10n.string("channelEdit.schedule", locale: locale))
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L10n.string("common.done", locale: locale)) {
+                        showsTimePicker = false
+                    }
+                    .font(TypeFace.heading(15))
+                    .accessibilityIdentifier("schedule-picker-done")
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
 
     private var displayedDate: Binding<Date> {
         Binding(
@@ -270,47 +402,6 @@ struct ScheduleEditor: View {
                 applyToSelection(formatted)
             }
         )
-    }
-
-    var body: some View {
-        VStack(spacing: Space.m) {
-            // 闹钟式滚轮：只挑一个时刻。
-            DatePicker(
-                "",
-                selection: displayedDate,
-                displayedComponents: .hourAndMinute
-            )
-            .datePickerStyle(.wheel)
-            .labelsHidden()
-            .frame(maxWidth: .infinity)
-            .accessibilityIdentifier("schedule-time-wheel")
-
-            // 下方按周几选择。
-            HStack(spacing: Space.xs) {
-                ForEach(Schedule.weekdays) { weekday in
-                    let isOn = selectedWeekdays.contains(weekday.key)
-                    Button {
-                        toggle(weekday)
-                    } label: {
-                        Text(L10n.string(weekday.shortKey, locale: locale))
-                            .font(TypeFace.label(13))
-                            .foregroundStyle(isOn ? Palette.canvas : Palette.inkSecondary)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, Space.s)
-                            .background(
-                                Circle().fill(isOn ? Palette.ink : Palette.surface)
-                            )
-                            .overlay {
-                                Circle().strokeBorder(Palette.line, lineWidth: isOn ? 0 : 1)
-                            }
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("schedule-weekday-\(weekday.key)")
-                }
-            }
-            .padding(.horizontal, Space.xs)
-        }
-        .onAppear(perform: syncFromSchedule)
     }
 
     /// 进入时以已配置的第一个时刻与星期为初值。

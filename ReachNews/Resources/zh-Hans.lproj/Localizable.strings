@@ -11,7 +11,6 @@
 "ask.empty.message" = "就这一期日报提一个问题，服务端会基于归档摘要作答。";
 "ask.empty.title" = "还没有追问";
 "ask.loadEarlier" = "加载更早的追问";
-"ask.nav.subtitle" = "基于归档摘要";
 "ask.nav.title" = "本期日报";
 "ask.pill" = "追问";
 "brief.materialCount" = "%d 条素材";
@@ -21,9 +20,12 @@
 "briefDetail.materialFailed" = "素材加载失败";
 "channel.count" = "%d 个频道";
 "channel.create.accessibility" = "新建频道";
+"channel.create.blank" = "新建频道";
 "channel.create.connectors.empty" = "还没有可用连接器";
 "channel.create.connectors.required" = "请至少选择一个连接器";
-"channel.create.fromPreset" = "从模板填入";
+"channel.create.empty.message" = "管理员还没有创建预设模板。";
+"channel.create.empty.title" = "没有模板";
+"channel.create.fromPreset" = "从模板新建";
 "channel.create.submit" = "创建";
 "channel.create.title" = "新建频道";
 "channel.empty.message" = "频道由管理员开通。开通后会出现在这里。";
@@ -39,6 +41,8 @@
 "channel.unknown" = "未知频道";
 "channelEdit.busy.detail" = "结束后可修改，已填写的内容不会丢失。";
 "channelEdit.busy.title" = "频道正在运行，暂时无法保存。";
+"channelEdit.close" = "取消";
+"channelEdit.color" = "标识色";
 "channelEdit.connectors" = "连接器";
 "channelEdit.connectors.emptyWarning" = "未选择连接器，启用后运行将不会产出日报。";
 "channelEdit.connectors.none" = "选择连接器";
@@ -105,7 +109,6 @@
 "feed.noResults.title" = "没有匹配的日报";
 "feed.search.clear" = "清除搜索";
 "feed.search.placeholder" = "搜索日报标题";
-"feed.sort.latest" = "最新优先";
 "filter.apply" = "显示 %d 期";
 "filter.channel.heading" = "频道";
 "filter.channel.none" = "还没有可筛选的频道";
@@ -146,6 +149,7 @@
 "schedule.addTime" = "添加时间";
 "schedule.everyDay" = "每天 %@";
 "schedule.multiWeekday" = "%@ %@";
+"schedule.notSet" = "未设置时间";
 "schedule.removeTime" = "移除 %@";
 "schedule.singleWeekday" = "每%@ %@";
 "tab.briefs" = "日报";
@@ -165,4 +169,3 @@
 "weekday.tue.short" = "二";
 "weekday.wed" = "周三";
 "weekday.wed.short" = "三";
-"channelEdit.close" = "取消";

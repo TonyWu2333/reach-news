@@ -12,8 +12,12 @@ struct MeView: View {
         NavigationStack {
             content(env)
             .background(Palette.canvas)
-            .navigationTitle(L10n.string("tab.me", locale: locale))
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    NavTitle(text: L10n.string("tab.me", locale: locale))
+                }
+            }
             .navigationDestination(for: MeDestination.self) { destination in
                 switch destination {
                 case .saved:
@@ -113,7 +117,7 @@ struct SavedBriefsView: View {
                                     .foregroundStyle(Palette.ink)
                                     .lineLimit(2)
                                 HStack(spacing: 7) {
-                                    ChannelDot(channelID: brief.channelID)
+                                    ChannelDot(channelID: brief.channelID, colorIndex: env.channelColors.colorIndex(for: brief.channelID))
                                     Text(store.displayName(for: brief))
                                         .font(TypeFace.label(11))
                                         .foregroundStyle(Palette.inkSecondary)
@@ -137,8 +141,12 @@ struct SavedBriefsView: View {
             }
         }
         .background(Palette.canvas)
-        .navigationTitle(L10n.string("me.saved", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                NavTitle(text: L10n.string("me.saved", locale: locale))
+            }
+        }
         .navigationDestination(for: Brief.self) { brief in
             BriefDetailView(brief: brief, store: env.makeDetailStore(brief: brief))
         }
@@ -200,8 +208,12 @@ struct PreferencesView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Palette.canvas)
-        .navigationTitle(L10n.string("me.preferences", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                NavTitle(text: L10n.string("me.preferences", locale: locale))
+            }
+        }
         .onAppear {
             baseURLString = preferences.baseURLString
         }
@@ -277,8 +289,12 @@ struct ConnectionInfoView: View {
         }
         .scrollContentBackground(.hidden)
         .background(Palette.canvas)
-        .navigationTitle(L10n.string("me.connection", locale: locale))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                NavTitle(text: L10n.string("me.connection", locale: locale))
+            }
+        }
         .accessibilityIdentifier("connection-info")
     }
 }

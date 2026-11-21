@@ -80,6 +80,14 @@ final class InMemoryPreferences: PreferencesStoring {
     var lastSeenAt: Date?
 }
 
+final class InMemoryChannelColors: ChannelColorStoring {
+    private(set) var assignments: [String: Int] = [:]
+
+    func setColorIndex(_ index: Int, for channelID: String) { assignments[channelID] = index }
+    func colorIndex(for channelID: String) -> Int? { assignments[channelID] }
+    func remove(_ channelID: String) { assignments.removeValue(forKey: channelID) }
+}
+
 final class InMemorySavedBriefs: SavedBriefsStoring {
     private(set) var savedBriefIDs: Set<String> = []
 

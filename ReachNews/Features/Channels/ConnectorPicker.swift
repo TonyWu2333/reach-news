@@ -36,9 +36,11 @@ struct ConnectorPicker: View {
                 }
             }
             .listStyle(.plain)
-            .navigationTitle(L10n.string("channelEdit.connectors", locale: locale))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    NavTitle(text: L10n.string("channelEdit.connectors", locale: locale))
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button(L10n.string("common.done", locale: locale)) {
                         isPresented = false

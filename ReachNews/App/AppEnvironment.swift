@@ -13,6 +13,7 @@ final class AppEnvironment {
     let channels: ChannelStore
     let saved: SavedStore
     let settings: SettingsStore
+    let channelColors: ChannelColorStore
     let preferences: PreferencesStoring
 
     @ObservationIgnored private let client: APIClient
@@ -21,7 +22,8 @@ final class AppEnvironment {
         client: APIClient,
         credentials: CredentialProviding,
         preferences: PreferencesStoring,
-        savedStorage: SavedBriefsStoring
+        savedStorage: SavedBriefsStoring,
+        channelColorStorage: ChannelColorStoring
     ) {
         self.client = client
         self.preferences = preferences
@@ -29,6 +31,7 @@ final class AppEnvironment {
         self.channels = ChannelStore(client: client)
         self.saved = SavedStore(storage: savedStorage)
         self.settings = SettingsStore(client: client)
+        self.channelColors = ChannelColorStore(storage: channelColorStorage)
         self.session = SessionStore(
             credentials: credentials,
             preferences: preferences,
@@ -46,7 +49,8 @@ final class AppEnvironment {
             client: client,
             credentials: credentials,
             preferences: preferences,
-            savedStorage: UserDefaultsSavedBriefs()
+            savedStorage: UserDefaultsSavedBriefs(),
+            channelColorStorage: UserDefaultsChannelColors()
         )
     }
 

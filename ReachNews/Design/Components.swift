@@ -5,10 +5,12 @@ import SwiftUI
 struct ChannelDot: View {
     let channelID: String
     var diameter: CGFloat = 7
+    /// 本地设置的调色板索引；为空时按 id 回退。
+    var colorIndex: Int? = nil
 
     var body: some View {
         Circle()
-            .fill(ChannelTint.color(for: channelID))
+            .fill(colorIndex.map(ChannelTint.color(at:)) ?? ChannelTint.fallbackColor(for: channelID))
             .frame(width: diameter, height: diameter)
             .accessibilityHidden(true)
     }
@@ -357,6 +359,8 @@ struct FieldBox<Content: View>: View {
     var body: some View {
         content
             .font(TypeFace.body(15))
+            // 让输入控件铺满整行，而不是按内容宽度缩在一角。
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 14)
             .padding(.vertical, 13)
             .frame(minHeight: minHeight > 0 ? minHeight : nil, alignment: .topLeading)
@@ -368,6 +372,30 @@ struct FieldBox<Content: View>: View {
                 RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
                     .strokeBorder(Palette.line, lineWidth: 1)
             }
+    }
+}
+
+// MARK: - 导航标题
+//
+// 所有页面的顶部标题与首页品牌标题保持同一字体样式。
+
+struct NavTitle: View {
+    let text: String
+    var showsDot = false
+
+    var body: some View {
+        HStack(spacing: Space.s) {
+            if showsDot {
+                Text("·")
+                    .font(TypeFace.heading(15))
+                    .foregroundStyle(Palette.inkTertiary)
+            }
+            Text(text)
+                .font(TypeFace.heading(15))
+                .foregroundStyle(Palette.ink)
+                .lineLimit(1)
+        }
+        .accessibilityAddTraits(.isHeader)
     }
 }
 

@@ -60,12 +60,13 @@ struct BriefDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                HStack(spacing: Space.xs) {
-                    ChannelDot(channelID: brief.channelID, diameter: 6)
-                    Text(store.brief.title)
-                        .font(TypeFace.label(12))
-                        .foregroundStyle(Palette.inkSecondary)
-                        .lineLimit(1)
+                HStack(spacing: Space.s) {
+                    ChannelDot(
+                        channelID: brief.channelID,
+                        diameter: 7,
+                        colorIndex: env.channelColors.colorIndex(for: brief.channelID)
+                    )
+                    NavTitle(text: store.brief.title)
                 }
             }
         }

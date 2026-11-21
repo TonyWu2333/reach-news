@@ -432,3 +432,47 @@ final class AlarmScheduleTests: XCTestCase {
         XCTAssertTrue(schedule.times(for: saturday).isEmpty)
     }
 }
+
+// MARK: - 频道颜色（仅本机）
+
+final class ChannelColorTests: XCTestCase {
+    func testFallbackIsStablePerChannel() {
+        let id = "chn_abc"
+        XCTAssertEqual(ChannelTint.fallbackIndex(for: id), ChannelTint.fallbackIndex(for: id))
+        XCTAssertTrue((0..<ChannelTint.count).contains(ChannelTint.fallbackIndex(for: id)))
+    }
+
+    func testLeastUsedIndexPicksUnusedColor() {
+        // 0 与 1 已用，应返回 2 而非重色。
+        XCTAssertEqual(ChannelTint.leastUsedIndex(among: [0, 1]), 2)
+        // 全空时返回 0。
+        XCTAssertEqual(ChannelTint.leastUsedIndex(among: []), 0)
+        // 全部用过时挑用得最少的（这里 0 用了两次）。
+        XCTAssertEqual(ChannelTint.leastUsedIndex(among: [0, 0, 1, 2, 3]), 1)
+    }
+
+    @MainActor
+    func testStorePersistsAndForgets() {
+        let storage = InMemoryChannelColors()
+        let store = ChannelColorStore(storage: storage)
+
+        store.setColorIndex(2, for: "chn_1")
+        XCTAssertEqual(store.colorIndex(for: "chn_1"), 2)
+        XCTAssertEqual(store.effectiveIndex(for: "chn_1"), 2)
+
+        store.forget("chn_1")
+        XCTAssertNil(store.colorIndex(for: "chn_1"))
+        // 清除后回退到按 id 的稳定色。
+        XCTAssertEqual(store.effectiveIndex(for: "chn_1"), ChannelTint.fallbackIndex(for: "chn_1"))
+    }
+
+    @MainActor
+    func testSuggestedIndexAvoidsUsedColors() {
+        let storage = InMemoryChannelColors()
+        let store = ChannelColorStore(storage: storage)
+        store.setColorIndex(0, for: "a")
+        store.setColorIndex(1, for: "b")
+
+        XCTAssertEqual(store.suggestedIndex(), 2)
+    }
+}

@@ -10,6 +10,7 @@ struct ChannelListView: View {
     @State private var path = NavigationPath()
     @State private var showsCreateSheet = false
     @State private var editingChannel: Channel?
+    @State private var showsPresetPicker = false
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -18,19 +19,27 @@ struct ChannelListView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    Text(L10n.string("tab.channels", locale: locale))
-                        .font(TypeFace.label(12))
-                        .foregroundStyle(Palette.inkSecondary)
+                    NavTitle(text: L10n.string("tab.channels", locale: locale))
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showsCreateSheet = true
+                    // 一个 + 号，菜单里区分「空白新建」与「从模板」。
+                    Menu {
+                        Button {
+                            showsCreateSheet = true
+                        } label: {
+                            Label(L10n.string("channel.create.blank", locale: locale), systemImage: "square.and.pencil")
+                        }
+                        Button {
+                            showsPresetPicker = true
+                        } label: {
+                            Label(L10n.string("channel.create.fromPreset", locale: locale), systemImage: "square.on.square")
+                        }
                     } label: {
                         Image(systemName: "plus")
                             .font(.system(size: 18, weight: .regular))
                             .foregroundStyle(Palette.ink)
                     }
-                    .accessibilityLabel(Text(String(localized: "channel.create.accessibility")))
+                    .accessibilityLabel(Text(L10n.string("channel.create.accessibility", locale: locale)))
                     .accessibilityIdentifier("channel-create-button")
                 }
             }
@@ -50,6 +59,13 @@ struct ChannelListView: View {
                 }
             )
             .presentationDetents([.large])
+        }
+        .sheet(isPresented: $showsPresetPicker) {
+            PresetPicker(store: env.channels, isPresented: $showsPresetPicker) { channel in
+                env.channels.replace(channel)
+                editingChannel = channel
+            }
+            .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showsCreateSheet) {
             ChannelCreateSheet(
@@ -133,6 +149,7 @@ struct ChannelListView: View {
                             channel: channel,
                             run: store.latestRun(for: channel.id),
                             isPending: store.pendingChannelIDs.contains(channel.id),
+                            colorIndex: env.channelColors.colorIndex(for: channel.id),
                             onToggle: { enabled in
                                 Task { await store.setEnabled(enabled, for: channel.id) }
                             }
@@ -170,6 +187,7 @@ struct ChannelCard: View {
     let channel: Channel
     let run: Run?
     let isPending: Bool
+    var colorIndex: Int?
     var onToggle: (Bool) -> Void
 
     @Environment(\.appLocale) private var locale
@@ -177,7 +195,7 @@ struct ChannelCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: Space.s) {
-                ChannelDot(channelID: channel.id, diameter: 8)
+                ChannelDot(channelID: channel.id, diameter: 8, colorIndex: colorIndex)
                 Text(channel.name)
                     .font(TypeFace.heading(15))
                     .foregroundStyle(Palette.ink)

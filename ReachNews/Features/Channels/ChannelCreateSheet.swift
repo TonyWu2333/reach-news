@@ -12,13 +12,13 @@ struct ChannelCreateSheet: View {
     var onCreated: (Channel) -> Void
 
     @Environment(\.appLocale) private var locale
+    @Environment(AppEnvironment.self) private var env
 
     @State private var name = ""
     @State private var prompt = ""
     @State private var tone = ""
     @State private var schedule = Schedule()
     @State private var selectedConnectorIDs: Set<String> = []
-    @State private var showsPresets = false
     @State private var showsConnectorPicker = false
 
     private var canSubmit: Bool {
@@ -59,7 +59,8 @@ struct ChannelCreateSheet: View {
                     field(titleKey: "channelEdit.tone") {
                         FieldBox(minHeight: 52) {
                             TextField("", text: $tone, axis: .vertical)
-                                .lineLimit(1...3)
+                                .lineLimit(2...4)
+                                .frame(maxWidth: .infinity, alignment: .leading)
                                 .accessibilityIdentifier("channel-create-tone")
                         }
                     }
@@ -72,17 +73,18 @@ struct ChannelCreateSheet: View {
                         ScheduleEditor(schedule: $schedule)
                     }
 
-                    if !store.presets.isEmpty {
-                        presetShortcuts
-                    }
                 }
-                .padding(.horizontal, Space.xl)
+                .padding(.horizontal, Space.l)
                 .padding(.top, Space.l)
                 .padding(.bottom, Space.xxl)
             }
             .background(Palette.canvas)
-            .navigationTitle(L10n.string("channel.create.title", locale: locale))
             .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    NavTitle(text: L10n.string("channel.create.title", locale: locale))
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -126,6 +128,10 @@ struct ChannelCreateSheet: View {
             schedule: schedule,
             connectorIDs: Array(selectedConnectorIDs)
         ) {
+            // 新频道默认占一个还没用过的颜色，避免与已有频道撞色。
+            if env.channelColors.colorIndex(for: created.id) == nil {
+                env.channelColors.setColorIndex(env.channelColors.suggestedIndex(), for: created.id)
+            }
             onCreated(created)
             isPresented = false
         }
@@ -167,57 +173,6 @@ struct ChannelCreateSheet: View {
         if names.isEmpty { return L10n.string("channelEdit.connectors.none", locale: locale) }
         if names.count <= 2 { return names.joined(separator: "、") }
         return L10n.format("channelEdit.connectors.someSelected", locale: locale, names.count)
-    }
-
-    /// 预设作为「填入模板」的快捷方式，不再是唯一入口。
-    private var presetShortcuts: some View {
-        VStack(alignment: .leading, spacing: Space.s) {
-            Button {
-                showsPresets.toggle()
-            } label: {
-                HStack(spacing: Space.xs) {
-                    Image(systemName: showsPresets ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 10, weight: .semibold))
-                    Text(L10n.string("channel.create.fromPreset", locale: locale))
-                        .font(TypeFace.heading(12.5))
-                }
-                .foregroundStyle(Palette.inkSecondary)
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("channel-create-presets-toggle")
-
-            if showsPresets {
-                ForEach(store.presets) { preset in
-                    Button {
-                        name = preset.name
-                        prompt = preset.prompt
-                        tone = preset.tone
-                        schedule = preset.schedule
-                        selectedConnectorIDs = Set(preset.connectorIDs.filter { id in
-                            store.connectors.contains { $0.id == id }
-                        })
-                    } label: {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(preset.name)
-                                .font(TypeFace.label(13))
-                                .foregroundStyle(Palette.ink)
-                            if !preset.prompt.isEmpty {
-                                Text(preset.prompt)
-                                    .font(TypeFace.body(11.5))
-                                    .foregroundStyle(Palette.inkTertiary)
-                                    .lineLimit(1)
-                            }
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, Space.m)
-                        .padding(.vertical, Space.s)
-                        .background(Palette.chip, in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("channel-create-preset-\(preset.id)")
-                }
-            }
-        }
     }
 
     private func field<Content: View>(

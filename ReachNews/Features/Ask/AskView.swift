@@ -20,15 +20,8 @@ struct AskView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                HStack(spacing: Space.m) {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(L10n.string("ask.nav.title", locale: locale))
-                            .font(TypeFace.heading(13.5))
-                            .foregroundStyle(Palette.ink)
-                        Text(L10n.string("ask.nav.subtitle", locale: locale))
-                            .font(TypeFace.body(10.5))
-                            .foregroundStyle(Palette.inkTertiary)
-                    }
+                HStack(spacing: Space.s) {
+                    NavTitle(text: L10n.string("ask.nav.title", locale: locale))
                     Spacer(minLength: 0)
                 }
             }

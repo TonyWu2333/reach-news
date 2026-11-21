@@ -99,17 +99,13 @@ struct BriefFeedView: View {
         }
     }
 
+    /// 只保留频道数与期数；不显示当日日期，也不显示排序说明。
     private func metaLines(_ store: BriefFeedStore) -> some View {
         HStack(spacing: 7) {
-            MetaLine(text: DisplayTime.monthDayWeekday(Date(), locale: locale))
-            DotSeparator()
             MetaLine(text: L10n.format("feed.channelCount", locale: locale, store.totalChannelCount))
             DotSeparator()
             MetaLine(text: L10n.format("feed.briefCount", locale: locale, store.briefs.count))
-            Spacer(minLength: Space.xs)
-            Text(L10n.string("feed.sort.latest", locale: locale))
-                .font(TypeFace.condensed(11.5, weight: .semibold))
-                .foregroundStyle(Palette.inkSecondary)
+            Spacer(minLength: 0)
         }
         .padding(.horizontal, Space.xl)
         .padding(.top, Space.m)
@@ -223,7 +219,11 @@ struct BriefFeedView: View {
     private func activeFilterChip(title: String, channelID: String?, onRemove: @escaping () -> Void) -> some View {
         HStack(spacing: 5) {
             if let channelID {
-                ChannelDot(channelID: channelID, diameter: 6)
+                ChannelDot(
+                    channelID: channelID,
+                    diameter: 6,
+                    colorIndex: env.channelColors.colorIndex(for: channelID)
+                )
             }
             Text(title)
                 .font(TypeFace.label(11))
@@ -336,7 +336,7 @@ struct BriefRow: View {
             }
 
             HStack(spacing: 7) {
-                ChannelDot(channelID: channelID)
+                ChannelDot(channelID: channelID, colorIndex: env.channelColors.colorIndex(for: channelID))
                 Text(channelName)
                     .font(TypeFace.label(11))
                     .foregroundStyle(Palette.inkSecondary)
@@ -489,7 +489,7 @@ struct FeedFilterSheet: View {
         Button(action: action) {
             HStack(spacing: Space.s) {
                 if let channelID {
-                    ChannelDot(channelID: channelID)
+                    ChannelDot(channelID: channelID, colorIndex: env.channelColors.colorIndex(for: channelID))
                 }
                 Text(title)
                     .font(TypeFace.body(14))

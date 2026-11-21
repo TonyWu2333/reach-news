@@ -246,3 +246,43 @@ final class SavedStore {
         savedIDs = storage.toggle(briefID)
     }
 }
+
+// MARK: - 频道颜色（仅本机）
+
+@MainActor
+@Observable
+final class ChannelColorStore {
+    private(set) var assignments: [String: Int]
+
+    @ObservationIgnored private let storage: ChannelColorStoring
+
+    init(storage: ChannelColorStoring) {
+        self.storage = storage
+        self.assignments = storage.assignments
+    }
+
+    /// 本地设置的颜色索引；未设置时返回 nil，由视图回退到按 id 的稳定色。
+    func colorIndex(for channelID: String) -> Int? {
+        assignments[channelID]
+    }
+
+    /// 实际使用的索引（含回退），用于取色与展示当前选中项。
+    func effectiveIndex(for channelID: String) -> Int {
+        assignments[channelID] ?? ChannelTint.fallbackIndex(for: channelID)
+    }
+
+    func setColorIndex(_ index: Int, for channelID: String) {
+        storage.setColorIndex(index, for: channelID)
+        assignments = storage.assignments
+    }
+
+    /// 新建频道时挑一个当前用得最少的颜色。
+    func suggestedIndex() -> Int {
+        ChannelTint.leastUsedIndex(among: Array(assignments.values))
+    }
+
+    func forget(_ channelID: String) {
+        storage.remove(channelID)
+        assignments = storage.assignments
+    }
+}

@@ -59,13 +59,33 @@ enum Palette {
 // 由 channelId 稳定映射，保证同一频道在列表、详情、编辑页取到同一色。
 
 enum ChannelTint {
-    static func color(for channelID: String) -> Color {
+    /// 本地未设置时按 id 稳定取一个颜色（保证同一频道始终同色）。
+    static func fallbackIndex(for channelID: String) -> Int {
         var accumulator: UInt32 = 0
         for scalar in channelID.unicodeScalars {
             accumulator = accumulator &* 31 &+ scalar.value
         }
-        let index = Int(accumulator % UInt32(Palette.channelTints.count))
-        return Palette.channelTints[index]
+        return Int(accumulator % UInt32(Palette.channelTints.count))
+    }
+
+    static func fallbackColor(for channelID: String) -> Color {
+        Palette.channelTints[fallbackIndex(for: channelID)]
+    }
+
+    static func color(at index: Int) -> Color {
+        Palette.channelTints[max(0, min(index, Palette.channelTints.count - 1))]
+    }
+
+    static var count: Int { Palette.channelTints.count }
+
+    /// 新建频道时挑一个当前用得最少的颜色。
+    static func leastUsedIndex(among used: [Int]) -> Int {
+        var counts = Array(repeating: 0, count: count)
+        for index in used where (0..<count).contains(index) { counts[index] += 1 }
+        if let best = counts.enumerated().min(by: { $0.element < $1.element }) {
+            return best.offset
+        }
+        return 0
     }
 }
 

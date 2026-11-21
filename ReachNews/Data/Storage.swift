@@ -189,6 +189,56 @@ enum LanguagePreference: String, CaseIterable, Identifiable {
     }
 }
 
+// MARK: - 频道颜色（仅本机）
+//
+// 服务端没有颜色字段，颜色属于个人偏好，只存在本机。
+// 未设置时按 id 稳定回退到调色板里的一个颜色。
+
+protocol ChannelColorStoring: AnyObject {
+    var assignments: [String: Int] { get }
+    func setColorIndex(_ index: Int, for channelID: String)
+    func colorIndex(for channelID: String) -> Int?
+    func remove(_ channelID: String)
+}
+
+final class UserDefaultsChannelColors: ChannelColorStoring {
+    private let key = "channels.colors"
+    private let defaults: UserDefaults
+
+    init(defaults: UserDefaults = .standard) {
+        self.defaults = defaults
+        migrateLegacyShapeIfNeeded()
+    }
+
+    var assignments: [String: Int] {
+        (defaults.dictionary(forKey: key) as? [String: Any])?
+            .compactMapValues { ($0 as? NSNumber)?.intValue } ?? [:]
+    }
+
+    func setColorIndex(_ index: Int, for channelID: String) {
+        var current = assignments
+        current[channelID] = index
+        defaults.set(current, forKey: key)
+    }
+
+    func colorIndex(for channelID: String) -> Int? {
+        assignments[channelID]
+    }
+
+    func remove(_ channelID: String) {
+        var current = assignments
+        current.removeValue(forKey: channelID)
+        defaults.set(current, forKey: key)
+    }
+
+    /// 旧版本若存过其它形状，静默丢弃即可，不影响使用。
+    private func migrateLegacyShapeIfNeeded() {
+        if let raw = defaults.object(forKey: key), !(raw is [String: Any]) {
+            defaults.removeObject(forKey: key)
+        }
+    }
+}
+
 // MARK: - 本机收藏
 //
 // 收藏仅存本机，不同步服务端，不改变服务端任何状态（GLOSSARY「收藏」）。

@@ -11,7 +11,6 @@
 "ask.empty.message" = "Ask about this brief; the server answers from its archived summary.";
 "ask.empty.title" = "No questions yet";
 "ask.loadEarlier" = "Load earlier questions";
-"ask.nav.subtitle" = "Based on the archived summary";
 "ask.nav.title" = "This brief";
 "ask.pill" = "Ask";
 "brief.materialCount" = "%d materials";
@@ -21,9 +20,12 @@
 "briefDetail.materialFailed" = "Couldn't load material";
 "channel.count" = "%d channels";
 "channel.create.accessibility" = "New channel";
+"channel.create.blank" = "New channel";
 "channel.create.connectors.empty" = "No connectors available";
 "channel.create.connectors.required" = "Select at least one connector";
-"channel.create.fromPreset" = "Fill from a template";
+"channel.create.empty.message" = "An administrator hasn't created any presets yet.";
+"channel.create.empty.title" = "No templates";
+"channel.create.fromPreset" = "New from template";
 "channel.create.submit" = "Create";
 "channel.create.title" = "New channel";
 "channel.empty.message" = "Channels are created by an administrator and appear here once provisioned.";
@@ -39,6 +41,8 @@
 "channel.unknown" = "Unknown channel";
 "channelEdit.busy.detail" = "You can save once it finishes; your edits are kept.";
 "channelEdit.busy.title" = "This channel is running and can't be saved right now.";
+"channelEdit.close" = "Cancel";
+"channelEdit.color" = "Color";
 "channelEdit.connectors" = "Connectors";
 "channelEdit.connectors.emptyWarning" = "No connectors selected — runs won't produce a brief.";
 "channelEdit.connectors.none" = "Choose connectors";
@@ -105,7 +109,6 @@
 "feed.noResults.title" = "No matching briefs";
 "feed.search.clear" = "Clear search";
 "feed.search.placeholder" = "Search brief titles";
-"feed.sort.latest" = "Newest first";
 "filter.apply" = "Show %d briefs";
 "filter.channel.heading" = "Channels";
 "filter.channel.none" = "No channels to filter yet";
@@ -146,6 +149,7 @@
 "schedule.addTime" = "Add time";
 "schedule.everyDay" = "Every day %@";
 "schedule.multiWeekday" = "%@ %@";
+"schedule.notSet" = "No time set";
 "schedule.removeTime" = "Remove %@";
 "schedule.singleWeekday" = "Every %@ %@";
 "tab.briefs" = "Briefs";
@@ -165,4 +169,3 @@
 "weekday.tue.short" = "Tue";
 "weekday.wed" = "Wednesday";
 "weekday.wed.short" = "Wed";
-"channelEdit.close" = "Cancel";
