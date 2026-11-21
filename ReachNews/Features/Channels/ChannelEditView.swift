@@ -250,62 +250,6 @@ struct ChannelEditView: View {
         .accessibilityIdentifier("channel-edit-connectors")
     }
 
-    private func hintText(_ key: String, arguments: [CVarArg]) -> String {
-        guard !arguments.isEmpty else { return L10n.string(key, locale: locale) }
-        return String(format: L10n.string(key, locale: locale), locale: locale, arguments: arguments)
-    }
-
-    private var fieldBackground: Color {
-        Palette.surface
-    }
-
-    /// 删除入口：二次确认后才执行。日报与素材由服务端保留，只是频道不再出现。
-    private var deleteSection: some View {
-        VStack(alignment: .leading, spacing: Space.s) {
-            Button {
-                showsDeleteConfirm = true
-            } label: {
-                HStack(spacing: Space.xs) {
-                    if isDeleting {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Image(systemName: "trash")
-                            .font(.system(size: 12, weight: .semibold))
-                    }
-                    Text(L10n.string("channelEdit.delete", locale: locale))
-                        .font(TypeFace.heading(13.5))
-                }
-                .foregroundStyle(Palette.failedForeground)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 13)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Palette.failedBackground)
-                )
-            }
-            .buttonStyle(.plain)
-            .disabled(isDeleting)
-            .accessibilityIdentifier("channel-edit-delete")
-
-            if let error = deleteError {
-                InlineNotice(
-                    text: L10n.string(error.messageKey, locale: locale),
-                    detail: error.isBusy
-                        ? L10n.string("channelEdit.delete.busy", locale: locale)
-                        : error.detailText,
-                    kind: .error
-                )
-                .accessibilityIdentifier("channel-edit-delete-error")
-            }
-
-            Text(L10n.string("channelEdit.delete.hint", locale: locale))
-                .font(TypeFace.body(11))
-                .foregroundStyle(Palette.inkTertiary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(.top, Space.s)
-    }
-
     private func field<Content: View>(
         titleKey: String,
         hintKey: String? = nil,
