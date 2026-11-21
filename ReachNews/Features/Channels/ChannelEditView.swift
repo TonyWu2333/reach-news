@@ -42,6 +42,10 @@ struct ChannelEditView: View {
                     )
                 }
                 .task {
+                    // 记录进入时的颜色，用于判断「只改颜色」也算有改动。
+                    let stored = env.channelColors.effectiveIndex(for: channel.id)
+                    editor.initialColorIndex = stored
+                    editor.currentColorIndex = stored
                     if env.channels.connectors.isEmpty {
                         await env.channels.loadCreationOptions()
                     }
@@ -198,7 +202,11 @@ struct ChannelEditView: View {
         ChannelColorRow(
             selection: Binding(
                 get: { env.channelColors.effectiveIndex(for: channel.id) },
-                set: { env.channelColors.setColorIndex($0, for: channel.id) }
+                set: { newValue in
+                    env.channelColors.setColorIndex(newValue, for: channel.id)
+                    // 让保存按钮感知到颜色变化。
+                    editor.currentColorIndex = newValue
+                }
             )
         )
     }

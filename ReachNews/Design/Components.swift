@@ -422,17 +422,33 @@ struct ChannelColorRow: View {
     @Environment(\.appLocale) private var locale
 
     var body: some View {
-        SelectorRow(text: ChannelColorName.name(for: selection, locale: locale)) {
+        // 色点与文字同行排布，不再用 overlay 叠在文字上。
+        Button {
             showsPicker = true
+        } label: {
+            HStack(spacing: Space.s) {
+                Circle()
+                    .fill(ChannelTint.color(at: selection))
+                    .frame(width: 16, height: 16)
+                Text(ChannelColorName.name(for: selection, locale: locale))
+                    .font(TypeFace.body(15))
+                    .foregroundStyle(Palette.ink)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Palette.inkTertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 13)
+            .background(
+                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous).fill(Palette.surface)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                    .strokeBorder(Palette.line, lineWidth: 1)
+            }
         }
-        .overlay(alignment: .leading) {
-            // 左侧色点提示当前选择，不占正文宽度。
-            Circle()
-                .fill(ChannelTint.color(at: selection))
-                .frame(width: 14, height: 14)
-                .padding(.leading, 14)
-                .allowsHitTesting(false)
-        }
+        .buttonStyle(.plain)
         .accessibilityIdentifier("channel-color-row")
         .sheet(isPresented: $showsPicker) {
             ColorPickerSheet(selection: $selection, isPresented: $showsPicker)

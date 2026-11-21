@@ -271,7 +271,18 @@ final class ChannelEditor {
         draft.changes(against: original)
     }
 
-    var hasChanges: Bool { !changes.isEmpty }
+    /// 进入编辑页时的颜色索引；颜色只存本地，因此不进入 ChannelChanges。
+    var initialColorIndex: Int?
+    /// 当前选中的颜色索引，由编辑页写入。
+    var currentColorIndex: Int?
+
+    /// 只有颜色变化时也应允许「保存」。
+    var hasColorChange: Bool {
+        guard let initialColorIndex, let currentColorIndex else { return false }
+        return initialColorIndex != currentColorIndex
+    }
+
+    var hasChanges: Bool { !changes.isEmpty || hasColorChange }
 
     /// 频道正在运行时服务端返回 409 busy：全部输入保留，只提示原因。
     var isBlockedByRunning: Bool {
@@ -286,8 +297,16 @@ final class ChannelEditor {
         didSave = false
         defer { isSaving = false }
 
+        // 只有颜色变化时无需请求服务端，颜色已在本地保存。
+        guard !changes.isEmpty else {
+            initialColorIndex = currentColorIndex
+            didSave = true
+            return original
+        }
+
         do {
             let updated = try await client.patchChannel(id: original.id, changes: changes)
+            initialColorIndex = currentColorIndex
             didSave = true
             return updated
         } catch let apiError as APIError {

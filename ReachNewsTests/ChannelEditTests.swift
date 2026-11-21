@@ -372,3 +372,76 @@ final class ChannelConnectorTests: XCTestCase {
         XCTAssertEqual(store.createError, .invalidConnector("Unknown or disabled connector: x"))
     }
 }
+
+// MARK: - 只改颜色也能保存
+
+final class ColorOnlySaveTests: XCTestCase {
+    @MainActor
+    private func makeChannel() -> Channel {
+        Channel(
+            id: "chn_color",
+            name: "AI 前沿",
+            prompt: "p",
+            tone: "t",
+            schedule: Schedule(timesByWeekday: ["mon": ["08:00"]]),
+            enabled: true,
+            connectorIDs: ["cnn_homepage"],
+            connectors: [ChannelConnector(id: "cnn_homepage", name: "HN 首页", kind: "hn", removed: false)],
+            lastBriefAt: nil,
+            kind: .channel,
+            createdAt: Date(timeIntervalSince1970: 0),
+            updatedAt: Date(timeIntervalSince1970: 0)
+        )
+    }
+
+    @MainActor
+    func testColorOnlyChangeEnablesSave() {
+        let channel = makeChannel()
+        let transport = StubTransport(json: "{}")
+        let editor = ChannelEditor(channel: channel, client: TestClient.make(transport: transport))
+
+        XCTAssertFalse(editor.hasChanges)
+
+        editor.initialColorIndex = 1
+        editor.currentColorIndex = 1
+        XCTAssertFalse(editor.hasChanges)
+
+        // 只换颜色：字段没有变化，但保存应当可用。
+        editor.currentColorIndex = 4
+        XCTAssertTrue(editor.hasColorChange)
+        XCTAssertTrue(editor.hasChanges)
+        XCTAssertTrue(editor.changes.isEmpty)
+    }
+
+    @MainActor
+    func testColorOnlySaveSkipsNetworkRequest() async {
+        let channel = makeChannel()
+        let transport = StubTransport(json: "{}")
+        let editor = ChannelEditor(channel: channel, client: TestClient.make(transport: transport))
+        editor.initialColorIndex = 1
+        editor.currentColorIndex = 5
+
+        let result = await editor.save()
+
+        XCTAssertNotNil(result)
+        XCTAssertTrue(editor.didSave)
+        // 颜色只在本地，不应发出 PATCH。
+        XCTAssertTrue(transport.recorded.isEmpty)
+    }
+
+    @MainActor
+    func testFieldChangeStillPostsPatch() async throws {
+        let channel = makeChannel()
+        let envelope = try JSONDecoder().decode(PageEnvelope<ChannelDTO>.self, from: try Fixture.data("channels"))
+        let body = try JSONEncoder().encode(try XCTUnwrap(envelope.items.first))
+        let transport = StubTransport(handler: { _ in (200, body) })
+        let editor = ChannelEditor(channel: channel, client: TestClient.make(transport: transport))
+        editor.initialColorIndex = 1
+        editor.currentColorIndex = 1
+        editor.draft.name = "改了名字"
+
+        _ = await editor.save()
+
+        XCTAssertEqual(transport.recorded.first?.method, "PATCH")
+    }
+}
