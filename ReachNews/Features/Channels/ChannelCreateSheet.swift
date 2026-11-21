@@ -13,6 +13,7 @@ struct ChannelCreateSheet: View {
 
     @Environment(\.appLocale) private var locale
     @Environment(AppEnvironment.self) private var env
+    @Environment(\.dismiss) private var dismiss
 
     @State private var name = ""
     @State private var prompt = ""
@@ -89,8 +90,6 @@ struct ChannelCreateSheet: View {
                 ToolbarItem(placement: .principal) {
                     NavTitle(text: L10n.string("channel.create.title", locale: locale))
                 }
-            }
-            .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         Task { await submit() }
@@ -146,7 +145,9 @@ struct ChannelCreateSheet: View {
         ) {
             env.channelColors.setColorIndex(selectedColorIndex, for: created.id)
             onCreated(created)
+            // 作为导航页时用 dismiss 回退，而不是翻转 sheet 绑定。
             isPresented = false
+            dismiss()
         }
     }
 

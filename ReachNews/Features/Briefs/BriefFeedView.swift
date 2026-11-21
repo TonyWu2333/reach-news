@@ -419,7 +419,8 @@ struct FeedFilterSheet: View {
                     }
                 }
                 .padding(.horizontal, Space.xl)
-                .padding(.top, Space.m)
+                // 无标题栏的弹窗：显式让出拖动手柄的空间。
+                .padding(.top, SheetMetrics.topInset + Space.s)
                 .padding(.bottom, Space.xl)
             }
 

@@ -43,30 +43,31 @@ struct ChannelListView: View {
                     .accessibilityIdentifier("channel-create-button")
                 }
             }
+            // 必须挂在 NavigationStack 内部，否则点击无反应。
+            .navigationDestination(item: $editingChannel) { channel in
+                ChannelEditView(
+                    channel: channel,
+                    editor: env.makeChannelEditor(channel: channel),
+                    onSaved: { updated in
+                        env.channels.replace(updated)
+                    }
+                )
+            }
+            .navigationDestination(isPresented: $showsCreateSheet) {
+                ChannelCreateSheet(
+                    store: env.channels,
+                    isPresented: $showsCreateSheet,
+                    onCreated: { channel in
+                        env.channels.replace(channel)
+                    }
+                )
+            }
         }
         .task {
             await env.channels.load()
         }
         .onDisappear {
             env.channels.stopPolling()
-        }
-        .navigationDestination(item: $editingChannel) { channel in
-            ChannelEditView(
-                channel: channel,
-                editor: env.makeChannelEditor(channel: channel),
-                onSaved: { updated in
-                    env.channels.replace(updated)
-                }
-            )
-        }
-        .navigationDestination(isPresented: $showsCreateSheet) {
-            ChannelCreateSheet(
-                store: env.channels,
-                isPresented: $showsCreateSheet,
-                onCreated: { channel in
-                    env.channels.replace(channel)
-                }
-            )
         }
         .sheet(isPresented: $showsPresetPicker) {
             PresetPicker(store: env.channels, isPresented: $showsPresetPicker) { channel in
