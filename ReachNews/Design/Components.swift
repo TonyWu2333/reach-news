@@ -452,7 +452,7 @@ struct ChannelColorRow: View {
         .accessibilityIdentifier("channel-color-row")
         .sheet(isPresented: $showsPicker) {
             ColorPickerSheet(selection: $selection, isPresented: $showsPicker)
-                .presentationDetents([.medium])
+                .presentationDetents(SheetMetrics.detents)
                 .presentationDragIndicator(.visible)
                 .presentationBackground(Palette.canvas)
         }

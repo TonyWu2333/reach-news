@@ -58,7 +58,7 @@ struct ChannelListView: View {
                     env.channels.replace(updated)
                 }
             )
-            .presentationDetents([.large])
+            .presentationDetents(SheetMetrics.detents)
             .presentationDragIndicator(.visible)
             .presentationBackground(Palette.canvas)
         }
@@ -67,7 +67,7 @@ struct ChannelListView: View {
                 env.channels.replace(channel)
                 editingChannel = channel
             }
-            .presentationDetents([.large])
+            .presentationDetents(SheetMetrics.detents)
             .presentationDragIndicator(.visible)
             .presentationBackground(Palette.canvas)
         }
@@ -79,7 +79,7 @@ struct ChannelListView: View {
                     env.channels.replace(channel)
                 }
             )
-            .presentationDetents([.large])
+            .presentationDetents(SheetMetrics.detents)
             .presentationDragIndicator(.visible)
             .presentationBackground(Palette.canvas)
         }

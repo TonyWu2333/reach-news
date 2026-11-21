@@ -94,7 +94,7 @@ struct BriefFeedView: View {
         }
         .sheet(isPresented: $showFilter) {
             FeedFilterSheet(store: store, isPresented: $showFilter)
-                .presentationDetents([.large])
+                .presentationDetents(SheetMetrics.detents)
                 .presentationDragIndicator(.visible)
         }
     }

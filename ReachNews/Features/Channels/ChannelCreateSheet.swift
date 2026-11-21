@@ -118,6 +118,9 @@ struct ChannelCreateSheet: View {
                 ),
                 isPresented: $showsConnectorPicker
             )
+            .presentationDetents(SheetMetrics.detents)
+            .presentationDragIndicator(.visible)
+            .presentationBackground(Palette.canvas)
         }
         .task {
             await store.loadCreationOptions()

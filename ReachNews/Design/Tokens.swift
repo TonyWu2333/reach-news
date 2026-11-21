@@ -119,6 +119,14 @@ enum Space {
     static let xxl: CGFloat = 28
 }
 
+// MARK: - 弹窗尺寸
+//
+// 所有上拉弹窗统一占主屏约 2/3，避免有的半屏、有的全屏。
+
+enum SheetMetrics {
+    static let detents: Set<PresentationDetent> = [.fraction(0.66)]
+}
+
 // MARK: - 字体
 //
 // 中文用系统字（苹方／思源黑），数字用压缩体（对应稿子的 Arial Narrow 角色）。

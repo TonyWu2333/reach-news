@@ -40,6 +40,9 @@ struct ChannelEditView: View {
                         selection: $editor.draft.connectorIDs,
                         isPresented: $showsConnectorPicker
                     )
+                    .presentationDetents(SheetMetrics.detents)
+                    .presentationDragIndicator(.visible)
+                    .presentationBackground(Palette.canvas)
                 }
                 .task {
                     // 记录进入时的颜色，用于判断「只改颜色」也算有改动。
@@ -348,7 +351,7 @@ struct ScheduleEditor: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        .presentationDetents(SheetMetrics.detents)
     }
 
     private var displayedDate: Binding<Date> {

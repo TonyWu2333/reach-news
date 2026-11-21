@@ -376,6 +376,12 @@ final class ChannelConnectorTests: XCTestCase {
 // MARK: - 只改颜色也能保存
 
 final class ColorOnlySaveTests: XCTestCase {
+    private func firstChannelJSON() throws -> Data {
+        let root = try JSONSerialization.jsonObject(with: try Fixture.data("channels")) as? [String: Any]
+        let items = try XCTUnwrap(root?["items"] as? [[String: Any]])
+        return try JSONSerialization.data(withJSONObject: try XCTUnwrap(items.first))
+    }
+
     @MainActor
     private func makeChannel() -> Channel {
         Channel(
@@ -432,8 +438,8 @@ final class ColorOnlySaveTests: XCTestCase {
     @MainActor
     func testFieldChangeStillPostsPatch() async throws {
         let channel = makeChannel()
-        let envelope = try JSONDecoder().decode(PageEnvelope<ChannelDTO>.self, from: try Fixture.data("channels"))
-        let body = try JSONEncoder().encode(try XCTUnwrap(envelope.items.first))
+        // PATCH 返回单个频道对象；直接取 channels.json 里的原始 JSON。
+        let body = try firstChannelJSON()
         let transport = StubTransport(handler: { _ in (200, body) })
         let editor = ChannelEditor(channel: channel, client: TestClient.make(transport: transport))
         editor.initialColorIndex = 1
