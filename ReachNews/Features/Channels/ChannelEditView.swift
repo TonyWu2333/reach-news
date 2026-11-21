@@ -105,12 +105,12 @@ struct ChannelEditView: View {
                     }
                 }
 
-                field(titleKey: "channelEdit.schedule") {
-                    ScheduleEditor(schedule: $editor.draft.schedule)
-                }
-
                 field(titleKey: "channelEdit.connectors") {
                     connectorSummary
+                }
+
+                field(titleKey: "channelEdit.schedule") {
+                    ScheduleEditor(schedule: $editor.draft.schedule)
                 }
 
                 field(titleKey: "channelEdit.color") {
@@ -195,53 +195,23 @@ struct ChannelEditView: View {
 
     /// 频道标识色：只在本地保存，不改服务端。
     private var colorPicker: some View {
-        HStack(spacing: Space.m) {
-            ForEach(0..<ChannelTint.count, id: \.self) { index in
-                let isOn = env.channelColors.effectiveIndex(for: channel.id) == index
-                Button {
-                    env.channelColors.setColorIndex(index, for: channel.id)
-                } label: {
-                    Circle()
-                        .fill(ChannelTint.color(at: index))
-                        .frame(width: 26, height: 26)
-                        .overlay {
-                            Circle()
-                                .strokeBorder(Palette.ink, lineWidth: isOn ? 2 : 0)
-                                .padding(-3)
-                        }
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(Text(L10n.string("channelEdit.color", locale: locale)))
-                .accessibilityIdentifier("channel-color-\(index)")
-            }
-            Spacer(minLength: 0)
-        }
-        .padding(.vertical, Space.xs)
+        ChannelColorPicker(
+            selection: Binding(
+                get: { env.channelColors.effectiveIndex(for: channel.id) },
+                set: { env.channelColors.setColorIndex($0, for: channel.id) }
+            )
+        )
     }
 
-    /// 连接器：不在页面平铺，点开弹出多选。
+    /// 连接器：一行摘要，点开弹出多选。
     private var connectorSummary: some View {
         VStack(alignment: .leading, spacing: Space.xs) {
-            Button {
+            SelectorRow(
+                text: connectorSummaryText,
+                isPlaceholder: selectedConnectorNames.isEmpty
+            ) {
                 showsConnectorPicker = true
-            } label: {
-                HStack(spacing: Space.s) {
-                    Text(connectorSummaryText)
-                        .font(TypeFace.body(14))
-                        .foregroundStyle(selectedConnectorNames.isEmpty ? Palette.inkTertiary : Palette.ink)
-                        .lineLimit(1)
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(Palette.inkTertiary)
-                }
-                .padding(.horizontal, 13)
-                .padding(.vertical, 12)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Palette.field)
-                )
             }
-            .buttonStyle(.plain)
             .accessibilityIdentifier("channel-edit-connectors")
 
             if editor.draft.connectorIDs.isEmpty {
@@ -301,30 +271,9 @@ struct ScheduleEditor: View {
     }
 
     var body: some View {
-        Button {
+        SelectorRow(text: summary, isPlaceholder: selectedWeekdays.isEmpty) {
             showsTimePicker = true
-        } label: {
-            HStack(spacing: Space.s) {
-                Text(summary)
-                    .font(TypeFace.body(15))
-                    .foregroundStyle(selectedWeekdays.isEmpty ? Palette.inkTertiary : Palette.ink)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Palette.inkTertiary)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 13)
-            .background(
-                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous).fill(Palette.surface)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                    .strokeBorder(Palette.line, lineWidth: 1)
-            }
         }
-        .buttonStyle(.plain)
         .accessibilityIdentifier("schedule-summary")
         .sheet(isPresented: $showsTimePicker) {
             timePickerSheet

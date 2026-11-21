@@ -375,6 +375,73 @@ struct FieldBox<Content: View>: View {
     }
 }
 
+// MARK: - 选择行
+//
+// 「点开一个选择器」的通用外观：文字摘要 + 右侧箭头。
+// 新建与编辑页的连接器、时间表都用这一个，避免两页样式漂移。
+
+struct SelectorRow: View {
+    let text: String
+    var isPlaceholder: Bool = false
+    var action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: Space.s) {
+                Text(text)
+                    .font(TypeFace.body(15))
+                    .foregroundStyle(isPlaceholder ? Palette.inkTertiary : Palette.ink)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(Palette.inkTertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 13)
+            .background(
+                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous).fill(Palette.surface)
+            )
+            .overlay {
+                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                    .strokeBorder(Palette.line, lineWidth: 1)
+            }
+        }
+        .buttonStyle(.plain)
+    }
+}
+
+// MARK: - 频道颜色选择
+//
+// 新建与编辑共用，避免两页各写一套。
+
+struct ChannelColorPicker: View {
+    @Binding var selection: Int
+
+    var body: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Space.m), count: 6), spacing: Space.m) {
+            ForEach(0..<ChannelTint.count, id: \.self) { index in
+                let isOn = selection == index
+                Button {
+                    selection = index
+                } label: {
+                    Circle()
+                        .fill(ChannelTint.color(at: index))
+                        .frame(width: 26, height: 26)
+                        .overlay {
+                            Circle()
+                                .strokeBorder(Palette.ink, lineWidth: isOn ? 2 : 0)
+                                .padding(-3)
+                        }
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("channel-color-\(index)")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 // MARK: - 导航标题
 //
 // 所有页面的顶部标题与首页品牌标题保持同一字体样式。

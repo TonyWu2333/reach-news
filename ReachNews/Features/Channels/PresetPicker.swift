@@ -51,8 +51,11 @@ struct PresetPicker: View {
                         }
                     }
                     .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                    .background(Palette.canvas)
                 }
             }
+            .background(Palette.canvas)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {

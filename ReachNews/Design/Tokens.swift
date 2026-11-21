@@ -46,11 +46,20 @@ enum Palette {
     static let failedForeground = Color(hex: 0xA5452A)
 
     // 频道标识：steel / moss / clay / plum
+    /// 频道标识色板：足够区分常见频道数，同时保持整体克制。
     static let channelTints: [Color] = [
-        Color(hex: 0x4E6E8E),
-        Color(hex: 0x3D6B5C),
-        Color(hex: 0xA9714B),
-        Color(hex: 0x7A5A78)
+        Color(hex: 0x4E6E8E),  // steel
+        Color(hex: 0x3D6B5C),  // moss
+        Color(hex: 0xA9714B),  // clay
+        Color(hex: 0x7A5A78),  // plum
+        Color(hex: 0x8A6A3B),  // bronze
+        Color(hex: 0x5B6E4E),  // olive
+        Color(hex: 0x46687A),  // slate
+        Color(hex: 0x8C5560),  // rose
+        Color(hex: 0x6B5B8E),  // iris
+        Color(hex: 0x3F6B6B),  // teal
+        Color(hex: 0x7A6244),  // walnut
+        Color(hex: 0x55566B)   // graphite
     ]
 }
 

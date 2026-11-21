@@ -59,13 +59,17 @@ struct ChannelListView: View {
                 }
             )
             .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(Palette.canvas)
         }
         .sheet(isPresented: $showsPresetPicker) {
             PresetPicker(store: env.channels, isPresented: $showsPresetPicker) { channel in
                 env.channels.replace(channel)
                 editingChannel = channel
             }
-            .presentationDetents([.medium, .large])
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(Palette.canvas)
         }
         .sheet(isPresented: $showsCreateSheet) {
             ChannelCreateSheet(
@@ -76,6 +80,8 @@ struct ChannelListView: View {
                 }
             )
             .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(Palette.canvas)
         }
     }
 

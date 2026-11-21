@@ -20,6 +20,7 @@ struct ChannelCreateSheet: View {
     @State private var schedule = Schedule()
     @State private var selectedConnectorIDs: Set<String> = []
     @State private var showsConnectorPicker = false
+    @State private var selectedColorIndex: Int = 0
 
     private var canSubmit: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
@@ -73,6 +74,10 @@ struct ChannelCreateSheet: View {
                         ScheduleEditor(schedule: $schedule)
                     }
 
+                    // 新建时一并选色，避免先用回退色再进编辑页调整。
+                    field(titleKey: "channelEdit.color") {
+                        colorPicker
+                    }
                 }
                 .padding(.horizontal, Space.l)
                 .padding(.top, Space.l)
@@ -115,6 +120,8 @@ struct ChannelCreateSheet: View {
         }
         .task {
             await store.loadCreationOptions()
+            // 默认挑一个当前用得最少的颜色。
+            selectedColorIndex = env.channelColors.suggestedIndex()
         }
         .accessibilityIdentifier("channel-create-sheet")
     }
@@ -128,42 +135,34 @@ struct ChannelCreateSheet: View {
             schedule: schedule,
             connectorIDs: Array(selectedConnectorIDs)
         ) {
-            // 新频道默认占一个还没用过的颜色，避免与已有频道撞色。
-            if env.channelColors.colorIndex(for: created.id) == nil {
-                env.channelColors.setColorIndex(env.channelColors.suggestedIndex(), for: created.id)
-            }
+            env.channelColors.setColorIndex(selectedColorIndex, for: created.id)
             onCreated(created)
             isPresented = false
         }
     }
 
     /// 连接器：一行摘要，点开弹出多选。
+    /// 新建时的颜色选择；默认选中一个还没用过的颜色。
+    private var colorPicker: some View {
+        ChannelColorPicker(selection: $selectedColorIndex)
+    }
+
     private var connectorSummary: some View {
-        Button {
-            showsConnectorPicker = true
-        } label: {
-            HStack(spacing: Space.s) {
-                Text(summaryText)
-                    .font(TypeFace.body(14))
-                    .foregroundStyle(selectedConnectorIDs.isEmpty ? Palette.inkTertiary : Palette.ink)
-                    .lineLimit(1)
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(Palette.inkTertiary)
+        VStack(alignment: .leading, spacing: Space.xs) {
+            SelectorRow(
+                text: summaryText,
+                isPlaceholder: selectedConnectorIDs.isEmpty
+            ) {
+                showsConnectorPicker = true
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 13)
-            .background(
-                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous).fill(Palette.surface)
-            )
-            .overlay {
-                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                    .strokeBorder(Palette.line, lineWidth: 1)
+            .accessibilityIdentifier("channel-create-connectors")
+
+            if selectedConnectorIDs.isEmpty && !store.connectors.isEmpty {
+                Text(L10n.string("channelEdit.connectors.emptyWarning", locale: locale))
+                    .font(TypeFace.footnote)
+                    .foregroundStyle(Palette.failedForeground)
             }
         }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("channel-create-connectors")
     }
 
     private var summaryText: String {
