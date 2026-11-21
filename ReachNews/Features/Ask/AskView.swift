@@ -30,6 +30,7 @@ struct AskView: View {
         .task {
             await store.loadHistoryIfNeeded()
         }
+        .toolbar(.hidden, for: .tabBar)
         .accessibilityIdentifier("ask-view")
     }
 

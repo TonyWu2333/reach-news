@@ -83,6 +83,7 @@ struct BriefDetailView: View {
                 store: env.makeAskStore(briefID: brief.id)
             )
         }
+        .toolbar(.hidden, for: .tabBar)
         .accessibilityIdentifier("brief-detail")
     }
 

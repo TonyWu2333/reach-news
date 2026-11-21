@@ -52,6 +52,7 @@ struct ChannelEditView: View {
                     await env.channels.loadCreationOptions()
                 }
             }
+            .toolbar(.hidden, for: .tabBar)
             .accessibilityIdentifier("channel-edit-view")
     }
 

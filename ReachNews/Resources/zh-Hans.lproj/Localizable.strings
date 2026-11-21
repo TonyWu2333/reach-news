@@ -122,12 +122,14 @@
 "feed.search.clear" = "清除搜索";
 "feed.search.placeholder" = "搜索日报标题";
 "filter.apply" = "显示 %d 期";
+"filter.apply.short" = "完成";
 "filter.channel.heading" = "频道";
 "filter.channel.none" = "还没有可筛选的频道";
 "filter.custom.end" = "结束";
 "filter.custom.start" = "开始";
 "filter.remove" = "移除该筛选";
 "filter.reset" = "重置";
+"filter.resultCount" = "共 %d 期";
 "filter.time.all" = "全部时间";
 "filter.time.custom" = "自定义范围";
 "filter.time.heading" = "时间";

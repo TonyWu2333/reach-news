@@ -63,11 +63,11 @@ struct PresetPicker: View {
                     NavTitle(text: L10n.string("channel.create.fromPreset", locale: locale))
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(L10n.string("common.cancel", locale: locale)) {
+                    Button(L10n.string("common.done", locale: locale)) {
                         isPresented = false
                     }
-                    .font(TypeFace.body(15))
-                    .foregroundStyle(Palette.inkSecondary)
+                    .font(TypeFace.heading(15))
+                    .accessibilityIdentifier("preset-picker-done")
                 }
             }
             .task {

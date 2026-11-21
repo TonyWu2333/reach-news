@@ -377,9 +377,15 @@ struct FeedFilterSheet: View {
     @State private var isApplying = false
 
     var body: some View {
-        VStack(spacing: 0) {
+        NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
+                    // 结果数量替代原来的按钮文案，让用户知道当前会筛出多少。
+                    Text(L10n.format("filter.resultCount", locale: locale, previewCount))
+                        .font(TypeFace.footnote)
+                        .foregroundStyle(Palette.inkTertiary)
+                        .padding(.bottom, Space.s)
+
                     sheetHeading("filter.time.heading")
                     ForEach(FeedTimeFilter.allCases) { option in
                         optionRow(
@@ -419,32 +425,40 @@ struct FeedFilterSheet: View {
                     }
                 }
                 .padding(.horizontal, Space.xl)
-                // 无标题栏的弹窗：显式让出拖动手柄的空间。
-                .padding(.top, SheetMetrics.topInset + Space.s)
+                .padding(.top, Space.s)
                 .padding(.bottom, Space.xl)
             }
-
-            HStack(spacing: Space.m) {
-                SecondaryButton(title: L10n.string("filter.reset", locale: locale)) {
-                    draft = FeedFilter()
-                    customStart = Date()
-                    customEnd = Date()
-                }
-                .frame(maxWidth: 110)
-
-                PrimaryButton(
-                    title: isApplying
-                        ? L10n.string("common.loading", locale: locale)
-                        : L10n.format("filter.apply", locale: locale, previewCount)
-                ) {
-                    apply()
-                }
-                .disabled(isApplying)
-            }
-            .padding(.horizontal, Space.xl)
-            .padding(.top, Space.m)
-            .padding(.bottom, Space.xxl)
             .background(Palette.canvas)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    NavTitle(text: L10n.string("feed.filter.button", locale: locale))
+                }
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(L10n.string("filter.reset", locale: locale)) {
+                        draft = FeedFilter()
+                        customStart = Date()
+                        customEnd = Date()
+                    }
+                    .font(TypeFace.body(15))
+                    .foregroundStyle(Palette.inkSecondary)
+                    .accessibilityIdentifier("filter-reset")
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        apply()
+                    } label: {
+                        if isApplying {
+                            ProgressView().controlSize(.small)
+                        } else {
+                            Text(L10n.string("filter.apply.short", locale: locale))
+                                .font(TypeFace.heading(15))
+                        }
+                    }
+                    .disabled(isApplying)
+                    .accessibilityIdentifier("filter-apply")
+                }
+            }
         }
         .background(Palette.canvas)
         .onAppear {

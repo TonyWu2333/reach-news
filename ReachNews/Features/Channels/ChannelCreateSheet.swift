@@ -124,6 +124,7 @@ struct ChannelCreateSheet: View {
             // 默认挑一个当前用得最少的颜色。
             selectedColorIndex = env.channelColors.suggestedIndex()
         }
+        .toolbar(.hidden, for: .tabBar)
         .accessibilityIdentifier("channel-create-sheet")
     }
 

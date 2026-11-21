@@ -122,12 +122,14 @@
 "feed.search.clear" = "Clear search";
 "feed.search.placeholder" = "Search brief titles";
 "filter.apply" = "Show %d briefs";
+"filter.apply.short" = "Done";
 "filter.channel.heading" = "Channels";
 "filter.channel.none" = "No channels to filter yet";
 "filter.custom.end" = "End";
 "filter.custom.start" = "Start";
 "filter.remove" = "Remove filter";
 "filter.reset" = "Reset";
+"filter.resultCount" = "%d briefs";
 "filter.time.all" = "All time";
 "filter.time.custom" = "Custom range";
 "filter.time.heading" = "Time";
