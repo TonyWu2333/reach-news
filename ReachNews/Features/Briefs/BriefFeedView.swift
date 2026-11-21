@@ -256,7 +256,8 @@ struct BriefFeedView: View {
                                 brief: brief,
                                 channelName: store.displayName(for: brief),
                                 channelID: brief.channelID,
-                                isNew: store.isNew(brief)
+                                isNew: store.isNew(brief),
+                                colorIndex: env.channelColors.colorIndex(for: brief.channelID)
                             )
                         }
                         .buttonStyle(.plain)
@@ -313,6 +314,7 @@ struct BriefRow: View {
     let channelName: String
     let channelID: String
     let isNew: Bool
+    var colorIndex: Int?
 
     @Environment(\.appLocale) private var locale
 
@@ -336,7 +338,7 @@ struct BriefRow: View {
             }
 
             HStack(spacing: 7) {
-                ChannelDot(channelID: channelID, colorIndex: env.channelColors.colorIndex(for: channelID))
+                ChannelDot(channelID: channelID, colorIndex: colorIndex)
                 Text(channelName)
                     .font(TypeFace.label(11))
                     .foregroundStyle(Palette.inkSecondary)
@@ -367,6 +369,7 @@ struct FeedFilterSheet: View {
     @Bindable var store: BriefFeedStore
     @Binding var isPresented: Bool
     @Environment(\.appLocale) private var locale
+    @Environment(AppEnvironment.self) private var env
 
     @State private var draft: FeedFilter = FeedFilter()
     @State private var customStart: Date = Date()
@@ -489,7 +492,10 @@ struct FeedFilterSheet: View {
         Button(action: action) {
             HStack(spacing: Space.s) {
                 if let channelID {
-                    ChannelDot(channelID: channelID, colorIndex: env.channelColors.colorIndex(for: channelID))
+                    ChannelDot(
+                        channelID: channelID,
+                        colorIndex: env.channelColors.colorIndex(for: channelID)
+                    )
                 }
                 Text(title)
                     .font(TypeFace.body(14))
