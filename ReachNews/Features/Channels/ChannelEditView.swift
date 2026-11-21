@@ -195,7 +195,7 @@ struct ChannelEditView: View {
 
     /// 频道标识色：只在本地保存，不改服务端。
     private var colorPicker: some View {
-        ChannelColorPicker(
+        ChannelColorRow(
             selection: Binding(
                 get: { env.channelColors.effectiveIndex(for: channel.id) },
                 set: { env.channelColors.setColorIndex($0, for: channel.id) }
@@ -214,7 +214,8 @@ struct ChannelEditView: View {
             }
             .accessibilityIdentifier("channel-edit-connectors")
 
-            if editor.draft.connectorIDs.isEmpty {
+            // 仅当原本有连接器、被用户清空时提示；新频道本来就空，不该一进来就报错。
+            if editor.draft.connectorIDs.isEmpty && !channel.connectorIDs.isEmpty {
                 Text(L10n.string("channelEdit.connectors.emptyWarning", locale: locale))
                     .font(TypeFace.footnote)
                     .foregroundStyle(Palette.failedForeground)

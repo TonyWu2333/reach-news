@@ -415,30 +415,98 @@ struct SelectorRow: View {
 //
 // 新建与编辑共用，避免两页各写一套。
 
-struct ChannelColorPicker: View {
+/// 颜色选择：表单里只显示当前色 + 名称，点开弹层再挑。
+struct ChannelColorRow: View {
     @Binding var selection: Int
+    @State private var showsPicker = false
+    @Environment(\.appLocale) private var locale
 
     var body: some View {
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: Space.m), count: 6), spacing: Space.m) {
-            ForEach(0..<ChannelTint.count, id: \.self) { index in
-                let isOn = selection == index
-                Button {
-                    selection = index
-                } label: {
-                    Circle()
-                        .fill(ChannelTint.color(at: index))
-                        .frame(width: 26, height: 26)
-                        .overlay {
-                            Circle()
-                                .strokeBorder(Palette.ink, lineWidth: isOn ? 2 : 0)
-                                .padding(-3)
+        SelectorRow(text: ChannelColorName.name(for: selection, locale: locale)) {
+            showsPicker = true
+        }
+        .overlay(alignment: .leading) {
+            // 左侧色点提示当前选择，不占正文宽度。
+            Circle()
+                .fill(ChannelTint.color(at: selection))
+                .frame(width: 14, height: 14)
+                .padding(.leading, 14)
+                .allowsHitTesting(false)
+        }
+        .accessibilityIdentifier("channel-color-row")
+        .sheet(isPresented: $showsPicker) {
+            ColorPickerSheet(selection: $selection, isPresented: $showsPicker)
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Palette.canvas)
+        }
+    }
+}
+
+/// 色板弹层：网格排布，选中项带圈。
+struct ColorPickerSheet: View {
+    @Binding var selection: Int
+    @Binding var isPresented: Bool
+    @Environment(\.appLocale) private var locale
+
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 18), count: 4)
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 18) {
+                    ForEach(0..<ChannelTint.count, id: \.self) { index in
+                        Button {
+                            selection = index
+                        } label: {
+                            VStack(spacing: Space.xs) {
+                                Circle()
+                                    .fill(ChannelTint.color(at: index))
+                                    .frame(width: 44, height: 44)
+                                    .overlay {
+                                        Circle()
+                                            .strokeBorder(Palette.ink, lineWidth: selection == index ? 2 : 0)
+                                            .padding(-4)
+                                    }
+                                Text(ChannelColorName.name(for: index, locale: locale))
+                                    .font(TypeFace.footnote)
+                                    .foregroundStyle(Palette.inkTertiary)
+                            }
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityIdentifier("channel-color-\(index)")
+                    }
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("channel-color-\(index)")
+                .padding(.horizontal, Space.xl)
+                .padding(.top, Space.l)
+            }
+            .background(Palette.canvas)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .principal) {
+                    NavTitle(text: L10n.string("channelEdit.color", locale: locale))
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button(L10n.string("common.done", locale: locale)) {
+                        isPresented = false
+                    }
+                    .font(TypeFace.heading(15))
+                }
             }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// 颜色名称，供表单摘要与弹层共用。
+enum ChannelColorName {
+    static func name(for index: Int, locale: Locale) -> String {
+        let keys = [
+            "color.azure", "color.emerald", "color.ember", "color.magenta",
+            "color.violet", "color.amber", "color.teal", "color.brick",
+            "color.olive", "color.indigo", "color.walnut", "color.graphite"
+        ]
+        let key = keys.indices.contains(index) ? keys[index] : keys[0]
+        return L10n.string(key, locale: locale)
     }
 }
 

@@ -21,11 +21,12 @@ struct ChannelCreateSheet: View {
     @State private var selectedConnectorIDs: Set<String> = []
     @State private var showsConnectorPicker = false
     @State private var selectedColorIndex: Int = 0
+    @State private var showConnectorValidation = false
 
+    /// 只校验必填文本；连接器缺失在提交时提示，不提前禁用按钮。
     private var canSubmit: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
             && !prompt.trimmingCharacters(in: .whitespaces).isEmpty
-            && !selectedConnectorIDs.isEmpty
             && !store.isCreating
     }
 
@@ -127,7 +128,14 @@ struct ChannelCreateSheet: View {
     }
 
     private func submit() async {
-        guard canSubmit else { return }
+        guard !store.isCreating else { return }
+        guard !name.trimmingCharacters(in: .whitespaces).isEmpty,
+              !prompt.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        // 连接器为空时提示，而不是从一进页面就报错。
+        guard !selectedConnectorIDs.isEmpty else {
+            showConnectorValidation = true
+            return
+        }
         if let created = await store.create(
             name: name.trimmingCharacters(in: .whitespaces),
             prompt: prompt.trimmingCharacters(in: .whitespaces),
@@ -144,7 +152,7 @@ struct ChannelCreateSheet: View {
     /// 连接器：一行摘要，点开弹出多选。
     /// 新建时的颜色选择；默认选中一个还没用过的颜色。
     private var colorPicker: some View {
-        ChannelColorPicker(selection: $selectedColorIndex)
+        ChannelColorRow(selection: $selectedColorIndex)
     }
 
     private var connectorSummary: some View {
@@ -157,7 +165,8 @@ struct ChannelCreateSheet: View {
             }
             .accessibilityIdentifier("channel-create-connectors")
 
-            if selectedConnectorIDs.isEmpty && !store.connectors.isEmpty {
+            // 用户还没提交时不报错；只有点了创建仍为空才提示。
+            if showConnectorValidation && selectedConnectorIDs.isEmpty {
                 Text(L10n.string("channelEdit.connectors.emptyWarning", locale: locale))
                     .font(TypeFace.footnote)
                     .foregroundStyle(Palette.failedForeground)

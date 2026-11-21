@@ -118,11 +118,9 @@ struct ChannelListView: View {
         }
     }
 
+    /// 只有元信息一行；大标题已由导航栏承担，不重复。
     private func masthead(_ store: ChannelStore) -> some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text(L10n.string("tab.channels", locale: locale))
-                .font(TypeFace.display(31))
-                .foregroundStyle(Palette.ink)
             HStack(spacing: Space.s) {
                 MetaLine(text: L10n.format("channel.count", locale: locale, store.channels.count))
                 DotSeparator()

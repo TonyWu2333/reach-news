@@ -47,19 +47,20 @@ enum Palette {
 
     // 频道标识：steel / moss / clay / plum
     /// 频道标识色板：足够区分常见频道数，同时保持整体克制。
+    /// 频道标识色板：彼此可辨，同时保持同一明度区间，避免花哨。
     static let channelTints: [Color] = [
-        Color(hex: 0x4E6E8E),  // steel
-        Color(hex: 0x3D6B5C),  // moss
-        Color(hex: 0xA9714B),  // clay
-        Color(hex: 0x7A5A78),  // plum
-        Color(hex: 0x8A6A3B),  // bronze
-        Color(hex: 0x5B6E4E),  // olive
-        Color(hex: 0x46687A),  // slate
-        Color(hex: 0x8C5560),  // rose
-        Color(hex: 0x6B5B8E),  // iris
-        Color(hex: 0x3F6B6B),  // teal
-        Color(hex: 0x7A6244),  // walnut
-        Color(hex: 0x55566B)   // graphite
+        Color(hex: 0x2F6F9E),  // azure
+        Color(hex: 0x2E7D5B),  // emerald
+        Color(hex: 0xB05A2A),  // ember
+        Color(hex: 0x8C3B63),  // magenta
+        Color(hex: 0x6A4FA0),  // violet
+        Color(hex: 0xB08615),  // amber
+        Color(hex: 0x1F7A76),  // teal
+        Color(hex: 0x9C2F2F),  // brick
+        Color(hex: 0x4A5D23),  // olive
+        Color(hex: 0x2E4E8F),  // indigo
+        Color(hex: 0x7A5C3E),  // walnut
+        Color(hex: 0x4A4A55)   // graphite
     ]
 }
 
