@@ -443,12 +443,24 @@ final class ChannelColorTests: XCTestCase {
     }
 
     func testLeastUsedIndexPicksUnusedColor() {
-        // 0 与 1 已用，应返回 2 而非重色。
+        // 0 与 1 已用，应返回下一个未使用的 2，而不是重色。
         XCTAssertEqual(ChannelTint.leastUsedIndex(among: [0, 1]), 2)
         // 全空时返回 0。
         XCTAssertEqual(ChannelTint.leastUsedIndex(among: []), 0)
-        // 全部用过时挑用得最少的（这里 0 用了两次）。
-        XCTAssertEqual(ChannelTint.leastUsedIndex(among: [0, 0, 1, 2, 3]), 1)
+        // 0 用了两次、1/2/3 各一次：仍优先挑完全没用过的颜色（4）。
+        XCTAssertEqual(ChannelTint.leastUsedIndex(among: [0, 0, 1, 2, 3]), 4)
+        // 调色板全部用满后，才回落到用得最少的那个。
+        let allUsed = Array(0..<ChannelTint.count) + [0, 0]
+        let picked = ChannelTint.leastUsedIndex(among: allUsed)
+        XCTAssertTrue((0..<ChannelTint.count).contains(picked))
+        XCTAssertNotEqual(picked, 0)
+    }
+
+    func testPaletteHasEnoughDistinctColors() {
+        // 曾经只有 4 色导致频道重复撞色。
+        XCTAssertGreaterThanOrEqual(ChannelTint.count, 8)
+        XCTAssertEqual(Set((0..<ChannelTint.count).map { ChannelTint.color(at: $0).description }).count,
+                       ChannelTint.count)
     }
 
     @MainActor
