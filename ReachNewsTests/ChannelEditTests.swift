@@ -141,6 +141,7 @@ final class ChannelEditTests: XCTestCase {
 // MARK: - 删除频道（A43 / A44）
 
 final class ChannelDeleteTests: XCTestCase {
+    @MainActor
     private func makeStore(_ transport: StubTransport) -> ChannelStore {
         ChannelStore(client: TestClient.make(transport: transport))
     }
