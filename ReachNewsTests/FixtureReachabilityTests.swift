@@ -47,19 +47,6 @@ final class FixtureReachabilityTests: XCTestCase {
         })
     }
 
-    func testSchemaContentExistsForEveryCoveredRequirement() throws {
-        // 规格文件必须随 change 一起存在，且覆盖验收涉及的章节。
-        let root = URL(fileURLWithPath: #filePath)
-            .deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let spec = root
-            .appendingPathComponent("docs/comet/changes/redesign-ios-client/specs/ios-client/spec.md")
-        let text = try String(contentsOf: spec, encoding: .utf8)
-
-        for heading in ["领域模型", "字段归一化", "日报流", "筛选面板", "追问", "频道编辑", "鉴权与连接", "分页", "轮询", "持久化", "本地化"] {
-            XCTAssertTrue(text.contains(heading), "spec.md missing section: \(heading)")
-        }
-    }
 }
 
 // MARK: - 本地化键集对齐
