@@ -125,6 +125,17 @@ enum Space {
 
 enum SheetMetrics {
     static let detents: Set<PresentationDetent> = [.fraction(0.66)]
+
+    /// 拖动手柄下方的呼吸空间。系统手柄本身贴近圆角，
+    /// 内容若从上沿开始排会显得拥挤，因此统一留出这段距离。
+    static let topInset: CGFloat = 12
+}
+
+extension View {
+    /// 弹窗内容统一处理：顶部让出手柄空间。
+    func sheetContentInset() -> some View {
+        padding(.top, SheetMetrics.topInset)
+    }
 }
 
 // MARK: - 字体

@@ -496,6 +496,7 @@ struct ColorPickerSheet: View {
                 .padding(.horizontal, Space.xl)
                 .padding(.top, Space.l)
             }
+            .sheetContentInset()
             .background(Palette.canvas)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

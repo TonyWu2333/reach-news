@@ -50,7 +50,7 @@ struct ChannelListView: View {
         .onDisappear {
             env.channels.stopPolling()
         }
-        .sheet(item: $editingChannel) { channel in
+        .navigationDestination(item: $editingChannel) { channel in
             ChannelEditView(
                 channel: channel,
                 editor: env.makeChannelEditor(channel: channel),
@@ -58,20 +58,8 @@ struct ChannelListView: View {
                     env.channels.replace(updated)
                 }
             )
-            .presentationDetents(SheetMetrics.detents)
-            .presentationDragIndicator(.visible)
-            .presentationBackground(Palette.canvas)
         }
-        .sheet(isPresented: $showsPresetPicker) {
-            PresetPicker(store: env.channels, isPresented: $showsPresetPicker) { channel in
-                env.channels.replace(channel)
-                editingChannel = channel
-            }
-            .presentationDetents(SheetMetrics.detents)
-            .presentationDragIndicator(.visible)
-            .presentationBackground(Palette.canvas)
-        }
-        .sheet(isPresented: $showsCreateSheet) {
+        .navigationDestination(isPresented: $showsCreateSheet) {
             ChannelCreateSheet(
                 store: env.channels,
                 isPresented: $showsCreateSheet,
@@ -79,6 +67,12 @@ struct ChannelListView: View {
                     env.channels.replace(channel)
                 }
             )
+        }
+        .sheet(isPresented: $showsPresetPicker) {
+            PresetPicker(store: env.channels, isPresented: $showsPresetPicker) { channel in
+                env.channels.replace(channel)
+                editingChannel = channel
+            }
             .presentationDetents(SheetMetrics.detents)
             .presentationDragIndicator(.visible)
             .presentationBackground(Palette.canvas)

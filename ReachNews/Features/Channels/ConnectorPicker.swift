@@ -36,6 +36,7 @@ struct ConnectorPicker: View {
                 }
             }
             .listStyle(.plain)
+            .sheetContentInset()
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .principal) {

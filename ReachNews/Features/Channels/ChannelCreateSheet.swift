@@ -31,8 +31,7 @@ struct ChannelCreateSheet: View {
     }
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
+        ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
                     if let error = store.createError {
                         InlineNotice(
@@ -108,7 +107,6 @@ struct ChannelCreateSheet: View {
                     .accessibilityIdentifier("channel-create-submit")
                 }
             }
-        }
         .sheet(isPresented: $showsConnectorPicker) {
             ConnectorPicker(
                 connectors: store.connectors,

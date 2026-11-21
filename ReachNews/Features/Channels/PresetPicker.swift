@@ -55,6 +55,7 @@ struct PresetPicker: View {
                     .background(Palette.canvas)
                 }
             }
+            .sheetContentInset()
             .background(Palette.canvas)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -18,43 +18,41 @@ struct ChannelEditView: View {
     @State private var showsConnectorPicker = false
 
     var body: some View {
-        NavigationStack {
-            content
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbar { toolbarContent }
-                .confirmationDialog(
-                    L10n.string("channelEdit.delete.confirm.title", locale: locale),
-                    isPresented: $showsDeleteConfirm,
-                    titleVisibility: .visible
-                ) {
-                    Button(L10n.string("channelEdit.delete.confirm.action", locale: locale), role: .destructive) {
-                        Task { await performDelete() }
-                    }
-                    Button(L10n.string("common.cancel", locale: locale), role: .cancel) {}
-                } message: {
-                    Text(L10n.string("channelEdit.delete.confirm.message", locale: locale))
+        content
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar { toolbarContent }
+            .confirmationDialog(
+                L10n.string("channelEdit.delete.confirm.title", locale: locale),
+                isPresented: $showsDeleteConfirm,
+                titleVisibility: .visible
+            ) {
+                Button(L10n.string("channelEdit.delete.confirm.action", locale: locale), role: .destructive) {
+                    Task { await performDelete() }
                 }
-                .sheet(isPresented: $showsConnectorPicker) {
-                    ConnectorPicker(
-                        connectors: env.channels.connectors,
-                        selection: $editor.draft.connectorIDs,
-                        isPresented: $showsConnectorPicker
-                    )
-                    .presentationDetents(SheetMetrics.detents)
-                    .presentationDragIndicator(.visible)
-                    .presentationBackground(Palette.canvas)
+                Button(L10n.string("common.cancel", locale: locale), role: .cancel) {}
+            } message: {
+                Text(L10n.string("channelEdit.delete.confirm.message", locale: locale))
+            }
+            .sheet(isPresented: $showsConnectorPicker) {
+                ConnectorPicker(
+                    connectors: env.channels.connectors,
+                    selection: $editor.draft.connectorIDs,
+                    isPresented: $showsConnectorPicker
+                )
+                .presentationDetents(SheetMetrics.detents)
+                .presentationDragIndicator(.visible)
+                .presentationBackground(Palette.canvas)
+            }
+            .task {
+                // 记录进入时的颜色，用于判断「只改颜色」也算有改动。
+                let stored = env.channelColors.effectiveIndex(for: channel.id)
+                editor.initialColorIndex = stored
+                editor.currentColorIndex = stored
+                if env.channels.connectors.isEmpty {
+                    await env.channels.loadCreationOptions()
                 }
-                .task {
-                    // 记录进入时的颜色，用于判断「只改颜色」也算有改动。
-                    let stored = env.channelColors.effectiveIndex(for: channel.id)
-                    editor.initialColorIndex = stored
-                    editor.currentColorIndex = stored
-                    if env.channels.connectors.isEmpty {
-                        await env.channels.loadCreationOptions()
-                    }
-                }
-                .accessibilityIdentifier("channel-edit-view")
-        }
+            }
+            .accessibilityIdentifier("channel-edit-view")
     }
 
     private var content: some View {
@@ -135,16 +133,6 @@ struct ChannelEditView: View {
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .principal) {
             NavTitle(text: L10n.string("channelEdit.title", locale: locale))
-        }
-        ToolbarItem(placement: .topBarLeading) {
-            Button {
-                dismiss()
-            } label: {
-                Text(L10n.string("channelEdit.close", locale: locale))
-                    .font(TypeFace.body(15))
-                    .foregroundStyle(Palette.inkSecondary)
-            }
-            .accessibilityIdentifier("channel-edit-close")
         }
         ToolbarItem(placement: .topBarTrailing) {
             Menu {
@@ -336,6 +324,7 @@ struct ScheduleEditor: View {
                 Spacer(minLength: 0)
             }
             .padding(.top, Space.l)
+            .sheetContentInset()
             .background(Palette.canvas)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
