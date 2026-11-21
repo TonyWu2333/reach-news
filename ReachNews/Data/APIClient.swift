@@ -74,6 +74,7 @@ enum Endpoint {
     case login
     case logout
     case channels(cursor: String?, limit: Int)
+    case createChannel
     case channel(id: String)
     case briefs(channelID: String, cursor: String?, limit: Int)
     case brief(id: String)
@@ -97,7 +98,7 @@ enum Endpoint {
             return "/api/v1/login"
         case .logout:
             return "/api/v1/logout"
-        case .channels:
+        case .channels, .createChannel:
             return "/api/v1/channels"
         case .channel(let id):
             return "/api/v1/channels/\(id)"
@@ -141,7 +142,7 @@ enum Endpoint {
             return Pagination.queryItems(cursor: cursor, limit: limit)
         case .cursor(let since):
             return [URLQueryItem(name: "since", value: PollingBaseline.sinceString(since))]
-        case .health, .login, .logout, .channel, .brief, .material, .run, .ask,
+        case .health, .login, .logout, .createChannel, .channel, .brief, .material, .run, .ask,
              .connectors, .presets, .instantiatePreset, .settings:
             return []
         }
@@ -256,6 +257,27 @@ final class APIClient {
                     nextCursor: Pagination.sanitizedCursor(envelope.nextCursor))
     }
 
+    /// 直接新建频道（不再需要预设）。
+    func createChannel(
+        name: String,
+        prompt: String,
+        tone: String,
+        schedule: Schedule,
+        connectorIDs: [String]
+    ) async throws -> Channel {
+        let body = try JSONEncoder().encode(
+            CreateChannelBody(
+                name: name,
+                prompt: prompt,
+                tone: tone,
+                schedule: schedulePayload(schedule),
+                connectorIds: connectorIDs
+            )
+        )
+        let dto: ChannelDTO = try await send(Endpoint.createChannel, method: "POST", body: body)
+        return dto.toDomain()
+    }
+
     /// 服务端设置：目前只需要时区。
     func settings() async throws -> SettingsDTO {
         try await get(Endpoint.settings)
@@ -318,6 +340,16 @@ final class APIClient {
         let body = try JSONEncoder().encode(ChannelPatchBody(changes: changes))
         let dto: ChannelDTO = try await send(Endpoint.channel(id: id), method: "PATCH", body: body)
         return dto.toDomain()
+    }
+
+    /// 把 Schedule 序列化成服务端要的 `{ day: ["HH:MM"] }`，省略空星期。
+    private func schedulePayload(_ schedule: Schedule) -> [String: [String]] {
+        var payload: [String: [String]] = [:]
+        for weekday in Schedule.weekdays {
+            let times = schedule.times(for: weekday)
+            if !times.isEmpty { payload[weekday.key] = times }
+        }
+        return payload
     }
 
     // MARK: 请求构造与响应处理

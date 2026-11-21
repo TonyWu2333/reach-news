@@ -120,14 +120,46 @@ Schedule
 
 ---
 
+## 二·补 又补了两项（原文档「仍未处理」里的前两条）
+
+### A48 手机端可以删除频道了
+
+```
+DELETE /api/v1/channels/chn_xxx
+Authorization: Bearer <会话凭证>
+
+→ 200 { "id": "chn_xxx", "deleted": true }
+```
+
+- **软删除**：频道从列表、详情、日报、运行、`/cursor` 全部消失，但**日报/运行/素材记录仍在库中**可审计
+- 删除别人的频道 → `404`
+- 重复删除 → `404`
+- 有运行在跑 (`queued/collecting/writing`) → `409 busy { code: "busy" }`
+- 成功会写审计日志
+
+**前端动作**：频道列表可以加左滑删除 / 长按菜单，调这个端点即可。删除后本地缓存要移除该频道。
+
+### A49 可以读取时区了
+
+```
+GET /api/v1/settings
+→ 200 { "timeZone": "Asia/Shanghai" }
+```
+
+- 只读，无写接口（传 `POST` 会 `404`）
+- **只返回客户端需要的项**，不暴露 `maxTotal/maxCollectors` 这些管理端参数
+- 时区由管理员在后台配置；配置非法时回退 `Asia/Shanghai`
+
+**前端动作**：截图底部那句「Interpreted in Asia/Shanghai」现在可以动态渲染了——取 `settings.timeZone` 填进去，管理员改时区后客户端跟着变。
+
 ## 三、附带说明
 
-**时区**：截图底部提示「Interpreted in Asia/Shanghai」。这个值现在**可由管理员在后台设置页修改**（支持任意 IANA 名）。手机端目前没有时区端点，如果你要展示，建议先硬编码默认值或告诉我加一个 `GET /api/v1/settings`。
+**时区**：截图底部提示「Interpreted in Asia/Shanghai」。这个值由管理员在后台设置页配置（任意 IANA 名），
+客户端用 `GET /api/v1/settings` 读取，见上面 A49。
 
 **本轮之后仍未处理**：
-- `DELETE /api/v1/channels/:id`（手机端不能删频道）
-- `Ask` 不接 LLM（`deterministic: true` 已标注）
-- 「活跃频道至少一个连接器」未强制校验
-- `PUT` 等未实现方法返回 404 而非 405
+- `Ask` 不接 LLM（`deterministic: true` 已标注，但会给 `citedItemIds`）
+- 「活跃频道至少一个连接器」未强制校验，建频道时请自选
+- `PUT` 等未实现方法返回 `404` 而非 `405`
 
 完整契约见后端仓库 `API.md`。

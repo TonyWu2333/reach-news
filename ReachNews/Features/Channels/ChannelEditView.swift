@@ -109,16 +109,6 @@ struct ChannelEditView: View {
                 .disabled(!editor.hasChanges || editor.isSaving)
                 .accessibilityIdentifier("channel-edit-save")
             }
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    dismiss()
-                } label: {
-                    Text(L10n.string("common.cancel", locale: locale))
-                        .font(TypeFace.body(14))
-                        .foregroundStyle(Palette.inkSecondary)
-                }
-                .accessibilityIdentifier("channel-edit-cancel")
-            }
         }
         .confirmationDialog(
             L10n.string("channelEdit.delete.confirm.title", locale: locale),
@@ -131,6 +121,11 @@ struct ChannelEditView: View {
             Button(L10n.string("common.cancel", locale: locale), role: .cancel) {}
         } message: {
             Text(L10n.string("channelEdit.delete.confirm.message", locale: locale))
+        }
+        .task {
+            if env.channels.connectors.isEmpty {
+                await env.channels.loadCreationOptions()
+            }
         }
         .accessibilityIdentifier("channel-edit-view")
     }
@@ -205,33 +200,110 @@ struct ChannelEditView: View {
         .padding(.top, Space.s)
     }
 
+    /// 连接器可编辑：整体替换语义，提交时传 connectorIds。
     private var connectorList: some View {
-        VStack(alignment: .leading, spacing: Space.s) {
-            if channel.connectorIDs.isEmpty {
+        VStack(alignment: .leading, spacing: 0) {
+            if env.channels.connectors.isEmpty {
                 Text(L10n.string("channelEdit.connectors.empty", locale: locale))
                     .font(TypeFace.body(12.5))
                     .foregroundStyle(Palette.inkTertiary)
+                    .padding(.vertical, Space.s)
             } else {
-                ForEach(channel.connectorIDs, id: \.self) { connectorID in
-                    HStack(spacing: Space.s) {
-                        ChannelDot(channelID: connectorID, diameter: 7)
-                        Text(ConnectorDisplay.name(for: connectorID, locale: locale))
-                            .font(TypeFace.body(13))
-                            .foregroundStyle(Palette.inkSecondary)
-                        Spacer(minLength: 0)
-                        Text(L10n.string("channelEdit.connectors.readOnly", locale: locale))
-                            .font(TypeFace.label(10))
-                            .foregroundStyle(Palette.inkTertiary)
+                ForEach(env.channels.connectors) { connector in
+                    let isOn = editor.draft.connectorIDs.contains(connector.id)
+                    Button {
+                        if isOn {
+                            editor.draft.connectorIDs.removeAll { $0 == connector.id }
+                        } else {
+                            editor.draft.connectorIDs.append(connector.id)
+                        }
+                    } label: {
+                        HStack(spacing: Space.s) {
+                            Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 15))
+                                .foregroundStyle(isOn ? Palette.ink : Palette.inkTertiary)
+                            Text(connector.name)
+                                .font(TypeFace.body(13))
+                                .foregroundStyle(Palette.inkSecondary)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.vertical, Space.xs)
+                        .contentShape(Rectangle())
                     }
-                    .padding(.vertical, Space.xs)
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("channel-edit-connector-\(connector.id)")
                 }
+            }
+
+            if editor.draft.connectorIDs.isEmpty {
+                Text(L10n.string("channelEdit.connectors.emptyWarning", locale: locale))
+                    .font(TypeFace.body(11))
+                    .foregroundStyle(Palette.failedForeground)
+                    .padding(.top, Space.xs)
+                    .fixedSize(horizontal: false, vertical: true)
             }
         }
         .padding(.horizontal, 13)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.field, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Palette.field))
         .accessibilityIdentifier("channel-edit-connectors")
+    }
+
+    private func hintText(_ key: String, arguments: [CVarArg]) -> String {
+        guard !arguments.isEmpty else { return L10n.string(key, locale: locale) }
+        return String(format: L10n.string(key, locale: locale), locale: locale, arguments: arguments)
+    }
+
+    private var fieldBackground: Color {
+        Palette.surface
+    }
+
+    /// 删除入口：二次确认后才执行。日报与素材由服务端保留，只是频道不再出现。
+    private var deleteSection: some View {
+        VStack(alignment: .leading, spacing: Space.s) {
+            Button {
+                showsDeleteConfirm = true
+            } label: {
+                HStack(spacing: Space.xs) {
+                    if isDeleting {
+                        ProgressView().controlSize(.small)
+                    } else {
+                        Image(systemName: "trash")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    Text(L10n.string("channelEdit.delete", locale: locale))
+                        .font(TypeFace.heading(13.5))
+                }
+                .foregroundStyle(Palette.failedForeground)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Palette.failedBackground)
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(isDeleting)
+            .accessibilityIdentifier("channel-edit-delete")
+
+            if let error = deleteError {
+                InlineNotice(
+                    text: L10n.string(error.messageKey, locale: locale),
+                    detail: error.isBusy
+                        ? L10n.string("channelEdit.delete.busy", locale: locale)
+                        : error.detailText,
+                    kind: .error
+                )
+                .accessibilityIdentifier("channel-edit-delete-error")
+            }
+
+            Text(L10n.string("channelEdit.delete.hint", locale: locale))
+                .font(TypeFace.body(11))
+                .foregroundStyle(Palette.inkTertiary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(.top, Space.s)
     }
 
     private func field<Content: View>(
@@ -263,20 +335,21 @@ struct ScheduleEditor: View {
     @Environment(\.appLocale) private var locale
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Space.s) {
+        VStack(alignment: .leading, spacing: Space.m) {
+            // 星期选择：短名，避免长名换行断字。
             HStack(spacing: Space.xs) {
                 ForEach(Schedule.weekdays) { weekday in
                     Button {
                         schedule.toggle(weekday)
                     } label: {
-                        Text(L10n.string(weekday.symbolKey, locale: locale))
+                        Text(L10n.string(weekday.shortKey, locale: locale))
                             .font(TypeFace.label(12))
                             .foregroundStyle(schedule.isEnabled(weekday) ? Palette.canvas : Palette.inkSecondary)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, Space.s)
                             .background(
-                                schedule.isEnabled(weekday) ? Palette.ink : Palette.surface,
-                                in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
+                                RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
+                                    .fill(schedule.isEnabled(weekday) ? Palette.ink : Palette.surface)
                             )
                             .overlay {
                                 RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
@@ -288,59 +361,77 @@ struct ScheduleEditor: View {
                 }
             }
 
-            if !schedule.activeWeekdays.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 7) {
-                        ForEach(schedule.allTimes, id: \.self) { time in
-                            timePill(time)
-                        }
-                        addTimeControl
-                    }
-                }
+            // 每个选中的星期各自维护时刻，支持一天多时刻。
+            ForEach(schedule.activeWeekdays) { weekday in
+                weekdayRow(weekday)
             }
         }
     }
 
-    private func timePill(_ time: String) -> some View {
-        Button {
-            // 点一下把该时刻应用到所有选中星期。
-            schedule.applyTimeToAllEnabled(time)
-        } label: {
+    /// 「周一  [01:25] ✕  [08:00] ✕  [+ 添加]」
+    private func weekdayRow(_ weekday: Schedule.Weekday) -> some View {
+        VStack(alignment: .leading, spacing: Space.xs) {
+            Text(L10n.string(weekday.symbolKey, locale: locale))
+                .font(TypeFace.label(11))
+                .foregroundStyle(Palette.inkTertiary)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 7) {
+                    ForEach(schedule.times(for: weekday), id: \.self) { time in
+                        timePill(time, weekday: weekday)
+                    }
+                    addTimeControl(for: weekday)
+                }
+            }
+        }
+        .padding(.vertical, Space.xs)
+        .accessibilityIdentifier("schedule-row-\(weekday.key)")
+    }
+
+    private func timePill(_ time: String, weekday: Schedule.Weekday) -> some View {
+        HStack(spacing: 4) {
             Text(time)
                 .font(TypeFace.condensed(12.5, weight: .semibold))
                 .foregroundStyle(Palette.inkSecondary)
-                .padding(.horizontal, 11)
-                .padding(.vertical, 7)
-                .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.small, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
-                        .strokeBorder(Palette.line, lineWidth: 1)
-                }
+            Button {
+                schedule.removeTime(time, from: weekday)
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(Palette.inkTertiary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text(L10n.string("schedule.removeTime", locale: locale)))
         }
-        .buttonStyle(.plain)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(
+            RoundedRectangle(cornerRadius: Radius.small, style: .continuous).fill(Palette.surface)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
+                .strokeBorder(Palette.line, lineWidth: 1)
+        }
     }
 
-    private var addTimeControl: some View {
+    /// 为该星期添加一个时刻。
+    private func addTimeControl(for weekday: Schedule.Weekday) -> some View {
         DatePicker(
             "",
             selection: Binding(
                 get: {
-                    let first = schedule.allTimes.first ?? "08:00"
-                    return ScheduleDate.parse(first)
+                    ScheduleDate.parse(schedule.times(for: weekday).first ?? "08:00")
                 },
                 set: { newValue in
-                    let formatted = ScheduleDate.format(newValue)
-                    for weekday in schedule.activeWeekdays {
-                        schedule.addTime(formatted, to: weekday)
-                    }
+                    schedule.addTime(ScheduleDate.format(newValue), to: weekday)
                 }
             ),
             displayedComponents: .hourAndMinute
         )
         .labelsHidden()
         .datePickerStyle(.compact)
-        .accessibilityLabel(Text(String(localized: "schedule.addTime")))
-        .accessibilityIdentifier("schedule-add-time")
+        .accessibilityLabel(Text(L10n.string("schedule.addTime", locale: locale)))
+        .accessibilityIdentifier("schedule-add-time-\(weekday.key)")
     }
 }
 

@@ -214,6 +214,21 @@ struct ChannelCard: View {
             }
             .padding(.top, 11)
 
+            // 连接器名称直接来自服务端，不再显示 UUID。
+            if !channel.connectors.isEmpty {
+                HStack(spacing: Space.xs) {
+                    ForEach(channel.connectors) { connector in
+                        Text(connector.displayName)
+                            .font(TypeFace.condensed(10.5, weight: .medium))
+                            .foregroundStyle(connector.isUnavailable ? Palette.failedForeground : Palette.inkTertiary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(.top, Space.xs)
+                .accessibilityIdentifier("channel-connectors-\(channel.id)")
+            }
+
             // 频道已启用但没有连接器：运行必然错过（no-material）。
             if channel.warnsAboutMissingConnectors {
                 InlineNotice(text: L10n.string("channel.noConnectors", locale: locale))

@@ -104,18 +104,52 @@ final class ChannelStore {
         }
     }
 
-    /// 创建流程所需的数据。任一失败都给出原因，不静默吞掉。
+    /// 创建流程所需的数据。连接器是必需的（否则建出的频道跑起来必 missed）。
     func loadCreationOptions() async {
         createError = nil
         do {
             async let presetList = client.presets()
             async let connectorList = client.connectors()
-            presets = try await presetList
+            // 预设只是可选的模板，失败不应阻止直接新建。
+            presets = (try? await presetList) ?? []
             connectors = try await connectorList
         } catch let apiError as APIError {
             createError = apiError
         } catch {
             createError = .transport(error.localizedDescription)
+        }
+    }
+
+    /// 直接新建频道（不依赖预设）。
+    func create(
+        name: String,
+        prompt: String,
+        tone: String,
+        schedule: Schedule,
+        connectorIDs: [String]
+    ) async -> Channel? {
+        guard !isCreating else { return nil }
+        isCreating = true
+        createError = nil
+        defer { isCreating = false }
+        do {
+            let created = try await client.createChannel(
+                name: name,
+                prompt: prompt,
+                tone: tone,
+                schedule: schedule,
+                connectorIDs: connectorIDs
+            )
+            if created.kind.isUserVisible {
+                channels.insert(created, at: 0)
+            }
+            return created
+        } catch let apiError as APIError {
+            createError = apiError
+            return nil
+        } catch {
+            createError = .transport(error.localizedDescription)
+            return nil
         }
     }
 

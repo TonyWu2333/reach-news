@@ -130,6 +130,7 @@ final class ChannelEditTests: XCTestCase {
             schedule: Schedule(timesByWeekday: ["mon": ["08:00"]]),
             enabled: true,
             connectorIDs: ["cnn_homepage"],
+            connectors: [ChannelConnector(id: "cnn_homepage", name: "HN 首页", kind: "hn", removed: false)],
             lastBriefAt: nil,
             kind: .channel,
             createdAt: Date(timeIntervalSince1970: 0),
@@ -222,5 +223,152 @@ final class ChannelDeleteTests: XCTestCase {
         _ = await store.delete("chn_1")
 
         XCTAssertEqual(transport.recorded.first?.authorization, "Bearer test-token")
+    }
+}
+
+// MARK: - 连接器编辑与新建频道（2026-11-21 第二轮）
+
+final class ChannelConnectorTests: XCTestCase {
+    @MainActor
+    private func makeChannel(connectorIDs: [String] = ["cnn_homepage"]) -> Channel {
+        Channel(
+            id: "chn_test",
+            name: "AI 前沿",
+            prompt: "总结今天的进展",
+            tone: "简洁中文",
+            schedule: Schedule(timesByWeekday: ["mon": ["08:00"]]),
+            enabled: true,
+            connectorIDs: connectorIDs,
+            connectors: connectorIDs.map {
+                ChannelConnector(id: $0, name: "HN 首页", kind: "hn", removed: false)
+            },
+            lastBriefAt: nil,
+            kind: .channel,
+            createdAt: Date(timeIntervalSince1970: 0),
+            updatedAt: Date(timeIntervalSince1970: 0)
+        )
+    }
+
+    @MainActor
+    func testChannelDTOExposesConnectorNames() async throws {
+        let json = """
+        {"items":[{"id":"chn_1","name":"A","prompt":"p","tone":"","schedule":{},"enabled":true,
+                   "connectorIds":["cnn_homepage"],"connectors":[{"id":"cnn_homepage","name":"HN 首页","kind":"hn","removed":false}],
+                   "lastBriefAt":null,"kind":"channel",
+                   "createdAt":"2026-11-20T02:01:50.774Z","updatedAt":"2026-11-20T02:01:50.774Z"}],
+         "nextCursor":null}
+        """
+        let client = TestClient.make(transport: StubTransport(json: json))
+        let page = try await client.channels()
+
+        let channel = try XCTUnwrap(page.items.first)
+        XCTAssertEqual(channel.connectors.count, 1)
+        XCTAssertEqual(channel.connectors.first?.displayName, "HN 首页")
+        XCTAssertFalse(channel.connectors.first?.isUnavailable ?? true)
+    }
+
+    @MainActor
+    func testRemovedConnectorIsMarkedUnavailable() async throws {
+        // 连接器已从代码移除时 name 为 null：应提示失效，而不是显示 UUID。
+        let json = """
+        {"items":[{"id":"chn_1","name":"A","prompt":"p","tone":"","schedule":{},"enabled":true,
+                   "connectorIds":["gone"],"connectors":[{"id":"gone","name":null,"kind":null,"removed":true}],
+                   "lastBriefAt":null,"kind":"channel",
+                   "createdAt":"2026-11-20T02:01:50.774Z","updatedAt":"2026-11-20T02:01:50.774Z"}],
+         "nextCursor":null}
+        """
+        let client = TestClient.make(transport: StubTransport(json: json))
+        let page = try await client.channels()
+        let connector = try XCTUnwrap(page.items.first?.connectors.first)
+
+        XCTAssertTrue(connector.isUnavailable)
+        XCTAssertEqual(connector.displayName, "gone")
+    }
+
+    @MainActor
+    func testConnectorChangeIsSubmittedAsWholeReplacement() async throws {
+        let channel = makeChannel()
+        var draft = ChannelDraft(channel: channel)
+        draft.connectorIDs = ["cnn_github_trending", "cnn_homepage"]
+
+        let changes = draft.changes(against: channel)
+
+        XCTAssertNotNil(changes.connectorIDs)
+        XCTAssertEqual(changes.changedFieldNames, ["connectorIds"])
+        let body = ChannelPatchBody(changes: changes)
+        let data = try JSONEncoder().encode(body)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(json.keys.sorted(), ["connectorIds"])
+    }
+
+    @MainActor
+    func testClearingConnectorsIsAContractualChange() async throws {
+        let channel = makeChannel()
+        var draft = ChannelDraft(channel: channel)
+        draft.connectorIDs = []
+
+        let changes = draft.changes(against: channel)
+        XCTAssertEqual(changes.connectorIDs, [])
+
+        let data = try JSONEncoder().encode(ChannelPatchBody(changes: changes))
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(json["connectorIds"] as? [String], [])
+    }
+
+    @MainActor
+    func testConnectorOrderDoesNotProduceChange() async throws {
+        let channel = makeChannel()
+        var draft = ChannelDraft(channel: channel)
+        // 同样的集合、不同顺序不算改动。
+        draft.connectorIDs = channel.connectorIDs.reversed()
+
+        XCTAssertTrue(draft.changes(against: channel).isEmpty)
+    }
+
+    @MainActor
+    func testCreateChannelPostsContractBody() async throws {
+        let responseJSON = """
+        {"id":"chn_new","name":"新频道","prompt":"p","tone":"t","schedule":{"mon":["08:00"]},
+         "enabled":true,"connectorIds":["cnn_homepage"],
+         "connectors":[{"id":"cnn_homepage","name":"HN 首页","kind":"hn","removed":false}],
+         "lastBriefAt":null,"kind":"channel",
+         "createdAt":"2026-11-20T02:01:50.774Z","updatedAt":"2026-11-20T02:01:50.774Z"}
+        """
+        let transport = StubTransport(json: responseJSON, status: 201)
+        let client = TestClient.make(transport: transport)
+
+        let channel = try await client.createChannel(
+            name: "新频道",
+            prompt: "p",
+            tone: "t",
+            schedule: Schedule(timesByWeekday: ["mon": ["08:00"]]),
+            connectorIDs: ["cnn_homepage"]
+        )
+
+        XCTAssertEqual(channel.id, "chn_new")
+        let request = try XCTUnwrap(transport.recorded.first)
+        XCTAssertEqual(request.method, "POST")
+        XCTAssertEqual(request.url.path, "/api/v1/channels")
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: try XCTUnwrap(request.body)) as? [String: Any])
+        XCTAssertEqual(json["name"] as? String, "新频道")
+        XCTAssertEqual(json["connectorIds"] as? [String], ["cnn_homepage"])
+        let schedule = try XCTUnwrap(json["schedule"] as? [String: [String]])
+        XCTAssertEqual(schedule["mon"], ["08:00"])
+    }
+
+    @MainActor
+    func testInvalidConnectorErrorIsSurfaced() async {
+        let transport = StubTransport(
+            json: #"{"error":{"code":"invalid_connector","message":"Unknown or disabled connector: x"}}"#,
+            status: 400
+        )
+        let store = ChannelStore(client: TestClient.make(transport: transport))
+
+        let created = await store.create(
+            name: "n", prompt: "p", tone: "", schedule: Schedule(), connectorIDs: ["x"]
+        )
+
+        XCTAssertNil(created)
+        XCTAssertEqual(store.createError, .invalidInput("Unknown or disabled connector: x"))
     }
 }

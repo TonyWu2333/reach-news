@@ -9,19 +9,21 @@ struct Schedule: Equatable, Hashable {
         let key: String
         let calendarIndex: Int
         let symbolKey: String
+        /// 时间表编辑器里的短名，避免英文长名换行断字。
+        let shortKey: String
 
         var id: String { key }
 
         static var allCases: [Weekday] { all }
 
         static let all: [Weekday] = [
-            Weekday(key: "mon", calendarIndex: 2, symbolKey: "weekday.mon"),
-            Weekday(key: "tue", calendarIndex: 3, symbolKey: "weekday.tue"),
-            Weekday(key: "wed", calendarIndex: 4, symbolKey: "weekday.wed"),
-            Weekday(key: "thu", calendarIndex: 5, symbolKey: "weekday.thu"),
-            Weekday(key: "fri", calendarIndex: 6, symbolKey: "weekday.fri"),
-            Weekday(key: "sat", calendarIndex: 7, symbolKey: "weekday.sat"),
-            Weekday(key: "sun", calendarIndex: 1, symbolKey: "weekday.sun")
+            Weekday(key: "mon", calendarIndex: 2, symbolKey: "weekday.mon", shortKey: "weekday.mon.short"),
+            Weekday(key: "tue", calendarIndex: 3, symbolKey: "weekday.tue", shortKey: "weekday.tue.short"),
+            Weekday(key: "wed", calendarIndex: 4, symbolKey: "weekday.wed", shortKey: "weekday.wed.short"),
+            Weekday(key: "thu", calendarIndex: 5, symbolKey: "weekday.thu", shortKey: "weekday.thu.short"),
+            Weekday(key: "fri", calendarIndex: 6, symbolKey: "weekday.fri", shortKey: "weekday.fri.short"),
+            Weekday(key: "sat", calendarIndex: 7, symbolKey: "weekday.sat", shortKey: "weekday.sat.short"),
+            Weekday(key: "sun", calendarIndex: 1, symbolKey: "weekday.sun", shortKey: "weekday.sun.short")
         ]
 
         static func key(forCalendarIndex index: Int) -> String {
@@ -136,6 +138,8 @@ struct Channel: Identifiable, Equatable, Hashable {
     var schedule: Schedule
     var enabled: Bool
     var connectorIDs: [String]
+    /// 服务端解析出的连接器详情；删掉 UUID 直显，直接用 name。
+    var connectors: [ChannelConnector]
     var lastBriefAt: Date?
     var kind: ChannelKind
     var createdAt: Date
@@ -242,6 +246,17 @@ struct Connector: Identifiable, Equatable, Hashable {
     let kind: String
 }
 
+/// 频道内嵌的连接器条目。`name` 可能为 null（已从代码移除），此时提示失效而不是显示 UUID。
+struct ChannelConnector: Identifiable, Equatable, Hashable {
+    let id: String
+    let name: String?
+    let kind: String?
+    let removed: Bool
+
+    var displayName: String { name ?? id }
+    var isUnavailable: Bool { removed || name == nil }
+}
+
 // MARK: - 预设模板
 //
 // 预设在服务端只作模板、不参与调度；客户端用它来新建频道。
@@ -329,6 +344,7 @@ struct ChannelDraft: Equatable {
     var tone: String
     var schedule: Schedule
     var enabled: Bool
+    var connectorIDs: [String]
 
     init(channel: Channel) {
         name = channel.name
@@ -336,6 +352,7 @@ struct ChannelDraft: Equatable {
         tone = channel.tone
         schedule = channel.schedule
         enabled = channel.enabled
+        connectorIDs = channel.connectorIDs
     }
 
     func changes(against channel: Channel) -> ChannelChanges {
@@ -345,6 +362,8 @@ struct ChannelDraft: Equatable {
         if tone != channel.tone { changes.tone = tone }
         if schedule != channel.schedule { changes.schedule = schedule }
         if enabled != channel.enabled { changes.enabled = enabled }
+        // 连接器整体替换；顺序无关，按集合比较。
+        if Set(connectorIDs) != Set(channel.connectorIDs) { changes.connectorIDs = connectorIDs }
         return changes
     }
 }
@@ -356,9 +375,11 @@ struct ChannelChanges: Equatable {
     var tone: String?
     var schedule: Schedule?
     var enabled: Bool?
+    var connectorIDs: [String]?
 
     var isEmpty: Bool {
-        name == nil && prompt == nil && tone == nil && schedule == nil && enabled == nil
+        name == nil && prompt == nil && tone == nil && schedule == nil
+            && enabled == nil && connectorIDs == nil
     }
 
     var changedFieldNames: [String] {
@@ -368,15 +389,9 @@ struct ChannelChanges: Equatable {
         if tone != nil { names.append("tone") }
         if schedule != nil { names.append("schedule") }
         if enabled != nil { names.append("enabled") }
+        if connectorIDs != nil { names.append("connectorIds") }
         return names
     }
 }
 
-// MARK: - 频道创建入口的可用性
-//
-// ADR 0004：`/api/v1` 没有连接器枚举端点，创建出来必然是 missed 的频道，
-// 因此在端点可用前不落地保存动作。
 
-enum ChannelCreationAvailability {
-    static let isAvailable = false
-}

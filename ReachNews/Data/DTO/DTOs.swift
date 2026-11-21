@@ -82,6 +82,17 @@ struct PageEnvelope<Item: Decodable>: Decodable {
 
 // MARK: - 频道
 
+struct ChannelConnectorDTO: Decodable {
+    let id: String
+    let name: String?
+    let kind: String?
+    let removed: Bool?
+
+    func toDomain() -> ChannelConnector {
+        ChannelConnector(id: id, name: name, kind: kind, removed: removed ?? false)
+    }
+}
+
 struct ChannelDTO: Decodable {
     let id: String
     let name: String
@@ -90,6 +101,7 @@ struct ChannelDTO: Decodable {
     let schedule: [String: [String]]?
     let enabled: FlexibleBool?
     let connectorIds: [String]?
+    let connectors: [ChannelConnectorDTO]?
     let lastBriefAt: String?
     let kind: String?
     let createdAt: String?
@@ -104,6 +116,7 @@ struct ChannelDTO: Decodable {
             schedule: Schedule(timesByWeekday: schedule ?? [:]),
             enabled: enabled?.value ?? false,
             connectorIDs: connectorIds ?? [],
+            connectors: (connectors ?? []).map { $0.toDomain() },
             lastBriefAt: JSONDate.parse(lastBriefAt),
             kind: ChannelKind(apiValue: kind),
             createdAt: JSONDate.parse(createdAt) ?? .distantPast,
@@ -430,18 +443,28 @@ struct AskRequestBody: Encodable {
     let message: String
 }
 
+struct CreateChannelBody: Encodable {
+    let name: String
+    let prompt: String
+    let tone: String
+    let schedule: [String: [String]]
+    let connectorIds: [String]
+}
+
 struct ChannelPatchBody: Encodable {
     let name: String?
     let prompt: String?
     let tone: String?
     let schedule: [String: [String]]?
     let enabled: Bool?
+    let connectorIds: [String]?
 
     init(changes: ChannelChanges) {
         name = changes.name
         prompt = changes.prompt
         tone = changes.tone
         enabled = changes.enabled
+        connectorIds = changes.connectorIDs
         if let schedule = changes.schedule {
             self.schedule = Dictionary(
                 uniqueKeysWithValues: Schedule.weekdays.compactMap { weekday in
@@ -460,6 +483,7 @@ struct ChannelPatchBody: Encodable {
         case tone
         case schedule
         case enabled
+        case connectorIds
     }
 
     func encode(to encoder: Encoder) throws {
@@ -469,5 +493,6 @@ struct ChannelPatchBody: Encodable {
         try container.encodeIfPresent(tone, forKey: .tone)
         try container.encodeIfPresent(schedule, forKey: .schedule)
         try container.encodeIfPresent(enabled, forKey: .enabled)
+        try container.encodeIfPresent(connectorIds, forKey: .connectorIds)
     }
 }
