@@ -114,6 +114,9 @@ enum TypeFace {
         .system(size: size, weight: .medium)
     }
 
+    /// 苹果风格的脚注尺寸，仅用于确实需要说明的次要信息。
+    static let footnote: Font = .footnote
+
     static func condensed(_ size: CGFloat, weight: Font.Weight = .semibold) -> Font {
         .system(size: size, weight: weight).width(.condensed)
     }

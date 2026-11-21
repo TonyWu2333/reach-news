@@ -75,11 +75,19 @@ struct Schedule: Equatable, Hashable {
         }
     }
 
+    /// 每个星期最多保留的触发时刻数（服务端限制）。
+    static let maxTimesPerWeekday = 5
+
     mutating func addTime(_ time: String, to weekday: Weekday) {
         var times = times(for: weekday)
         guard !times.contains(time) else { return }
+        guard times.count < Schedule.maxTimesPerWeekday else { return }
         times.append(time)
         timesByWeekday[weekday.key] = Schedule.normalized(times)
+    }
+
+    func canAddTime(to weekday: Weekday) -> Bool {
+        times(for: weekday).count < Schedule.maxTimesPerWeekday
     }
 
     mutating func removeTime(_ time: String, from weekday: Weekday) {

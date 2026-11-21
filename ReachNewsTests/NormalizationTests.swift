@@ -326,3 +326,48 @@ final class SettingsStoreTests: XCTestCase {
         DisplayTime.setTimeZone(ServiceTimeZone.resolve(nil))
     }
 }
+
+// MARK: - 每星期时刻上限
+
+final class ScheduleCapTests: XCTestCase {
+    func testAddStopsAtFiveTimesPerWeekday() {
+        var schedule = Schedule()
+        let monday = Schedule.Weekday.all[0]
+
+        for hour in 6...10 {
+            schedule.addTime(String(format: "%02d:00", hour), to: monday)
+        }
+        XCTAssertEqual(schedule.times(for: monday).count, 5)
+        XCTAssertFalse(schedule.canAddTime(to: monday))
+
+        // 第 6 个应被拒绝，不改变已有时刻。
+        schedule.addTime("23:00", to: monday)
+        XCTAssertEqual(schedule.times(for: monday).count, 5)
+        XCTAssertFalse(schedule.times(for: monday).contains("23:00"))
+    }
+
+    func testDuplicateTimeDoesNotCountTowardCap() {
+        var schedule = Schedule()
+        let monday = Schedule.Weekday.all[0]
+
+        schedule.addTime("08:00", to: monday)
+        schedule.addTime("08:00", to: monday)
+
+        XCTAssertEqual(schedule.times(for: monday), ["08:00"])
+        XCTAssertTrue(schedule.canAddTime(to: monday))
+    }
+
+    func testCapIsPerWeekday() {
+        var schedule = Schedule()
+        let monday = Schedule.Weekday.all[0]
+        let tuesday = Schedule.Weekday.all[1]
+
+        for hour in 6...10 { schedule.addTime(String(format: "%02d:00", hour), to: monday) }
+
+        XCTAssertFalse(schedule.canAddTime(to: monday))
+        // 其它星期不受影响。
+        XCTAssertTrue(schedule.canAddTime(to: tuesday))
+        schedule.addTime("09:00", to: tuesday)
+        XCTAssertEqual(schedule.times(for: tuesday), ["09:00"])
+    }
+}

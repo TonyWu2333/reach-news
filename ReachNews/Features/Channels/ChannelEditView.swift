@@ -15,6 +15,7 @@ struct ChannelEditView: View {
     @State private var showsDeleteConfirm = false
     @State private var isDeleting = false
     @State private var deleteError: APIError?
+    @State private var showsConnectorPicker = false
 
     var body: some View {
         ScrollView {
@@ -26,6 +27,16 @@ struct ChannelEditView: View {
                         detail: L10n.string("channelEdit.busy.detail", locale: locale)
                     )
                     .accessibilityIdentifier("channel-edit-busy-notice")
+                } else if let error = deleteError {
+                    // 删除被拒（如运行中 409）：在顶部提示，保留当前页面。
+                    InlineNotice(
+                        text: L10n.string(error.messageKey, locale: locale),
+                        detail: error.isBusy
+                            ? L10n.string("channelEdit.delete.busy", locale: locale)
+                            : error.detailText,
+                        kind: .error
+                    )
+                    .accessibilityIdentifier("channel-edit-delete-error")
                 } else if let error = editor.saveError {
                     InlineNotice(
                         text: L10n.string(error.messageKey, locale: locale),
@@ -43,7 +54,7 @@ struct ChannelEditView: View {
                         .accessibilityIdentifier("channel-edit-name")
                 }
 
-                field(titleKey: "channelEdit.prompt", hintKey: "channelEdit.prompt.hint") {
+                field(titleKey: "channelEdit.prompt") {
                     TextEditor(text: $editor.draft.prompt)
                         .font(TypeFace.body(13.5))
                         .frame(minHeight: 92)
@@ -63,19 +74,13 @@ struct ChannelEditView: View {
                         .accessibilityIdentifier("channel-edit-tone")
                 }
 
-                field(
-                    titleKey: "channelEdit.schedule",
-                    hintKey: "channelEdit.schedule.hint",
-                    hintArguments: [env.settings.displayTimeZone]
-                ) {
+                field(titleKey: "channelEdit.schedule") {
                     ScheduleEditor(schedule: $editor.draft.schedule)
                 }
 
-                field(titleKey: "channelEdit.connectors", hintKey: "channelEdit.connectors.hint") {
-                    connectorList
+                field(titleKey: "channelEdit.connectors") {
+                    connectorSummary
                 }
-
-                deleteSection
             }
             .padding(.horizontal, Space.xl)
             .padding(.top, Space.l)
@@ -88,6 +93,20 @@ struct ChannelEditView: View {
                 Text(L10n.string("channelEdit.title", locale: locale))
                     .font(TypeFace.heading(14))
                     .foregroundStyle(Palette.ink)
+            }
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button(role: .destructive) {
+                        showsDeleteConfirm = true
+                    } label: {
+                        Label(L10n.string("channelEdit.delete", locale: locale), systemImage: "trash")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 16))
+                        .foregroundStyle(Palette.ink)
+                }
+                .accessibilityIdentifier("channel-edit-menu")
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -122,6 +141,13 @@ struct ChannelEditView: View {
         } message: {
             Text(L10n.string("channelEdit.delete.confirm.message", locale: locale))
         }
+        .sheet(isPresented: $showsConnectorPicker) {
+            ConnectorPicker(
+                connectors: env.channels.connectors,
+                selection: $editor.draft.connectorIDs,
+                isPresented: $showsConnectorPicker
+            )
+        }
         .task {
             if env.channels.connectors.isEmpty {
                 await env.channels.loadCreationOptions()
@@ -144,116 +170,59 @@ struct ChannelEditView: View {
         }
     }
 
-    private func hintText(_ key: String, arguments: [CVarArg]) -> String {
-        guard !arguments.isEmpty else { return L10n.string(key, locale: locale) }
-        return String(format: L10n.string(key, locale: locale), locale: locale, arguments: arguments)
-    }
-
     private var fieldBackground: Color {
         Palette.surface
     }
 
-    /// 删除入口：二次确认后才执行。日报与素材由服务端保留，只是频道不再出现。
-    private var deleteSection: some View {
-        VStack(alignment: .leading, spacing: Space.s) {
+    /// 连接器：不在页面平铺，点开弹出多选。
+    private var connectorSummary: some View {
+        VStack(alignment: .leading, spacing: Space.xs) {
             Button {
-                showsDeleteConfirm = true
+                showsConnectorPicker = true
             } label: {
-                HStack(spacing: Space.xs) {
-                    if isDeleting {
-                        ProgressView().controlSize(.small)
-                    } else {
-                        Image(systemName: "trash")
-                            .font(.system(size: 12, weight: .semibold))
-                    }
-                    Text(L10n.string("channelEdit.delete", locale: locale))
-                        .font(TypeFace.heading(13.5))
+                HStack(spacing: Space.s) {
+                    Text(connectorSummaryText)
+                        .font(TypeFace.body(14))
+                        .foregroundStyle(selectedConnectorNames.isEmpty ? Palette.inkTertiary : Palette.ink)
+                        .lineLimit(1)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(Palette.inkTertiary)
                 }
-                .foregroundStyle(Palette.failedForeground)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 13)
+                .padding(.horizontal, 13)
+                .padding(.vertical, 12)
                 .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Palette.failedBackground)
+                    RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Palette.field)
                 )
             }
             .buttonStyle(.plain)
-            .disabled(isDeleting)
-            .accessibilityIdentifier("channel-edit-delete")
-
-            if let error = deleteError {
-                InlineNotice(
-                    text: L10n.string(error.messageKey, locale: locale),
-                    detail: error.isBusy
-                        ? L10n.string("channelEdit.delete.busy", locale: locale)
-                        : error.detailText,
-                    kind: .error
-                )
-                .accessibilityIdentifier("channel-edit-delete-error")
-            }
-
-            Text(L10n.string("channelEdit.delete.hint", locale: locale))
-                .font(TypeFace.body(11))
-                .foregroundStyle(Palette.inkTertiary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(.top, Space.s)
-    }
-
-    /// 连接器可编辑：整体替换语义，提交时传 connectorIds。
-    private var connectorList: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if env.channels.connectors.isEmpty {
-                Text(L10n.string("channelEdit.connectors.empty", locale: locale))
-                    .font(TypeFace.body(12.5))
-                    .foregroundStyle(Palette.inkTertiary)
-                    .padding(.vertical, Space.s)
-            } else {
-                ForEach(env.channels.connectors) { connector in
-                    let isOn = editor.draft.connectorIDs.contains(connector.id)
-                    Button {
-                        if isOn {
-                            editor.draft.connectorIDs.removeAll { $0 == connector.id }
-                        } else {
-                            editor.draft.connectorIDs.append(connector.id)
-                        }
-                    } label: {
-                        HStack(spacing: Space.s) {
-                            Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 15))
-                                .foregroundStyle(isOn ? Palette.ink : Palette.inkTertiary)
-                            Text(connector.name)
-                                .font(TypeFace.body(13))
-                                .foregroundStyle(Palette.inkSecondary)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.vertical, Space.xs)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("channel-edit-connector-\(connector.id)")
-                }
-            }
+            .accessibilityIdentifier("channel-edit-connectors")
 
             if editor.draft.connectorIDs.isEmpty {
                 Text(L10n.string("channelEdit.connectors.emptyWarning", locale: locale))
-                    .font(TypeFace.body(11))
+                    .font(TypeFace.footnote)
                     .foregroundStyle(Palette.failedForeground)
-                    .padding(.top, Space.xs)
-                    .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(.horizontal, 13)
-        .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Palette.field))
-        .accessibilityIdentifier("channel-edit-connectors")
     }
 
+    private var selectedConnectorNames: [String] {
+        env.channels.connectors
+            .filter { editor.draft.connectorIDs.contains($0.id) }
+            .map(\.name)
+    }
+
+    private var connectorSummaryText: String {
+        let names = selectedConnectorNames
+        if names.isEmpty { return L10n.string("channelEdit.connectors.none", locale: locale) }
+        if names.count <= 2 { return names.joined(separator: "、") }
+        return L10n.format("channelEdit.connectors.someSelected", locale: locale, names.count)
+    }
+
+    /// 苹果风格：标题 + 控件，不加解释性小字。
     private func field<Content: View>(
         titleKey: String,
-        hintKey: String? = nil,
-        hintArguments: [CVarArg] = [],
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: Space.s) {
@@ -262,12 +231,6 @@ struct ChannelEditView: View {
                 .tracking(1)
                 .foregroundStyle(Palette.inkTertiary)
             content()
-            if let hintKey {
-                Text(L10n.string(hintKey, locale: locale))
-                    .font(TypeFace.body(11))
-                    .foregroundStyle(Palette.inkTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
         }
     }
 }
@@ -314,69 +277,76 @@ struct ScheduleEditor: View {
 
     /// 「周一  [01:25] ✕  [08:00] ✕  [+ 添加]」
     private func weekdayRow(_ weekday: Schedule.Weekday) -> some View {
-        VStack(alignment: .leading, spacing: Space.xs) {
-            Text(L10n.string(weekday.symbolKey, locale: locale))
-                .font(TypeFace.label(11))
+        HStack(spacing: Space.s) {
+            Text(L10n.string(weekday.shortKey, locale: locale))
+                .font(TypeFace.label(12))
                 .foregroundStyle(Palette.inkTertiary)
+                .frame(width: 26, alignment: .leading)
 
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 7) {
+                HStack(spacing: 6) {
                     ForEach(schedule.times(for: weekday), id: \.self) { time in
                         timePill(time, weekday: weekday)
                     }
-                    addTimeControl(for: weekday)
                 }
             }
+
+            // 达到上限就不再显示添加按钮，避免无效点击。
+            if schedule.canAddTime(to: weekday) {
+                addTimeButton(for: weekday)
+            }
         }
-        .padding(.vertical, Space.xs)
+        .padding(.vertical, 2)
         .accessibilityIdentifier("schedule-row-\(weekday.key)")
     }
 
+    /// 可点掉的时刻胶囊。
     private func timePill(_ time: String, weekday: Schedule.Weekday) -> some View {
-        HStack(spacing: 4) {
+        Button {
+            schedule.removeTime(time, from: weekday)
+        } label: {
             Text(time)
                 .font(TypeFace.condensed(12.5, weight: .semibold))
                 .foregroundStyle(Palette.inkSecondary)
-            Button {
-                schedule.removeTime(time, from: weekday)
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 8, weight: .bold))
-                    .foregroundStyle(Palette.inkTertiary)
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Text(L10n.string("schedule.removeTime", locale: locale)))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(
+                    RoundedRectangle(cornerRadius: Radius.small, style: .continuous).fill(Palette.surface)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
+                        .strokeBorder(Palette.line, lineWidth: 1)
+                }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 7)
-        .background(
-            RoundedRectangle(cornerRadius: Radius.small, style: .continuous).fill(Palette.surface)
-        )
-        .overlay {
-            RoundedRectangle(cornerRadius: Radius.small, style: .continuous)
-                .strokeBorder(Palette.line, lineWidth: 1)
-        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(L10n.format("schedule.removeTime", locale: locale, time)))
     }
 
-    /// 为该星期添加一个时刻。
-    private func addTimeControl(for weekday: Schedule.Weekday) -> some View {
-        DatePicker(
-            "",
-            selection: Binding(
-                get: {
-                    ScheduleDate.parse(schedule.times(for: weekday).first ?? "08:00")
-                },
-                set: { newValue in
-                    schedule.addTime(ScheduleDate.format(newValue), to: weekday)
+    /// 加号按钮：点开时间选择器，选定后追加一个时刻。
+    private func addTimeButton(for weekday: Schedule.Weekday) -> some View {
+        Menu {
+            ForEach(Self.presetTimes, id: \.self) { time in
+                Button(time) {
+                    schedule.addTime(time, to: weekday)
                 }
-            ),
-            displayedComponents: .hourAndMinute
-        )
-        .labelsHidden()
-        .datePickerStyle(.compact)
+            }
+        } label: {
+            Image(systemName: "plus")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Palette.inkSecondary)
+                .frame(width: 28, height: 28)
+                .background(Circle().fill(Palette.surface))
+                .overlay { Circle().strokeBorder(Palette.line, lineWidth: 1) }
+        }
         .accessibilityLabel(Text(L10n.string("schedule.addTime", locale: locale)))
         .accessibilityIdentifier("schedule-add-time-\(weekday.key)")
     }
+
+    /// 常用时刻，避免弹出键盘输入。
+    private static let presetTimes: [String] = [
+        "06:00", "07:00", "07:30", "08:00", "08:30", "09:00", "09:30",
+        "12:00", "12:30", "17:00", "18:00", "18:30", "19:00", "20:00", "21:00", "22:00"
+    ]
 }
 
 enum ScheduleDate {

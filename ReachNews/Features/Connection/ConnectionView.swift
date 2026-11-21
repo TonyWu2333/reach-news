@@ -96,11 +96,6 @@ struct ConnectionView: View {
                 .disabled(!session.canSubmit)
                 .opacity(session.canSubmit ? 1 : 0.5)
                 .accessibilityIdentifier("connection-submit")
-
-                Text(L10n.string("login.note", locale: locale))
-                    .font(TypeFace.body(11))
-                    .foregroundStyle(Palette.inkTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, Space.xl)
             .padding(.top, Space.xxl)

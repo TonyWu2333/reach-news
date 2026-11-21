@@ -19,6 +19,7 @@ struct ChannelCreateSheet: View {
     @State private var schedule = Schedule()
     @State private var selectedConnectorIDs: Set<String> = []
     @State private var showsPresets = false
+    @State private var showsConnectorPicker = false
 
     private var canSubmit: Bool {
         !name.trimmingCharacters(in: .whitespaces).isEmpty
@@ -48,7 +49,7 @@ struct ChannelCreateSheet: View {
                             .accessibilityIdentifier("channel-create-name")
                     }
 
-                    field(titleKey: "channelEdit.prompt", hintKey: "channelEdit.prompt.hint") {
+                    field(titleKey: "channelEdit.prompt") {
                         TextEditor(text: $prompt)
                             .font(TypeFace.body(13.5))
                             .frame(minHeight: 80)
@@ -68,15 +69,11 @@ struct ChannelCreateSheet: View {
                             .accessibilityIdentifier("channel-create-tone")
                     }
 
-                    field(titleKey: "channelEdit.connectors", hintKey: "channel.create.connectors.hint") {
-                        connectorPicker
+                    field(titleKey: "channelEdit.connectors") {
+                        connectorSummary
                     }
 
-                    field(
-                        titleKey: "channelEdit.schedule",
-                        hintKey: "channelEdit.schedule.hint",
-                        hintArguments: [DisplayTime.timeZoneIdentifier]
-                    ) {
+                    field(titleKey: "channelEdit.schedule") {
                         ScheduleEditor(schedule: $schedule)
                     }
 
@@ -109,6 +106,16 @@ struct ChannelCreateSheet: View {
                 }
             }
         }
+        .sheet(isPresented: $showsConnectorPicker) {
+            ConnectorPicker(
+                connectors: store.connectors,
+                selection: Binding(
+                    get: { Array(selectedConnectorIDs) },
+                    set: { selectedConnectorIDs = Set($0) }
+                ),
+                isPresented: $showsConnectorPicker
+            )
+        }
         .task {
             await store.loadCreationOptions()
         }
@@ -129,48 +136,36 @@ struct ChannelCreateSheet: View {
         }
     }
 
-    /// 连接器多选。空连接器会被拦在提交前，避免建出来跑不起来的频道。
-    private var connectorPicker: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if store.connectors.isEmpty {
-                Text(L10n.string("channel.create.connectors.empty", locale: locale))
-                    .font(TypeFace.body(12.5))
+    /// 连接器：一行摘要，点开弹出多选。
+    private var connectorSummary: some View {
+        Button {
+            showsConnectorPicker = true
+        } label: {
+            HStack(spacing: Space.s) {
+                Text(summaryText)
+                    .font(TypeFace.body(14))
+                    .foregroundStyle(selectedConnectorIDs.isEmpty ? Palette.inkTertiary : Palette.ink)
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Palette.inkTertiary)
-                    .padding(.vertical, Space.s)
-            } else {
-                ForEach(store.connectors) { connector in
-                    let isOn = selectedConnectorIDs.contains(connector.id)
-                    Button {
-                        if isOn {
-                            selectedConnectorIDs.remove(connector.id)
-                        } else {
-                            selectedConnectorIDs.insert(connector.id)
-                        }
-                    } label: {
-                        HStack(spacing: Space.s) {
-                            Image(systemName: isOn ? "checkmark.circle.fill" : "circle")
-                                .font(.system(size: 15))
-                                .foregroundStyle(isOn ? Palette.ink : Palette.inkTertiary)
-                            Text(connector.name)
-                                .font(TypeFace.body(13))
-                                .foregroundStyle(Palette.ink)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.vertical, Space.s)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityIdentifier("channel-create-connector-\(connector.id)")
-                }
             }
-
-            if selectedConnectorIDs.isEmpty && !store.connectors.isEmpty {
-                Text(L10n.string("channel.create.connectors.required", locale: locale))
-                    .font(TypeFace.body(11))
-                    .foregroundStyle(Palette.failedForeground)
-                    .padding(.top, Space.xs)
-            }
+            .padding(.horizontal, 13)
+            .padding(.vertical, 12)
+            .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Palette.field))
         }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("channel-create-connectors")
+    }
+
+    private var summaryText: String {
+        let names = store.connectors
+            .filter { selectedConnectorIDs.contains($0.id) }
+            .map(\.name)
+        if names.isEmpty { return L10n.string("channelEdit.connectors.none", locale: locale) }
+        if names.count <= 2 { return names.joined(separator: "、") }
+        return L10n.format("channelEdit.connectors.someSelected", locale: locale, names.count)
     }
 
     /// 预设作为「填入模板」的快捷方式，不再是唯一入口。
@@ -226,8 +221,6 @@ struct ChannelCreateSheet: View {
 
     private func field<Content: View>(
         titleKey: String,
-        hintKey: String? = nil,
-        hintArguments: [String] = [],
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: Space.s) {
@@ -236,14 +229,6 @@ struct ChannelCreateSheet: View {
                 .tracking(1)
                 .foregroundStyle(Palette.inkTertiary)
             content()
-            if let hintKey {
-                Text(hintArguments.isEmpty
-                     ? L10n.string(hintKey, locale: locale)
-                     : String(format: L10n.string(hintKey, locale: locale), locale: locale, arguments: hintArguments))
-                    .font(TypeFace.body(11))
-                    .foregroundStyle(Palette.inkTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
         }
     }
 }
