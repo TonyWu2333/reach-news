@@ -81,7 +81,7 @@ struct Schedule: Equatable, Hashable {
 
     /// 把一组星期设为同一个时刻（闹钟里改时间后的行为）。
     mutating func setTime(_ time: String, for weekdays: [Weekday]) {
-        guard isValid(time) else { return }
+        guard Schedule.isValid(time) else { return }
         for weekday in weekdays {
             timesByWeekday[weekday.key] = [time]
         }
