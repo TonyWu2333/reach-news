@@ -2,9 +2,9 @@ import SwiftUI
 
 // MARK: - 新建频道
 //
-// 后端已提供 POST /api/v1/channels，不再需要预设才能建。
+// 后端已提供 POST /api/v1/channels，连接器可用 GET /api/v1/connectors 枚举。
 // 连接器必选：空连接器的频道启用后每次运行都会 missed。
-// 预设仍可作为「填入模板」的快捷方式。
+// 预设模板已整体下线（订阅是关系，不是类型），新建只有「空白新建」一条路径。
 
 struct ChannelCreateSheet: View {
     @Bindable var store: ChannelStore
@@ -152,7 +152,6 @@ struct ChannelCreateSheet: View {
         }
     }
 
-    /// 连接器：一行摘要，点开弹出多选。
     /// 新建时的颜色选择；默认选中一个还没用过的颜色。
     private var colorPicker: some View {
         ChannelColorRow(selection: $selectedColorIndex)

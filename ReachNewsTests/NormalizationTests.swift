@@ -57,18 +57,92 @@ final class NormalizationTests: XCTestCase {
     func testChannelKindParsing() {
         XCTAssertEqual(ChannelKind(apiValue: "channel"), .channel)
         XCTAssertEqual(ChannelKind(apiValue: "follow"), .follow)
-        // 后端 CHANNEL_KINDS 已含 preset。
-        XCTAssertEqual(ChannelKind(apiValue: "preset"), .preset)
-        // 未知值回落为普通频道，不崩溃、不丢数据。
+        // 服务端已无 preset：旧值与未知值一律降级为普通频道，不崩溃、不丢数据。
+        XCTAssertEqual(ChannelKind(apiValue: "preset"), .channel)
         XCTAssertEqual(ChannelKind(apiValue: "something-new"), .channel)
         XCTAssertEqual(ChannelKind(apiValue: nil), .channel)
+        XCTAssertTrue(ChannelKind(rawValue: "preset") == nil)
+        XCTAssertEqual(ChannelKind.allCases.count, 2)
     }
 
-    func testPresetChannelsAreNotUserVisible() {
-        // preset 是管理员模板且会参与调度，不能混进用户列表。
-        XCTAssertFalse(ChannelKind.preset.isUserVisible)
-        XCTAssertTrue(ChannelKind.channel.isUserVisible)
-        XCTAssertTrue(ChannelKind.follow.isUserVisible)
+    func testChannelOwnerParsing() {
+        XCTAssertEqual(ChannelOwner(apiValue: "creator"), .creator)
+        XCTAssertEqual(ChannelOwner(apiValue: "subscriber"), .subscriber)
+        // 缺字段时按自己的频道处理，避免把可编辑频道误判成只读。
+        XCTAssertEqual(ChannelOwner(apiValue: nil), .creator)
+        XCTAssertTrue(ChannelOwner.creator.isCreator)
+        XCTAssertFalse(ChannelOwner.subscriber.isCreator)
+    }
+
+    func testChannelEditabilityFollowsOwnerNotKind() {
+        let mine = makeChannel(owner: .creator, published: false, subscribed: false)
+        XCTAssertTrue(mine.canEdit)
+        XCTAssertFalse(mine.canSubscribe)
+        XCTAssertFalse(mine.canUnsubscribe)
+
+        let subscribed = makeChannel(owner: .subscriber, published: true, subscribed: true)
+        XCTAssertFalse(subscribed.canEdit)
+        XCTAssertFalse(subscribed.canSubscribe)
+        XCTAssertTrue(subscribed.canUnsubscribe)
+        XCTAssertTrue(subscribed.isSubscription)
+
+        let discoverable = makeChannel(owner: .subscriber, published: true, subscribed: false)
+        XCTAssertFalse(discoverable.canEdit)
+        XCTAssertTrue(discoverable.canSubscribe)
+        XCTAssertFalse(discoverable.canUnsubscribe)
+
+        // 未公开的别人的频道既不能订阅也不能编辑。
+        let hidden = makeChannel(owner: .subscriber, published: false, subscribed: false)
+        XCTAssertFalse(hidden.canEdit)
+        XCTAssertFalse(hidden.canSubscribe)
+    }
+
+    func testSubscriptionColorIgnoresEmptyString() {
+        let empty = makeChannel(owner: .subscriber, published: true, subscribed: true, color: "")
+        XCTAssertNil(empty.effectiveSubscriptionColor)
+        let blank = makeChannel(owner: .subscriber, published: true, subscribed: true, color: "   ")
+        XCTAssertNil(blank.effectiveSubscriptionColor)
+        let hex = makeChannel(owner: .subscriber, published: true, subscribed: true, color: "#2E7D5B")
+        XCTAssertEqual(hex.effectiveSubscriptionColor, "#2E7D5B")
+        let none = makeChannel(owner: .subscriber, published: true, subscribed: true, color: nil)
+        XCTAssertNil(none.effectiveSubscriptionColor)
+    }
+
+    func testSubscriptionColorMapsBackToPalette() {
+        // 服务端返回的色值能落回色板；空串与色板外的值都按「未设置」处理。
+        XCTAssertEqual(ChannelTint.paletteIndex(for: "#2E7D5B"), 1)
+        XCTAssertEqual(ChannelTint.paletteIndex(for: "#2e7d5b"), 1)
+        XCTAssertNil(ChannelTint.paletteIndex(for: ""))
+        XCTAssertNil(ChannelTint.paletteIndex(for: nil))
+        XCTAssertNil(ChannelTint.paletteIndex(for: "teal"))
+        XCTAssertEqual(ChannelTint.paletteColorValue(at: 1), "#2E7D5B")
+    }
+
+    private func makeChannel(
+        owner: ChannelOwner,
+        published: Bool,
+        subscribed: Bool,
+        color: String? = nil
+    ) -> Channel {
+        Channel(
+            id: "chn_test",
+            name: "测试频道",
+            prompt: "p",
+            tone: "t",
+            schedule: Schedule(),
+            enabled: true,
+            connectorIDs: [],
+            connectors: [],
+            lastBriefAt: nil,
+            kind: .channel,
+            published: published,
+            owner: owner,
+            subscribed: subscribed,
+            subscriptionColor: color,
+            subscriptionID: subscribed ? "sub_test" : nil,
+            createdAt: Date(timeIntervalSince1970: 0),
+            updatedAt: Date(timeIntervalSince1970: 0)
+        )
     }
 
     func testSessionExpiry() {
@@ -456,6 +530,22 @@ final class ChannelColorTests: XCTestCase {
         XCTAssertNotEqual(picked, 0)
     }
 
+    func testPaletteHexValuesMatchColorOrder() {
+        // 订阅色靠「色板索引 ↔ 色值字符串」一一对应；两者顺序错位会让订阅色显示成别的颜色。
+        XCTAssertEqual(ChannelTint.paletteHexValues.count, ChannelTint.count)
+        for index in 0..<ChannelTint.count {
+            let value = ChannelTint.paletteColorValue(at: index)
+            XCTAssertEqual(ChannelTint.paletteIndex(for: value), index)
+        }
+        XCTAssertEqual(Set(ChannelTint.paletteHexValues).count, ChannelTint.paletteHexValues.count)
+        // 越界索引收敛到边界色，不崩溃、也不返回空串。
+        XCTAssertEqual(ChannelTint.paletteColorValue(at: -1), ChannelTint.paletteHexValues[0])
+        XCTAssertEqual(
+            ChannelTint.paletteColorValue(at: 999),
+            ChannelTint.paletteHexValues[ChannelTint.paletteHexValues.count - 1]
+        )
+    }
+
     func testPaletteHasEnoughDistinctColors() {
         // 曾经只有 4 色导致频道重复撞色。
         XCTAssertGreaterThanOrEqual(ChannelTint.count, 8)
@@ -486,5 +576,64 @@ final class ChannelColorTests: XCTestCase {
         store.setColorIndex(1, for: "b")
 
         XCTAssertEqual(store.suggestedIndex(), 2)
+    }
+
+    @MainActor
+    func testDisplayIndexPrefersServerSubscriptionColor() {
+        let store = ChannelColorStore(storage: InMemoryChannelColors())
+        let channel = Channel(
+            id: "chn_display",
+            name: "订阅频道",
+            prompt: "",
+            tone: "",
+            schedule: Schedule(),
+            enabled: true,
+            connectorIDs: [],
+            connectors: [],
+            lastBriefAt: nil,
+            kind: .channel,
+            published: true,
+            owner: .subscriber,
+            subscribed: true,
+            subscriptionColor: "#B05A2A",
+            subscriptionID: "sub_1",
+            createdAt: Date(timeIntervalSince1970: 0),
+            updatedAt: Date(timeIntervalSince1970: 0)
+        )
+
+        // 订阅色优先于本地色板与回退色。
+        store.setColorIndex(0, for: channel.id)
+        XCTAssertEqual(store.displayIndex(for: channel), 2)
+    }
+
+    @MainActor
+    func testDisplayIndexFallsBackWhenSubscriptionColorMissing() {
+        let store = ChannelColorStore(storage: InMemoryChannelColors())
+        let channel = Channel(
+            id: "chn_blank",
+            name: "未设置色",
+            prompt: "",
+            tone: "",
+            schedule: Schedule(),
+            enabled: true,
+            connectorIDs: [],
+            connectors: [],
+            lastBriefAt: nil,
+            kind: .channel,
+            published: true,
+            owner: .subscriber,
+            subscribed: true,
+            subscriptionColor: "",
+            subscriptionID: "sub_2",
+            createdAt: Date(timeIntervalSince1970: 0),
+            updatedAt: Date(timeIntervalSince1970: 0)
+        )
+
+        // 空字符串按「未设置」处理：先本地色板，再按 id 的稳定色。
+        store.setColorIndex(5, for: channel.id)
+        XCTAssertEqual(store.displayIndex(for: channel), 5)
+
+        store.forget(channel.id)
+        XCTAssertEqual(store.displayIndex(for: channel), ChannelTint.fallbackIndex(for: channel.id))
     }
 }

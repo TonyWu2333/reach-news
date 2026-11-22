@@ -39,7 +39,7 @@ final class ReachNewsUITests: XCTestCase {
                       || app.cells.firstMatch.waitForExistence(timeout: 10))
     }
 
-    func testChannelCreationExplainsUnavailability() throws {
+    func testChannelCreateEntryOpensCreateSheet() throws {
         let app = launch()
         let channels = app.tabBars.buttons.element(boundBy: 1)
         guard channels.waitForExistence(timeout: 20) else { return }
@@ -49,9 +49,22 @@ final class ReachNewsUITests: XCTestCase {
         guard createButton.waitForExistence(timeout: 10) else { return }
         createButton.tap()
 
-        // ADR 0004：新建入口可见，但端点可用前不提供保存路径。
-        let alert = app.alerts.firstMatch
-        XCTAssertTrue(alert.waitForExistence(timeout: 5))
+        // 预设模板已下线：+ 只直接进入新建页，不再有「从模板新建」菜单。
+        XCTAssertTrue(app.otherElements["channel-create-sheet"].waitForExistence(timeout: 10)
+                      || app.textFields["channel-create-name"].waitForExistence(timeout: 10))
+    }
+
+    func testChannelTabShowsSectionsWhenPopulated() throws {
+        let app = launch()
+        let channels = app.tabBars.buttons.element(boundBy: 1)
+        guard channels.waitForExistence(timeout: 20) else { return }
+        channels.tap()
+
+        // 未登录时页面为空态；有数据时才断言三段标题存在，避免依赖真实网络。
+        guard app.otherElements["channel-list"].waitForExistence(timeout: 10) else { return }
+        XCTAssertTrue(app.otherElements["channel-section-channel.section.mine"].exists
+                      || app.staticTexts["channel-section-channel.section.mine"].exists
+                      || app.otherElements["channel-discover-toggle"].exists)
     }
 
     func testEnglishLaunchDoesNotCrash() throws {

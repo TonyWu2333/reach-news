@@ -433,53 +433,122 @@ final class NewEndpointTests: XCTestCase {
         XCTAssertEqual(transport.recorded.first?.url.path, "/api/v1/connectors")
     }
 
-    func testPresetsEndpoint() async throws {
-        let json = """
-        {"items":[{"id":"prs_1","name":"每日 AI","prompt":"总结 AI 进展","tone":"简洁",
-                   "schedule":{"mon":["08:00"]},"connectorIds":["cnn_homepage"]}],"nextCursor":null}
+    func testSubscriptionEndpointsUseChannelPaths() async throws {
+        let subscriptionJSON = """
+        {"id":"sub_1","channelId":"chn_sub","color":"#2E7D5B","createdAt":"2026-11-21T01:00:00.000Z","subscribed":true}
         """
-        let transport = StubTransport(json: json)
+        let transport = StubTransport(json: subscriptionJSON, status: 201)
         let client = TestClient.make(transport: transport)
 
-        let presets = try await client.presets()
+        try await client.subscribe(channelID: "chn_sub", color: "#2E7D5B")
 
-        XCTAssertEqual(presets.first?.id, "prs_1")
-        XCTAssertEqual(presets.first?.schedule.times(for: Schedule.Weekday.all[0]), ["08:00"])
-        XCTAssertEqual(presets.first?.connectorIDs, ["cnn_homepage"])
+        let request = try XCTUnwrap(transport.recorded.first)
+        XCTAssertEqual(request.method, "POST")
+        XCTAssertEqual(request.url.path, "/api/v1/channels/chn_sub/subscribe")
+        let body = try XCTUnwrap(request.body)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        XCTAssertEqual(json.keys.sorted(), ["color"])
+        XCTAssertEqual(json["color"] as? String, "#2E7D5B")
     }
 
-    func testInstantiatePresetPostsToPresetPath() async throws {
+    func testRepeatedSubscriptionIsIdempotentForClient() async throws {
+        // 幂等：服务端重复订阅返回 200 与同一条记录，客户端同样按成功处理。
+        let subscriptionJSON = """
+        {"id":"sub_1","channelId":"chn_sub","color":"","createdAt":"2026-11-21T01:00:00.000Z","subscribed":true}
+        """
+        let transport = StubTransport(json: subscriptionJSON, status: 200)
+        let client = TestClient.make(transport: transport)
+
+        let dto = try await client.subscribe(channelID: "chn_sub", color: "#2E7D5B")
+
+        XCTAssertEqual(dto.id, "sub_1")
+        XCTAssertEqual(dto.channelId, "chn_sub")
+        XCTAssertEqual(transport.recorded.count, 1)
+    }
+
+    func testUpdateSubscriptionColorPatchesOnlyColor() async throws {
+        let channelJSON = try firstChannelObjectJSON()
+        let transport = StubTransport(json: String(decoding: channelJSON, as: UTF8.self), status: 200)
+        let client = TestClient.make(transport: transport)
+
+        _ = try await client.updateSubscriptionColor(channelID: "chn_sub", color: "#B05A2A")
+
+        let request = try XCTUnwrap(transport.recorded.first)
+        XCTAssertEqual(request.method, "PATCH")
+        XCTAssertEqual(request.url.path, "/api/v1/channels/chn_sub/subscribe")
+        let body = try XCTUnwrap(request.body)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        XCTAssertEqual(json.keys.sorted(), ["color"])
+    }
+
+    func testUnsubscribeDeletesSubscriptionEndpoint() async throws {
+        let transport = StubTransport(json: """
+        {"channelId":"chn_sub","subscribed":false}
+        """)
+        let client = TestClient.make(transport: transport)
+
+        try await client.unsubscribe(channelID: "chn_sub")
+
+        let request = try XCTUnwrap(transport.recorded.first)
+        XCTAssertEqual(request.method, "DELETE")
+        XCTAssertEqual(request.url.path, "/api/v1/channels/chn_sub/subscribe")
+    }
+
+    func testForkPostsToForkPathAndReturnsOwnChannel() async throws {
         let channelJSON = """
-        {"id":"chn_new","name":"每日 AI","prompt":"p","tone":"t","schedule":{},"enabled":true,
-         "connectorIds":[],"lastBriefAt":null,"kind":"channel",
-         "createdAt":"2026-11-20T02:01:50.774Z","updatedAt":"2026-11-20T02:01:50.774Z"}
+        {"id":"chn_forked","name":"安全观察","prompt":"p","tone":"t","schedule":{},"enabled":true,
+         "connectorIds":[],"lastBriefAt":null,"kind":"channel","published":false,
+         "owner":"creator","subscribed":false,"subscriptionColor":null,"subscriptionId":null,
+         "createdAt":"2026-11-21T01:00:00.000Z","updatedAt":"2026-11-21T01:00:00.000Z"}
         """
         let transport = StubTransport(json: channelJSON, status: 201)
         let client = TestClient.make(transport: transport)
 
-        let channel = try await client.instantiatePreset(id: "prs_1")
+        let channel = try await client.forkChannel(id: "chn_sub")
 
-        XCTAssertEqual(channel.id, "chn_new")
-        XCTAssertEqual(channel.kind, .channel)
+        XCTAssertEqual(channel.id, "chn_forked")
+        XCTAssertTrue(channel.owner.isCreator)
+        XCTAssertFalse(channel.published)
+        XCTAssertFalse(channel.subscribed)
         let request = try XCTUnwrap(transport.recorded.first)
         XCTAssertEqual(request.method, "POST")
-        XCTAssertEqual(request.url.path, "/api/v1/presets/prs_1/instantiate")
+        XCTAssertEqual(request.url.path, "/api/v1/channels/chn_sub/fork")
     }
 
-    func testPresetChannelIsExcludedFromUserVisibleSet() async throws {
-        // 预设不参与调度，也不进用户频道列表。
-        let json = """
-        {"items":[{"id":"chn_p","name":"模板","prompt":"","tone":"","schedule":{},"enabled":true,
-                   "connectorIds":[],"lastBriefAt":null,"kind":"preset",
-                   "createdAt":"2026-11-20T02:01:50.774Z","updatedAt":"2026-11-20T02:01:50.774Z"}],
-         "nextCursor":null}
-        """
-        let transport = StubTransport(json: json)
+    func testDiscoverListSendsDiscoverFlag() async throws {
+        let transport = StubTransport(json: """
+        {"items":[],"nextCursor":null}
+        """)
         let client = TestClient.make(transport: transport)
 
-        let page = try await client.channels()
+        _ = try await client.channels(discover: true)
 
-        XCTAssertEqual(page.items.first?.kind, .preset)
-        XCTAssertFalse(page.items.first?.kind.isUserVisible ?? true)
+        let request = try XCTUnwrap(transport.recorded.first)
+        XCTAssertEqual(request.url.path, "/api/v1/channels")
+        let components = try XCTUnwrap(URLComponents(url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false))
+        XCTAssertTrue(components.queryItems?.contains(URLQueryItem(name: "discover", value: "1")) ?? false)
+    }
+
+    func testDefaultListOmitsDiscoverFlag() async throws {
+        let transport = StubTransport(json: """
+        {"items":[],"nextCursor":null}
+        """)
+        let client = TestClient.make(transport: transport)
+
+        _ = try await client.channels()
+
+        let request = try XCTUnwrap(transport.recorded.first)
+        let components = try XCTUnwrap(URLComponents(url: try XCTUnwrap(request.url), resolvingAgainstBaseURL: false))
+        XCTAssertFalse(components.queryItems?.contains { $0.name == "discover" } ?? false)
+    }
+
+    // MARK: 辅助
+
+    /// 从 channels.json 取出单个频道对象的原始 JSON（PATCH 的响应形状）。
+    private func firstChannelObjectJSON() throws -> Data {
+        let root = try JSONSerialization.jsonObject(with: try Fixture.data("channels")) as? [String: Any]
+        let items = try XCTUnwrap(root?["items"] as? [[String: Any]])
+        let first = try XCTUnwrap(items.first)
+        return try JSONSerialization.data(withJSONObject: first)
     }
 }
