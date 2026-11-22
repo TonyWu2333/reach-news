@@ -90,7 +90,7 @@ final class ChannelSubscriptionTests: XCTestCase {
     func testLoadSplitsChannelsByOwner() async throws {
         let transport = StubTransport(handler: { request in
             let isDiscover = request.url?.query?.contains("discover=1") ?? false
-            return (200, isDiscover ? Self.discoverPayload() : Self.defaultPayload())
+            return (200, Data((isDiscover ? Self.discoverPayload() : Self.defaultPayload()).utf8))
         })
         let store = ChannelStore(client: TestClient.make(transport: transport))
 
@@ -105,7 +105,7 @@ final class ChannelSubscriptionTests: XCTestCase {
     func testLoadRequestsDefaultAndDiscoverSeparately() async throws {
         let transport = StubTransport(handler: { request in
             let isDiscover = request.url?.query?.contains("discover=1") ?? false
-            return (200, isDiscover ? Self.discoverPayload() : Self.defaultPayload())
+            return (200, Data((isDiscover ? Self.discoverPayload() : Self.defaultPayload()).utf8))
         })
         let store = ChannelStore(client: TestClient.make(transport: transport))
 
@@ -126,7 +126,7 @@ final class ChannelSubscriptionTests: XCTestCase {
             if request.url?.query?.contains("discover=1") ?? false {
                 return (500, Data(#"{"error":{"code":"internal_error","message":"boom"}}"#.utf8))
             }
-            return (200, Self.defaultPayload())
+            return (200, Data(Self.defaultPayload().utf8))
         })
         let store = ChannelStore(client: TestClient.make(transport: transport))
 
@@ -149,7 +149,7 @@ final class ChannelSubscriptionTests: XCTestCase {
                 return (200, Data(Self.subscribedChannelJSON(id: "chn_public_other").utf8))
             case ("GET", _):
                 let isDiscover = request.url?.query?.contains("discover=1") ?? false
-                return (200, isDiscover ? Self.discoverPayload() : Self.defaultPayload())
+                return (200, Data((isDiscover ? Self.discoverPayload() : Self.defaultPayload()).utf8))
             default:
                 return (200, Data("{}".utf8))
             }
@@ -174,7 +174,7 @@ final class ChannelSubscriptionTests: XCTestCase {
                 return (200, Data(Self.subscribedChannelJSON(id: "chn_public_other").utf8))
             case ("GET", _):
                 let isDiscover = request.url?.query?.contains("discover=1") ?? false
-                return (200, isDiscover ? Self.discoverPayload() : Self.defaultPayload())
+                return (200, Data((isDiscover ? Self.discoverPayload() : Self.defaultPayload()).utf8))
             default:
                 return (200, Data("{}".utf8))
             }
@@ -200,7 +200,7 @@ final class ChannelSubscriptionTests: XCTestCase {
                 return (409, Data(#"{"error":{"code":"own_channel","message":"自己的频道"}}"#.utf8))
             case ("GET", _):
                 let isDiscover = request.url?.query?.contains("discover=1") ?? false
-                return (200, isDiscover ? Self.discoverPayload() : Self.defaultPayload())
+                return (200, Data((isDiscover ? Self.discoverPayload() : Self.defaultPayload()).utf8))
             default:
                 return (200, Data("{}".utf8))
             }
@@ -222,7 +222,7 @@ final class ChannelSubscriptionTests: XCTestCase {
                 return (403, Data(#"{"error":{"code":"not_published","message":"未公开"}}"#.utf8))
             case ("GET", _):
                 let isDiscover = request.url?.query?.contains("discover=1") ?? false
-                return (200, isDiscover ? Self.discoverPayload() : Self.defaultPayload())
+                return (200, Data((isDiscover ? Self.discoverPayload() : Self.defaultPayload()).utf8))
             default:
                 return (200, Data("{}".utf8))
             }
@@ -246,7 +246,7 @@ final class ChannelSubscriptionTests: XCTestCase {
                 return (200, Data(Self.subscribedChannelJSON(id: "chn_public_other").utf8))
             case ("GET", _):
                 let isDiscover = request.url?.query?.contains("discover=1") ?? false
-                return (200, isDiscover ? Self.discoverPayload() : Self.defaultPayload())
+                return (200, Data((isDiscover ? Self.discoverPayload() : Self.defaultPayload()).utf8))
             default:
                 return (200, Data("{}".utf8))
             }
@@ -269,7 +269,7 @@ final class ChannelSubscriptionTests: XCTestCase {
                 return (200, Data(Self.subscribedChannelJSON(id: "chn_sub", color: "#B05A2A").utf8))
             case ("GET", _):
                 let isDiscover = request.url?.query?.contains("discover=1") ?? false
-                return (200, isDiscover ? Self.discoverPayload() : Self.defaultPayload())
+                return (200, Data((isDiscover ? Self.discoverPayload() : Self.defaultPayload()).utf8))
             default:
                 return (200, Data("{}".utf8))
             }
@@ -296,7 +296,7 @@ final class ChannelSubscriptionTests: XCTestCase {
                 return (200, Data(#"{"channelId":"chn_sub","subscribed":false}"#.utf8))
             case ("GET", _):
                 let isDiscover = request.url?.query?.contains("discover=1") ?? false
-                return (200, isDiscover ? Self.discoverPayload() : Self.defaultPayload())
+                return (200, Data((isDiscover ? Self.discoverPayload() : Self.defaultPayload()).utf8))
             default:
                 return (200, Data("{}".utf8))
             }
@@ -319,7 +319,7 @@ final class ChannelSubscriptionTests: XCTestCase {
                 return (404, Data(#"{"error":{"code":"not_found","message":"Subscription not found"}}"#.utf8))
             case ("GET", _):
                 let isDiscover = request.url?.query?.contains("discover=1") ?? false
-                return (200, isDiscover ? Self.discoverPayload() : Self.defaultPayload())
+                return (200, Data((isDiscover ? Self.discoverPayload() : Self.defaultPayload()).utf8))
             default:
                 return (200, Data("{}".utf8))
             }
@@ -342,7 +342,7 @@ final class ChannelSubscriptionTests: XCTestCase {
                 return (201, Data(Self.forkedChannelJSON().utf8))
             case ("GET", _):
                 let isDiscover = request.url?.query?.contains("discover=1") ?? false
-                return (200, isDiscover ? Self.discoverPayload() : Self.defaultPayload())
+                return (200, Data((isDiscover ? Self.discoverPayload() : Self.defaultPayload()).utf8))
             default:
                 return (200, Data("{}".utf8))
             }
@@ -455,8 +455,8 @@ final class ChannelSubscriptionTests: XCTestCase {
 
     // MARK: 固定样本
 
-    nonisolated private static func defaultPayload() -> Data {
-        Data("""
+    nonisolated private static func defaultPayload() -> String {
+        """
         {"items":[
           {"id":"chn_mine","name":"我的频道","prompt":"p","tone":"t","schedule":{"mon":["08:00"]},
            "enabled":true,"connectorIds":[],"lastBriefAt":null,"kind":"channel","published":false,
@@ -467,18 +467,18 @@ final class ChannelSubscriptionTests: XCTestCase {
            "owner":"subscriber","subscribed":true,"subscriptionColor":"#2E7D5B","subscriptionId":"sub_1",
            "createdAt":"2026-11-20T02:01:50.774Z","updatedAt":"2026-11-20T02:01:50.774Z"}
         ],"nextCursor":null}
-        """.utf8)
+        """
     }
 
-    nonisolated private static func discoverPayload() -> Data {
-        Data("""
+    nonisolated private static func discoverPayload() -> String {
+        """
         {"items":[
           {"id":"chn_public_other","name":"公开市场速览","prompt":"p","tone":"t","schedule":{},
            "enabled":true,"connectorIds":[],"lastBriefAt":null,"kind":"channel","published":true,
            "owner":"subscriber","subscribed":false,"subscriptionColor":null,"subscriptionId":null,
            "createdAt":"2026-11-20T02:01:50.774Z","updatedAt":"2026-11-20T02:01:50.774Z"}
         ],"nextCursor":null}
-        """.utf8)
+        """
     }
 
     nonisolated private static func subscriptionJSON() -> String {
