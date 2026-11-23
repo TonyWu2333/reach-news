@@ -7,21 +7,22 @@ import SwiftUI
 // body 缺失或全为空白段落时，显示一句说明，不回退到分组列表。
 
 struct BriefBodyView: View {
-    let body: BriefBody?
+    /// 输入正文。命名避开 `body`，否则会与 `View.body` 冲突。
+    let content: BriefBody?
     var onOpenURL: (URL) -> Void
 
     @Environment(\.appLocale) private var locale
 
     /// 与 Brief.hasReadableBody 保持一致：空白段落不算正文。
-    private var readable: Bool {
-        guard let body else { return false }
-        return !body.isEmpty
+    private var isReadable: Bool {
+        guard let content else { return false }
+        return !content.isEmpty
     }
 
     var body: some View {
-        if readable, let body {
+        if isReadable, let content {
             VStack(alignment: .leading, spacing: Space.l) {
-                ForEach(Array(body.paragraphs.enumerated()), id: \.offset) { _, paragraph in
+                ForEach(Array(content.paragraphs.enumerated()), id: \.offset) { _, paragraph in
                     // 用 AttributedString 承载链接：Text 的字符串拼接无法绑定点击，
                     // 富文本的 link 属性才会真正把片段变成可点链接。
                     Text(paragraph.attributed)

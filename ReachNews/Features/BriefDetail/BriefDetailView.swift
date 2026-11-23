@@ -22,7 +22,7 @@ struct BriefDetailView: View {
 
                 // 读者端只呈现正文：分组与条目不再进入这个界面。
                 BriefBodyView(
-                    body: store.brief.body,
+                    content: store.brief.body,
                     onOpenURL: { url in openURL(url) }
                 )
                 .padding(.horizontal, Space.xl)
