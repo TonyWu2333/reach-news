@@ -69,7 +69,6 @@
 "common.cancel" = "取消";
 "common.clearFilters" = "清除筛选";
 "common.done" = "完成";
-"common.featureInProgress" = "功能开发中";
 "common.loading" = "加载中…";
 "common.off" = "已关闭";
 "common.ok" = "好";
@@ -82,7 +81,6 @@
 "connection.credential.stored" = "已保存";
 "connection.currentAddress" = "当前地址";
 "connection.expires" = "凭证到期";
-"connection.footer" = "凭证只保存在本机钥匙串，不随收藏或偏好同步。";
 "connection.signOut" = "退出登录";
 "connection.submit" = "连接";
 "connection.subtitle" = "输入管理员签发的凭证。凭证明文只显示一次，客户端把它存在系统钥匙串里。";
@@ -146,9 +144,7 @@
 "me.saved" = "收藏";
 "me.saved.empty.message" = "在日报详情或列表里收藏后，会出现在这里。";
 "me.saved.empty.title" = "还没有收藏";
-"me.saved.note" = "收藏只保存在本机，不会同步到服务端。";
 "me.saved.remove" = "移除收藏";
-"preferences.baseURL.footer" = "地址变更后需要重新验证凭证才会生效。";
 "preferences.baseURL.heading" = "服务地址";
 "preferences.baseURL.save" = "保存地址";
 "preferences.language" = "界面语言";
@@ -187,16 +183,13 @@
 "channel.subscribe.action" = "订阅";
 "channel.kind.subscribed" = "订阅";
 "subscribed.detail.title" = "订阅频道";
-"subscribed.detail.readonlyNote" = "订阅频道只读：内容与时间表由创建者维护。";
 "subscribed.detail.tone.empty" = "未设置";
-"subscribed.color.note" = "只影响你自己看到的颜色，不改频道配置。";
 "subscribed.fork" = "复制成我的频道";
 "subscribed.fork.confirm.title" = "复制成我的频道？";
 "subscribed.fork.confirm.message" = "会复制名称、频道方向、口吻、时间表与连接器，并取消当前订阅。原频道不变。";
 "subscribed.unsubscribe" = "取消订阅";
 "subscribed.unsubscribe.confirm.title" = "取消订阅这个频道？";
 "subscribed.unsubscribe.confirm.message" = "取消后它和它的日报会立即从你的列表消失。频道与已发布日报不会被删除。";
-"subscribed.unsubscribe.note" = "取消订阅后，该频道的历史日报也不再可见。";
 "error.presetsRemoved" = "旧接口已停用";
 "error.notPublished" = "该频道尚未公开";
 "error.ownChannel" = "这是你自己的频道";

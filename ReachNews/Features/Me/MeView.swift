@@ -63,15 +63,6 @@ struct MeView: View {
                 .accessibilityIdentifier("me-connection")
             }
             .listRowBackground(Palette.surface)
-
-            Section {
-                HStack {
-                    Text(L10n.string("me.saved.note", locale: locale))
-                        .font(TypeFace.body(11.5))
-                        .foregroundStyle(Palette.inkTertiary)
-                }
-            }
-            .listRowBackground(Color.clear)
         }
         .scrollContentBackground(.hidden)
         .background(Palette.canvas)
@@ -201,8 +192,6 @@ struct PreferencesView: View {
                 .accessibilityIdentifier("preferences-baseurl-save")
             } header: {
                 Text(L10n.string("preferences.baseURL.heading", locale: locale))
-            } footer: {
-                Text(L10n.string("preferences.baseURL.footer", locale: locale))
             }
             .listRowBackground(Palette.surface)
         }
@@ -282,8 +271,6 @@ struct ConnectionInfoView: View {
                         .font(TypeFace.body(13.5))
                 }
                 .accessibilityIdentifier("connection-signout")
-            } footer: {
-                Text(L10n.string("connection.footer", locale: locale))
             }
             .listRowBackground(Palette.surface)
         }

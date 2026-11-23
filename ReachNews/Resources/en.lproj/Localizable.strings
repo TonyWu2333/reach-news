@@ -69,7 +69,6 @@
 "common.cancel" = "Cancel";
 "common.clearFilters" = "Clear filters";
 "common.done" = "Done";
-"common.featureInProgress" = "In development";
 "common.loading" = "Loading…";
 "common.off" = "Off";
 "common.ok" = "OK";
@@ -82,7 +81,6 @@
 "connection.credential.stored" = "Saved";
 "connection.currentAddress" = "Address";
 "connection.expires" = "Session expires";
-"connection.footer" = "The credential is stored only in the local keychain and never synced.";
 "connection.signOut" = "Sign out";
 "connection.submit" = "Connect";
 "connection.subtitle" = "Enter the credential issued by your administrator. It's shown in plain text once and stored in the system keychain.";
@@ -146,9 +144,7 @@
 "me.saved" = "Saved";
 "me.saved.empty.message" = "Briefs you save appear here.";
 "me.saved.empty.title" = "Nothing saved yet";
-"me.saved.note" = "Saved briefs stay on this device and are never synced.";
 "me.saved.remove" = "Remove";
-"preferences.baseURL.footer" = "Changing the address requires re-verifying the credential before it takes effect.";
 "preferences.baseURL.heading" = "Service address";
 "preferences.baseURL.save" = "Save address";
 "preferences.language" = "Language";
@@ -187,16 +183,13 @@
 "channel.subscribe.action" = "Subscribe";
 "channel.kind.subscribed" = "Subscribed";
 "subscribed.detail.title" = "Subscribed channel";
-"subscribed.detail.readonlyNote" = "Read-only: the creator owns the content and schedule.";
 "subscribed.detail.tone.empty" = "Not set";
-"subscribed.color.note" = "Affects only the color you see, not the channel itself.";
 "subscribed.fork" = "Copy to my channels";
 "subscribed.fork.confirm.title" = "Copy to my channels?";
 "subscribed.fork.confirm.message" = "Copies the name, direction, tone, schedule and connectors, and cancels this subscription. The original stays unchanged.";
 "subscribed.unsubscribe" = "Unsubscribe";
 "subscribed.unsubscribe.confirm.title" = "Unsubscribe from this channel?";
 "subscribed.unsubscribe.confirm.message" = "It and its briefs disappear from your lists immediately. The channel and published briefs are not deleted.";
-"subscribed.unsubscribe.note" = "Past briefs from this channel also become unavailable.";
 "error.presetsRemoved" = "That endpoint has been retired";
 "error.notPublished" = "This channel isn't public";
 "error.ownChannel" = "This is your own channel";

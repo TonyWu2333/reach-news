@@ -70,44 +70,37 @@ struct SubscribedChannelDetail: View {
                 }
 
                 field(titleKey: "channelEdit.color") {
-                    VStack(alignment: .leading, spacing: Space.xs) {
-                        Button {
-                            showsColorPicker = true
-                        } label: {
-                            HStack(spacing: Space.s) {
-                                Circle()
-                                    .fill(ChannelTint.color(at: colorSelection))
-                                    .frame(width: 16, height: 16)
-                                Text(ChannelColorName.name(for: colorSelection, locale: locale))
-                                    .font(TypeFace.body(15))
-                                    .foregroundStyle(Palette.ink)
-                                Spacer(minLength: 0)
-                                Image(systemName: "chevron.right")
-                                    .font(.system(size: 11, weight: .semibold))
-                                    .foregroundStyle(Palette.inkTertiary)
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 13)
-                            .background(
-                                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                                    .fill(Palette.surface)
-                            )
-                            .overlay {
-                                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                                    .strokeBorder(Palette.line, lineWidth: 1)
-                            }
+                    // 标题 + 控件即可，不额外解释颜色只影响本机。
+                    Button {
+                        showsColorPicker = true
+                    } label: {
+                        HStack(spacing: Space.s) {
+                            Circle()
+                                .fill(ChannelTint.color(at: colorSelection))
+                                .frame(width: 16, height: 16)
+                            Text(ChannelColorName.name(for: colorSelection, locale: locale))
+                                .font(TypeFace.body(15))
+                                .foregroundStyle(Palette.ink)
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundStyle(Palette.inkTertiary)
                         }
-                        .buttonStyle(.plain)
-                        .disabled(isWorking)
-
-                        Text(L10n.string("subscribed.color.note", locale: locale))
-                            .font(TypeFace.footnote)
-                            .foregroundStyle(Palette.inkTertiary)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 13)
+                        .background(
+                            RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                                .fill(Palette.surface)
+                        )
+                        .overlay {
+                            RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                                .strokeBorder(Palette.line, lineWidth: 1)
+                        }
                     }
+                    .buttonStyle(.plain)
+                    .disabled(isWorking)
                     .accessibilityIdentifier("subscribed-detail-color-field")
                 }
-
-                actions
             }
             .padding(.horizontal, Space.l)
             .padding(.top, Space.l)
@@ -118,6 +111,27 @@ struct SubscribedChannelDetail: View {
         .toolbar {
             ToolbarItem(placement: .principal) {
                 NavTitle(text: L10n.string("subscribed.detail.title", locale: locale))
+            }
+            // 订阅频道的动作放导航栏菜单，不用底部通栏按钮。
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button {
+                        showsForkConfirm = true
+                    } label: {
+                        Label(L10n.string("subscribed.fork", locale: locale), systemImage: "square.on.square")
+                    }
+                    Button(role: .destructive) {
+                        showsUnsubscribeConfirm = true
+                    } label: {
+                        Label(L10n.string("subscribed.unsubscribe", locale: locale), systemImage: "minus.circle")
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                        .font(.system(size: 17))
+                        .foregroundStyle(Palette.ink)
+                }
+                .disabled(isWorking)
+                .accessibilityIdentifier("subscribed-detail-menu")
             }
         }
         .onAppear {
@@ -185,46 +199,8 @@ struct SubscribedChannelDetail: View {
                             .strokeBorder(Palette.lineStrong, lineWidth: 1)
                     }
             }
-            Text(L10n.string("subscribed.detail.readonlyNote", locale: locale))
-                .font(TypeFace.footnote)
-                .foregroundStyle(Palette.inkTertiary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    // MARK: 动作
-
-    private var actions: some View {
-        VStack(spacing: Space.m) {
-            SecondaryButton(title: L10n.string("subscribed.fork", locale: locale)) {
-                showsForkConfirm = true
-            }
-            .disabled(isWorking)
-            .accessibilityIdentifier("subscribed-detail-fork")
-
-            Button(role: .destructive) {
-                showsUnsubscribeConfirm = true
-            } label: {
-                Text(L10n.string("subscribed.unsubscribe", locale: locale))
-                    .font(TypeFace.heading(15))
-                    .foregroundStyle(Palette.failedForeground)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(
-                        RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                            .fill(Palette.failedBackground)
-                    )
-            }
-            .buttonStyle(.plain)
-            .disabled(isWorking)
-            .accessibilityIdentifier("subscribed-detail-unsubscribe")
-
-            Text(L10n.string("subscribed.unsubscribe.note", locale: locale))
-                .font(TypeFace.footnote)
-                .foregroundStyle(Palette.inkTertiary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.top, Space.xs)
     }
 
     // MARK: 动作实现
