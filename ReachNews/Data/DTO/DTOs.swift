@@ -173,10 +173,57 @@ struct BriefSectionDTO: Decodable {
     }
 }
 
+// MARK: - 日报正文
+
+/// 正文片段：`{ type, text, url?, itemId? }`。
+struct BriefSegmentDTO: Decodable {
+    let type: String?
+    let text: String?
+    let url: String?
+    let itemId: String?
+
+    /// 归一化：只有 type 为 link 且 url 合法时才建链接，其余一律按纯文字，保证内容不丢。
+    func toDomain() -> BriefSegment? {
+        let content = text ?? ""
+        guard !content.isEmpty else { return nil }
+        guard (type ?? "text") == "link",
+              let raw = url,
+              let parsed = URL(string: raw),
+              parsed.scheme != nil else {
+            return .text(content)
+        }
+        return .link(text: content, url: parsed, itemID: itemId)
+    }
+}
+
+struct BriefParagraphDTO: Decodable {
+    let segments: [BriefSegmentDTO]?
+
+    func toDomain() -> BriefParagraph? {
+        let parsed = (segments ?? []).compactMap { $0.toDomain() }
+        return parsed.isEmpty ? nil : BriefParagraph(segments: parsed)
+    }
+}
+
+/// 正文：`{ paragraphs: [{ segments: [...] }] }`。
+/// null、字段缺失、空数组都归一化为 nil，走同一条「无可读正文」路径。
+struct BriefBodyDTO: Decodable {
+    let paragraphs: [BriefParagraphDTO]?
+
+    func toDomain() -> BriefBody? {
+        let parsed = (paragraphs ?? []).compactMap { $0.toDomain() }
+        guard !parsed.isEmpty else { return nil }
+        let body = BriefBody(paragraphs: parsed)
+        return body.isEmpty ? nil : body
+    }
+}
+
 struct BriefDTO: Decodable {
     let id: String
     let channelId: String
     let title: String
+    let summary: String?
+    let body: BriefBodyDTO?
     let sections: [BriefSectionDTO]?
     let memorySummary: String?
     let createdAt: String
@@ -189,6 +236,8 @@ struct BriefDTO: Decodable {
             id: id,
             channelID: channelId,
             title: title,
+            summary: summary,
+            body: body?.toDomain(),
             sections: (sections ?? []).map { $0.toDomain() },
             memorySummary: memorySummary ?? "",
             createdAt: JSONDate.parse(createdAt) ?? .distantPast,

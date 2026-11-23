@@ -1,6 +1,5 @@
 /* Reach News — 界面文案 */
 
-"ask.action.sections" = "看这期分组";
 "ask.cited.count" = "%d 条";
 "ask.cited.deterministic" = "当前是确定性应答，引用为本期素材全集。";
 "ask.cited.empty" = "这一轮回答没有关联素材。";
@@ -13,8 +12,6 @@
 "ask.loadEarlier" = "加载更早的追问";
 "ask.nav.title" = "本期日报";
 "ask.pill" = "追问";
-"brief.materialCount" = "%d 条素材";
-"brief.sectionCount" = "%d 个分组";
 "briefDetail.entryCount" = "%d 条";
 "briefDetail.materialCount" = "%d 条素材";
 "briefDetail.materialFailed" = "素材加载失败";
@@ -194,3 +191,5 @@
 "error.notPublished" = "该频道尚未公开";
 "error.ownChannel" = "这是你自己的频道";
 "error.subscriberReadOnly" = "订阅频道只读，可 fork 后修改";
+
+"brief.body.empty" = "本期无可读正文";

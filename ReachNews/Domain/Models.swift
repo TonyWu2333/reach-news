@@ -231,12 +231,30 @@ struct Brief: Identifiable, Equatable, Hashable {
     let id: String
     let channelID: String
     let title: String
+    /// 这一期给读者的描述，可为 nil（模型未产出时是正常状态）。
+    var summary: String?
+    /// 精写正文；为 nil 时读者端显示「本期无可读正文」。
+    var body: BriefBody?
     let sections: [BriefSection]
+    /// 运行记忆，供 Ask 与后续运行使用。**不在任何界面展示**：措辞不是写给读者的。
     let memorySummary: String
     let createdAt: Date
     /// 全量日报端点自带频道信息，避免为了渲染名称再回查频道。
     var channelName: String?
     var channelKind: ChannelKind?
+
+    /// 有可读正文（body 非空且不是空白段落）。
+    var hasReadableBody: Bool {
+        guard let body else { return false }
+        return !body.isEmpty
+    }
+
+    /// 列表与详情展示用的描述；空字符串与 nil 一视同仁。
+    var displaySummary: String? {
+        guard let summary = summary?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !summary.isEmpty else { return nil }
+        return summary
+    }
 
     var entryCount: Int {
         sections.reduce(0) { $0 + $1.entries.count }
