@@ -13,7 +13,17 @@ final class StubTransport: HTTPTransporting, @unchecked Sendable {
         let body: Data?
     }
 
-    private(set) var recorded: [Recorded] = []
+    /// 记录并发请求：`ChannelStore.load()` 用 `async let` 同时发两个请求，
+    /// 无锁的数组 append 会丢写，因此这里用锁保护。
+    private let lock = NSLock()
+    private var storage: [Recorded] = []
+
+    var recorded: [Recorded] {
+        lock.lock()
+        defer { lock.unlock() }
+        return storage
+    }
+
     private let handler: (URLRequest) throws -> (Int, Data)
 
     init(handler: @escaping (URLRequest) throws -> (Int, Data)) {
@@ -26,14 +36,15 @@ final class StubTransport: HTTPTransporting, @unchecked Sendable {
     }
 
     func send(_ request: URLRequest) async throws -> (Data, HTTPURLResponse) {
-        recorded.append(
-            Recorded(
-                url: request.url ?? URL(fileURLWithPath: "/"),
-                method: request.httpMethod ?? "GET",
-                authorization: request.value(forHTTPHeaderField: "Authorization"),
-                body: request.httpBody
-            )
+        let entry = Recorded(
+            url: request.url ?? URL(fileURLWithPath: "/"),
+            method: request.httpMethod ?? "GET",
+            authorization: request.value(forHTTPHeaderField: "Authorization"),
+            body: request.httpBody
         )
+        lock.lock()
+        storage.append(entry)
+        lock.unlock()
         let (status, data) = try handler(request)
         let response = HTTPURLResponse(
             url: request.url ?? URL(fileURLWithPath: "/"),

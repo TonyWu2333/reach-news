@@ -10,9 +10,12 @@ struct BriefBody: Equatable, Hashable {
     let paragraphs: [BriefParagraph]
 
     /// 全部段落都没有可读文字时按「无正文」处理，避免渲染出空白块。
+    /// 只有空白字符（空格、换行）也算没有文字。
     var isEmpty: Bool {
         paragraphs.allSatisfy { paragraph in
-            paragraph.segments.allSatisfy { $0.displayText.isEmpty }
+            paragraph.segments.allSatisfy {
+                $0.displayText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            }
         }
     }
 
