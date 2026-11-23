@@ -45,15 +45,9 @@ struct BriefDetailView: View {
         .background(Palette.canvas)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            // 顶部栏只给「日报」：标题已在正文区大字号呈现，重复显示没有意义。
             ToolbarItem(placement: .principal) {
-                HStack(spacing: Space.s) {
-                    ChannelDot(
-                        channelID: brief.channelID,
-                        diameter: 7,
-                        colorIndex: env.channelColors.colorIndex(for: brief.channelID)
-                    )
-                    NavTitle(text: store.brief.title)
-                }
+                NavTitle(text: L10n.string("brief.detail.title", locale: locale))
             }
         }
         .overlay(alignment: .bottomTrailing) {
@@ -275,12 +269,13 @@ struct AskPill: View {
                         .font(TypeFace.heading(13.5))
                 }
             }
-            .foregroundStyle(Palette.canvas)
+            // 深底上的浅色文字用语义 token，而不是借用画布色。
+            .foregroundStyle(Palette.askUserText)
             .padding(.horizontal, isExpanded ? 15 : 0)
             .padding(.vertical, isExpanded ? 11 : 0)
             .frame(width: isExpanded ? nil : 46, height: isExpanded ? nil : 46)
-            .background(.thinMaterial, in: Capsule())
-            .background(Palette.askUser.opacity(0.92), in: Capsule())
+            // 直接用近黑色实底：再叠一层 thinMaterial 是半透明浅色，会把深色冲淡成灰。
+            .background(Palette.askUser, in: Capsule())
             .shadow(color: Palette.ink.opacity(0.32), radius: 12, y: 4)
         }
         .buttonStyle(.plain)

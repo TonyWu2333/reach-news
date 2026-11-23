@@ -193,3 +193,5 @@
 "error.subscriberReadOnly" = "订阅频道只读，可 fork 后修改";
 
 "brief.body.empty" = "本期无可读正文";
+
+"brief.detail.title" = "日报";

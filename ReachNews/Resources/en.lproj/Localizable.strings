@@ -193,3 +193,5 @@
 "error.subscriberReadOnly" = "Subscribed channels are read-only; fork it to edit";
 
 "brief.body.empty" = "No readable body for this issue";
+
+"brief.detail.title" = "Brief";
