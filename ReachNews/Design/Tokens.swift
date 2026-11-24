@@ -37,6 +37,10 @@ enum Palette {
     static let askUser = Color(hex: 0x121211)
     static let askUserText = Color(hex: 0xF7F6F4)
 
+    // 正文链接：全局 tint 是近黑的 ink，链接若沿用 tint 就会与正文同色而看不见。
+    // 取色板里的 azure，与频道标识色同一明度区间，不与状态色混淆。
+    static let link = Color(hex: 0x2F6F9E)
+
     // 状态：运行中 / 错过 / 失败
     static let runningBackground = Color(hex: 0xEAF0EC)
     static let runningForeground = Color(hex: 0x3D6B5C)

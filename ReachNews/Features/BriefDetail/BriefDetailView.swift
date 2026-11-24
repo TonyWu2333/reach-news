@@ -14,6 +14,10 @@ struct BriefDetailView: View {
     @State private var showsAsk = false
     @State private var isPillExpanded = true
     @State private var lastScrollOffset: CGFloat = 0
+    /// 当前打开的小标题动作层；nil 表示不显示。
+    @State private var headingAction: HeadingActionContext?
+    /// 点了「跟踪事件」后要预填到创建页的标题；nil 表示不是事件模式。
+    @State private var trackedEventHeading: String?
 
     var body: some View {
         ScrollView {
@@ -23,7 +27,10 @@ struct BriefDetailView: View {
                 // 读者端只呈现正文：分组与条目不再进入这个界面。
                 BriefBodyView(
                     content: store.brief.body,
-                    onOpenURL: { url in openURL(url) }
+                    onOpenURL: { url in openURL(url) },
+                    onTapHeading: { heading in
+                        Task { await presentHeadingActions(for: heading) }
+                    }
                 )
                 .padding(.horizontal, Space.xl)
                 .padding(.top, Space.m)
@@ -65,6 +72,60 @@ struct BriefDetailView: View {
         }
         .toolbar(.hidden, for: .tabBar)
         .accessibilityIdentifier("brief-detail")
+        .briefHeadingActions(
+            selection: $headingAction,
+            onOpenSource: { url in openURL(url) },
+            onTrackEvent: { heading in trackedEventHeading = heading }
+        )
+        .navigationDestination(isPresented: Binding(
+            get: { trackedEventHeading != nil },
+            set: { if !$0 { trackedEventHeading = nil } }
+        )) {
+            if let heading = trackedEventHeading {
+                // navigationDestination 会多次求值 body，这里用常量绑定避免反复触发 dismiss。
+                ChannelCreateSheet(
+                    store: env.channels,
+                    isPresented: .constant(true),
+                    onCreated: { channel in
+                        env.channels.replace(channel)
+                        trackedEventHeading = nil
+                    },
+                    eventHeading: heading
+                )
+            }
+        }
+    }
+
+    /// 点小标题时先按需取回正文引用过的素材，再判断有没有「原文」可开。
+    /// 素材取不回来（离线、404）不算错误：动作层只少一个选项，事件跟踪照常可用。
+    private func presentHeadingActions(for heading: String) async {
+        var candidates: [BriefHeadingCandidate] = []
+        for itemID in store.referencedItemIDs {
+            if let material = await store.loadMaterial(itemID: itemID) {
+                candidates.append(
+                    BriefHeadingCandidate(
+                        itemID: itemID,
+                        materialTitle: material.title,
+                        materialURL: material.url
+                    )
+                )
+            } else if let cached = store.material(id: itemID) {
+                candidates.append(
+                    BriefHeadingCandidate(
+                        itemID: itemID,
+                        materialTitle: cached.title,
+                        materialURL: cached.url
+                    )
+                )
+            }
+        }
+
+        let match = HeadingSourceMatcher.firstMatch(heading: heading, candidates: candidates)
+        headingAction = HeadingActionContext(
+            heading: HeadingSourceMatcher.normalizedHeading(heading),
+            sourceURL: match?.materialURL,
+            locale: locale
+        )
     }
 
     private var header: some View {

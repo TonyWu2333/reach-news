@@ -198,3 +198,6 @@
 "brief.body.empty" = "本期无可读正文";
 
 "brief.detail.title" = "日报";
+"brief.heading.openSource" = "查看原文";
+"brief.heading.track" = "跟踪事件";
+"brief.heading.track.prompt" = "持续跟踪「%@」的进展：优先一手来源，记录关键时间点、涉及方与变化，不过度评论，也不预测结论。";

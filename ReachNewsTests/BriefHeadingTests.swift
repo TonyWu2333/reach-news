@@ -1,0 +1,100 @@
+import XCTest
+@testable import ReachNews
+
+// MARK: - 正文小标题
+//
+// 服务端没有「小标题对应哪条素材」的字段，「查看原文」只能按文字判断。
+// 这里覆盖匹配规则、未命中时不出现该项、以及事件频道的预填内容。
+
+final class BriefHeadingTests: XCTestCase {
+
+    // MARK: 匹配规则
+
+    func testHeadingIsContainedInMaterialTitle() {
+        XCTAssertTrue(
+            HeadingSourceMatcher.matches(
+                heading: "模型竞赛进入下半场",
+                materialTitle: "模型竞赛进入下半场：三家同时放出长上下文版本"
+            )
+        )
+    }
+
+    func testMatchingIgnoresCaseAndDiacritics() {
+        XCTAssertTrue(
+            HeadingSourceMatcher.matches(heading: "vLLM", materialTitle: "vLLM 推理性能翻倍的那次合并")
+        )
+        XCTAssertTrue(
+            HeadingSourceMatcher.matches(heading: "CAFE", materialTitle: "Café 里的那段对话")
+        )
+    }
+
+    func testUnrelatedTitleDoesNotMatch() {
+        XCTAssertFalse(
+            HeadingSourceMatcher.matches(heading: "算力租赁价格", materialTitle: "开源模型的许可证正在收紧")
+        )
+    }
+
+    func testEmptyHeadingNeverMatches() {
+        XCTAssertFalse(HeadingSourceMatcher.matches(heading: "   ", materialTitle: "任意标题"))
+        XCTAssertFalse(HeadingSourceMatcher.matches(heading: "", materialTitle: ""))
+    }
+
+    func testHeadingTrailingColonIsTrimmed() {
+        XCTAssertEqual(HeadingSourceMatcher.normalizedHeading("  来源： "), "来源")
+        XCTAssertTrue(
+            HeadingSourceMatcher.matches(heading: "来源：", materialTitle: "来源梳理")
+        )
+    }
+
+    func testFirstMatchWinsWhenSeveralCandidatesMatch() {
+        let candidates = [
+            BriefHeadingCandidate(itemID: "m1", materialTitle: "无关标题", materialURL: URL(string: "https://a.test/1")),
+            BriefHeadingCandidate(itemID: "m2", materialTitle: "事件进展一", materialURL: URL(string: "https://a.test/2")),
+            BriefHeadingCandidate(itemID: "m3", materialTitle: "事件进展二", materialURL: URL(string: "https://a.test/3"))
+        ]
+
+        let match = HeadingSourceMatcher.firstMatch(heading: "事件进展", candidates: candidates)
+
+        XCTAssertEqual(match?.itemID, "m2")
+        XCTAssertEqual(match?.materialURL?.absoluteString, "https://a.test/2")
+    }
+
+    func testNoMatchReturnsNilSoTheSourceOptionIsHidden() {
+        let candidates = [
+            BriefHeadingCandidate(itemID: "m1", materialTitle: "无关标题", materialURL: URL(string: "https://a.test/1"))
+        ]
+
+        XCTAssertNil(HeadingSourceMatcher.firstMatch(heading: "事件进展", candidates: candidates))
+    }
+
+    func testUnresolvedCandidateDoesNotMatch() {
+        // 素材取不回来（离线 / 404）时标题为 nil，不能装作命中。
+        let candidates = [BriefHeadingCandidate(itemID: "m1", materialTitle: nil, materialURL: nil)]
+
+        XCTAssertNil(HeadingSourceMatcher.firstMatch(heading: "任何标题", candidates: candidates))
+        XCTAssertFalse(candidates[0].isResolved)
+    }
+
+    // MARK: 事件预填
+
+    func testEventDraftNameUsesHeadingText() {
+        XCTAssertEqual(TrackedEventDraft.name(heading: "  模型竞赛进入下半场： "), "模型竞赛进入下半场")
+    }
+
+    func testEventDraftPromptEmbedsHeading() {
+        let prompt = TrackedEventDraft.prompt(heading: "模型竞赛进入下半场", locale: Locale(identifier: "zh-Hans"))
+
+        XCTAssertTrue(prompt.contains("模型竞赛进入下半场"))
+        XCTAssertFalse(prompt.isEmpty)
+        // 模板里不该残留未替换的占位符。
+        XCTAssertFalse(prompt.contains("%@"))
+    }
+
+    func testEventDraftPromptIsLocalized() {
+        let en = TrackedEventDraft.prompt(heading: "Model race", locale: Locale(identifier: "en"))
+        let zh = TrackedEventDraft.prompt(heading: "Model race", locale: Locale(identifier: "zh-Hans"))
+
+        XCTAssertTrue(en.contains("Model race"))
+        XCTAssertNotEqual(en, zh)
+    }
+}

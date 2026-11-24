@@ -10,6 +10,21 @@ struct ChannelCreateSheet: View {
     @Bindable var store: ChannelStore
     @Binding var isPresented: Bool
     var onCreated: (Channel) -> Void
+    /// 从日报正文的「跟踪事件」进入时的标题；为 nil 时是普通新建。
+    /// 事件不是新的后端实体：只是把名称与提示词预填好，仍按普通频道提交。
+    var eventHeading: String?
+
+    init(
+        store: ChannelStore,
+        isPresented: Binding<Bool>,
+        onCreated: @escaping (Channel) -> Void,
+        eventHeading: String? = nil
+    ) {
+        self.store = store
+        self._isPresented = isPresented
+        self.onCreated = onCreated
+        self.eventHeading = eventHeading
+    }
 
     @Environment(\.appLocale) private var locale
     @Environment(AppEnvironment.self) private var env
@@ -123,9 +138,18 @@ struct ChannelCreateSheet: View {
             await store.loadCreationOptions()
             // 默认挑一个当前用得最少的颜色。
             selectedColorIndex = env.channelColors.suggestedIndex()
+            applyEventDraftIfNeeded()
         }
         .toolbar(.hidden, for: .tabBar)
         .accessibilityIdentifier("channel-create-sheet")
+    }
+
+    /// 事件模式：只在小标题进来时预填一次名称与提示词，之后完全交给用户修改。
+    /// 普通新建时 eventHeading 为 nil，什么都不做。
+    private func applyEventDraftIfNeeded() {
+        guard let eventHeading, name.isEmpty, prompt.isEmpty else { return }
+        name = TrackedEventDraft.name(heading: eventHeading)
+        prompt = TrackedEventDraft.prompt(heading: eventHeading, locale: locale)
     }
 
     private func submit() async {

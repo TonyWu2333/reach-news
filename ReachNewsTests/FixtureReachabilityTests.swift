@@ -76,7 +76,8 @@ final class LocalizationTests: XCTestCase {
             "me.account.plan.free", "me.account.plan.pro", "me.account.plan.ultra",
             "subscribed.fork", "subscribed.unsubscribe",
             "error.ownChannel", "error.notPublished", "error.subscriberReadOnly",
-            "brief.body.empty"
+            "brief.body.empty",
+            "brief.heading.openSource", "brief.heading.track", "brief.heading.track.prompt"
         ]
         let zh = try keys(in: "Localizable", table: nil, language: "zh-Hans")
         let en = try keys(in: "Localizable", table: nil, language: "en")

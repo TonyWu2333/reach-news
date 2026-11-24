@@ -52,6 +52,38 @@ final class BriefDetailStore {
         failedMaterialIDs.contains(materialID)
     }
 
+    /// 取回单条素材；小标题「查看原文」需要按 itemID 现取，
+    /// 读者端没有预先展开的条目，不能指望素材已经在缓存里。
+    func loadMaterial(itemID: String) async -> Material? {
+        if let cached = materialsByID[itemID] { return cached }
+        guard !loadingMaterialIDs.contains(itemID) else { return nil }
+        loadingMaterialIDs.insert(itemID)
+        defer { loadingMaterialIDs.remove(itemID) }
+        do {
+            let material = try await client.material(briefID: brief.id, materialID: itemID)
+            materialsByID[itemID] = material
+            failedMaterialIDs.remove(itemID)
+            return material
+        } catch let apiError as APIError {
+            failedMaterialIDs.insert(itemID)
+            if apiError == .unauthorized { error = apiError }
+            return nil
+        } catch {
+            failedMaterialIDs.insert(itemID)
+            return nil
+        }
+    }
+
+    /// 正文 link 片段里出现过的素材 id，按出现顺序去重。
+    /// 服务端没有「小标题对应哪条素材」的字段，候选只能来自正文本身。
+    var referencedItemIDs: [String] {
+        var seen = Set<String>()
+        return (brief.body?.paragraphs ?? [])
+            .flatMap(\.segments)
+            .compactMap(\.itemID)
+            .filter { seen.insert($0).inserted }
+    }
+
     /// 展开条目时按需取回该条目的素材。
     func loadMaterials(for entry: Entry) async {
         let missing = entry.materialIDs.filter { materialsByID[$0] == nil && !loadingMaterialIDs.contains($0) }

@@ -1,0 +1,110 @@
+# comet-execution: managed-run
+schema: comet.native.v4
+name: brief-heading-track
+language: zh-CN
+phase: build
+status: active
+state_version: 3
+brief: brief.md
+document_constraints_version: 3
+spec_changes:
+  - capability: ios-client
+    operation: modify
+    source: specs/ios-client/spec.md
+workspace:
+  isolation: worktree
+  change_branch: comet/brief-heading-track
+  target_branch: main
+  finish: null
+loop:
+  stage: building
+  goal_cycle: 1
+  iteration: 1
+  attempt: 0
+  retry_epoch: 0
+  failed_iteration_count: 0
+  no_progress_count: 0
+  execution_failure_count: 0
+  previous_unresolved_ids: []
+  next_action: submit-builder-candidate
+acceptance:
+  - id: A1
+    source: brief.md
+    text: 正文里的行内链接在纸色底上视觉可辨（有颜色区分或下划线），点击仍由系统浏览器打开其 `url`。
+    result: pending
+    reason: null
+  - id: A2
+    source: brief.md
+    text: 正文小标题显示下划线，且整段标题可点击。
+    result: pending
+    reason: null
+  - id: A3
+    source: brief.md
+    text: 点击小标题弹出动作弹层，最多出现「查看原文」与「跟踪事件」两个选项。
+    result: pending
+    reason: null
+  - id: A4
+    source: brief.md
+    text: 正文 link 片段引用的素材中存在标题包含该小标题文字的素材时，弹层显示「查看原文」；点击后打开该素材的 `url`。
+    result: pending
+    reason: null
+  - id: A5
+    source: brief.md
+    text: 没有匹配素材时，弹层不显示「查看原文」，只显示「跟踪事件」；不出现空白项或死入口。
+    result: pending
+    reason: null
+  - id: A6
+    source: brief.md
+    text: 点击「跟踪事件」进入频道创建页，创建页的名称已填为该小标题文字，提示词已填为跟踪该事件的预填模板。
+    result: pending
+    reason: null
+  - id: A7
+    source: brief.md
+    text: 预填的标题与提示词都可被用户直接修改，提交后按普通频道创建。
+    result: pending
+    reason: null
+  - id: A8
+    source: brief.md
+    text: 普通入口（频道页的 +）新建频道时，名称与提示词仍为空，不出现任何预填内容或事件模式痕迹。
+    result: pending
+    reason: null
+  - id: A9
+    source: brief.md
+    text: 匹配为文字包含关系，不做大小写以外的模糊推断；多个素材命中时取第一个匹配项。
+    result: pending
+    reason: null
+  - id: A10
+    source: brief.md
+    text: 中文与英文本地化键集完全一致，新增键两侧同时存在，界面无硬编码文案。
+    result: pending
+    reason: null
+  - id: A11
+    source: brief.md
+    text: 单元测试覆盖标题匹配、未命中只给跟踪事件、预填内容生成。
+    result: pending
+    reason: null
+  - id: A12
+    source: brief.md
+    text: 本机用 tree-sitter 静态解析全部 `.swift` 无新增 `ERROR` 节点；CI 结果出来前，构建与测试相关结论记为
+      `not-run`，不记为通过。
+    result: pending
+    reason: null
+builder_handoff: null
+blockers: []
+verification: null
+history: []
+history_overflow:
+  dropped_entries: 0
+  first_dropped_at: null
+  last_dropped_at: null
+  outcome_counts:
+    pass: 0
+    fail: 0
+    blocked: 0
+    execution-error: 0
+    recovery: 0
+verification_result: pending
+verification_report: null
+archived: false
+created_at: 2026-11-24T14:45:47.065Z
+run_checkpoint: {"schema":"comet.workflow-run-checkpoint.v1","hash":"5183cf4af6f79bf26dbb222a39306c0ab9cd17e6d5b676791e2d6bad5319dea5","run":{"protocolVersion":1,"schemaVersion":1,"runId":"brief-heading-track","revision":1,"workflow":{"id":"comet-native","version":"4","hash":"a4e64ffbd76a550331a69bca1a149bcae73b6fabe8117152be4bfc1abf28d8eb"},"definitionHashes":{"[\"comet-native\",\"4\"]":"a4e64ffbd76a550331a69bca1a149bcae73b6fabe8117152be4bfc1abf28d8eb"},"initialStateHash":"e3e4a36bee6d8142bf8c4300eaf49721c2fbd7581ba6d42a02d8922043531d05","input":{"artifactRootRef":"docs","name":"brief-heading-track","task":"详情页两件事：\n1) 正文链接当前几乎看不见：全局 tint 是近黑色，与正文同色。需要让链接可辨（下划线/强调色），点击仍用系统浏览器打开。\n2) 正文小标题显示下划线且可点击；点击弹出两个选项：「查看原文」与「跟踪事件」。\n   - 查看原文：按小标题文字在已加载的素材里匹配标题包含关系，命中则打开该素材原文；未命中不显示该选项。\n   - 跟踪事件：进入频道创建页，复用现有创建页并增加事件模式：标题取小标题文字，提示词预填跟踪该事件的模板，用户仍可修改。"},"state":{"acceptance":[{"id":"A1","reason":null,"result":"pending","source":"brief.md","text":"正文里的行内链接在纸色底上视觉可辨（有颜色区分或下划线），点击仍由系统浏览器打开其 `url`。"},{"id":"A2","reason":null,"result":"pending","source":"brief.md","text":"正文小标题显示下划线，且整段标题可点击。"},{"id":"A3","reason":null,"result":"pending","source":"brief.md","text":"点击小标题弹出动作弹层，最多出现「查看原文」与「跟踪事件」两个选项。"},{"id":"A4","reason":null,"result":"pending","source":"brief.md","text":"正文 link 片段引用的素材中存在标题包含该小标题文字的素材时，弹层显示「查看原文」；点击后打开该素材的 `url`。"},{"id":"A5","reason":null,"result":"pending","source":"brief.md","text":"没有匹配素材时，弹层不显示「查看原文」，只显示「跟踪事件」；不出现空白项或死入口。"},{"id":"A6","reason":null,"result":"pending","source":"brief.md","text":"点击「跟踪事件」进入频道创建页，创建页的名称已填为该小标题文字，提示词已填为跟踪该事件的预填模板。"},{"id":"A7","reason":null,"result":"pending","source":"brief.md","text":"预填的标题与提示词都可被用户直接修改，提交后按普通频道创建。"},{"id":"A8","reason":null,"result":"pending","source":"brief.md","text":"普通入口（频道页的 +）新建频道时，名称与提示词仍为空，不出现任何预填内容或事件模式痕迹。"},{"id":"A9","reason":null,"result":"pending","source":"brief.md","text":"匹配为文字包含关系，不做大小写以外的模糊推断；多个素材命中时取第一个匹配项。"},{"id":"A10","reason":null,"result":"pending","source":"brief.md","text":"中文与英文本地化键集完全一致，新增键两侧同时存在，界面无硬编码文案。"},{"id":"A11","reason":null,"result":"pending","source":"brief.md","text":"单元测试覆盖标题匹配、未命中只给跟踪事件、预填内容生成。"},{"id":"A12","reason":null,"result":"pending","source":"brief.md","text":"本机用 tree-sitter 静态解析全部 `.swift` 无新增 `ERROR` 节点；CI 结果出来前，构建与测试相关结论记为 `not-run`，不记为通过。"}],"archived":false,"blockers":[],"brief":"brief.md","builder_handoff":null,"created_at":"2026-11-24T14:45:47.065Z","document_constraints_version":3,"history":[],"history_overflow":{"dropped_entries":0,"first_dropped_at":null,"last_dropped_at":null,"outcome_counts":{"blocked":0,"execution-error":0,"fail":0,"pass":0,"recovery":0}},"language":"zh-CN","loop":{"attempt":0,"execution_failure_count":0,"failed_iteration_count":0,"goal_cycle":1,"iteration":1,"next_action":"submit-builder-candidate","no_progress_count":0,"previous_unresolved_ids":[],"retry_epoch":0,"stage":"building"},"name":"brief-heading-track","phase":"build","schema":"comet.native.v4","spec_changes":[{"capability":"ios-client","operation":"modify","source":"specs/ios-client/spec.md"}],"state_version":3,"status":"active","verification":null,"verification_report":null,"verification_result":"pending","workspace":{"change_branch":"comet/brief-heading-track","finish":null,"isolation":"worktree","target_branch":"main"}},"status":"running","sequence":3,"actions":[{"attempt":1,"claim":{"executorId":"comet-native-cli","token":"portable-b7358afc090d5edf6a00d094c700abdc7da5dae41e26898f6d7b4882aaf565c6"},"executionOrigin":{"workflow":{"hash":"a4e64ffbd76a550331a69bca1a149bcae73b6fabe8117152be4bfc1abf28d8eb","id":"comet-native","version":"4"}},"id":"brief-heading-track:1","input":{"input":{"artifactRootRef":"docs","name":"brief-heading-track","task":"详情页两件事：\n1) 正文链接当前几乎看不见：全局 tint 是近黑色，与正文同色。需要让链接可辨（下划线/强调色），点击仍用系统浏览器打开。\n2) 正文小标题显示下划线且可点击；点击弹出两个选项：「查看原文」与「跟踪事件」。\n   - 查看原文：按小标题文字在已加载的素材里匹配标题包含关系，命中则打开该素材原文；未命中不显示该选项。\n   - 跟踪事件：进入频道创建页，复用现有创建页并增加事件模式：标题取小标题文字，提示词预填跟踪该事件的模板，用户仍可修改。"},"outputs":{}},"inputHash":"5e41a6cc33ad2450f94f52ea37fcc2c4d41646496ebde9c9ba1ee747c1a231da","outcome":{"actionId":"brief-heading-track:1","attempt":1,"claimToken":"portable-b7358afc090d5edf6a00d094c700abdc7da5dae41e26898f6d7b4882aaf565c6","inputHash":"5e41a6cc33ad2450f94f52ea37fcc2c4d41646496ebde9c9ba1ee747c1a231da","outcomeId":"e012453c-eae7-4762-81a4-5acebe7150f4","output":{"acceptance":[{"id":"A1","source":"brief.md","text":"正文里的行内链接在纸色底上视觉可辨（有颜色区分或下划线），点击仍由系统浏览器打开其 `url`。"},{"id":"A2","source":"brief.md","text":"正文小标题显示下划线，且整段标题可点击。"},{"id":"A3","source":"brief.md","text":"点击小标题弹出动作弹层，最多出现「查看原文」与「跟踪事件」两个选项。"},{"id":"A4","source":"brief.md","text":"正文 link 片段引用的素材中存在标题包含该小标题文字的素材时，弹层显示「查看原文」；点击后打开该素材的 `url`。"},{"id":"A5","source":"brief.md","text":"没有匹配素材时，弹层不显示「查看原文」，只显示「跟踪事件」；不出现空白项或死入口。"},{"id":"A6","source":"brief.md","text":"点击「跟踪事件」进入频道创建页，创建页的名称已填为该小标题文字，提示词已填为跟踪该事件的预填模板。"},{"id":"A7","source":"brief.md","text":"预填的标题与提示词都可被用户直接修改，提交后按普通频道创建。"},{"id":"A8","source":"brief.md","text":"普通入口（频道页的 +）新建频道时，名称与提示词仍为空，不出现任何预填内容或事件模式痕迹。"},{"id":"A9","source":"brief.md","text":"匹配为文字包含关系，不做大小写以外的模糊推断；多个素材命中时取第一个匹配项。"},{"id":"A10","source":"brief.md","text":"中文与英文本地化键集完全一致，新增键两侧同时存在，界面无硬编码文案。"},{"id":"A11","source":"brief.md","text":"单元测试覆盖标题匹配、未命中只给跟踪事件、预填内容生成。"},{"id":"A12","source":"brief.md","text":"本机用 tree-sitter 静态解析全部 `.swift` 无新增 `ERROR` 节点；CI 结果出来前，构建与测试相关结论记为 `not-run`，不记为通过。"}],"children":null,"specChanges":[{"capability":"ios-client","operation":"modify","source":"specs/ios-client/spec.md"}]},"status":"succeeded"},"protocolVersion":1,"receipts":[{"hash":"b4a2d7f9a034f8842c1e0666f3c8c970023a0134afecc371501fa00005d1ebcf","outcomeId":"e012453c-eae7-4762-81a4-5acebe7150f4"}],"reconciliations":[],"ref":"native-shape-prepare","requiredCapabilities":[],"retry":"manual","runId":"brief-heading-track","status":"succeeded","stepId":"shape.prepare","type":"call_tool"},{"attempt":1,"claim":{"executorId":"native-host","sessionId":"session-3c90297a-006f-4e94-8872-c4bae5503a38","token":"portable-b909b0466f47cc254cdbc943ed966963a026de3b2ee438ff2838491c52cc969b"},"executionOrigin":{"workflow":{"hash":"a4e64ffbd76a550331a69bca1a149bcae73b6fabe8117152be4bfc1abf28d8eb","id":"comet-native","version":"4"}},"id":"brief-heading-track:3","input":{"input":{"artifactRootRef":"docs","name":"brief-heading-track","task":"详情页两件事：\n1) 正文链接当前几乎看不见：全局 tint 是近黑色，与正文同色。需要让链接可辨（下划线/强调色），点击仍用系统浏览器打开。\n2) 正文小标题显示下划线且可点击；点击弹出两个选项：「查看原文」与「跟踪事件」。\n   - 查看原文：按小标题文字在已加载的素材里匹配标题包含关系，命中则打开该素材原文；未命中不显示该选项。\n   - 跟踪事件：进入频道创建页，复用现有创建页并增加事件模式：标题取小标题文字，提示词预填跟踪该事件的模板，用户仍可修改。"},"outputs":{"shape.confirm":{"choice":"approved","proposal":{"input":{"artifactRootRef":"docs","name":"brief-heading-track","task":"详情页两件事：\n1) 正文链接当前几乎看不见：全局 tint 是近黑色，与正文同色。需要让链接可辨（下划线/强调色），点击仍用系统浏览器打开。\n2) 正文小标题显示下划线且可点击；点击弹出两个选项：「查看原文」与「跟踪事件」。\n   - 查看原文：按小标题文字在已加载的素材里匹配标题包含关系，命中则打开该素材原文；未命中不显示该选项。\n   - 跟踪事件：进入频道创建页，复用现有创建页并增加事件模式：标题取小标题文字，提示词预填跟踪该事件的模板，用户仍可修改。"},"outputs":{"shape.prepare":{"acceptance":[{"id":"A1","source":"brief.md","text":"正文里的行内链接在纸色底上视觉可辨（有颜色区分或下划线），点击仍由系统浏览器打开其 `url`。"},{"id":"A2","source":"brief.md","text":"正文小标题显示下划线，且整段标题可点击。"},{"id":"A3","source":"brief.md","text":"点击小标题弹出动作弹层，最多出现「查看原文」与「跟踪事件」两个选项。"},{"id":"A4","source":"brief.md","text":"正文 link 片段引用的素材中存在标题包含该小标题文字的素材时，弹层显示「查看原文」；点击后打开该素材的 `url`。"},{"id":"A5","source":"brief.md","text":"没有匹配素材时，弹层不显示「查看原文」，只显示「跟踪事件」；不出现空白项或死入口。"},{"id":"A6","source":"brief.md","text":"点击「跟踪事件」进入频道创建页，创建页的名称已填为该小标题文字，提示词已填为跟踪该事件的预填模板。"},{"id":"A7","source":"brief.md","text":"预填的标题与提示词都可被用户直接修改，提交后按普通频道创建。"},{"id":"A8","source":"brief.md","text":"普通入口（频道页的 +）新建频道时，名称与提示词仍为空，不出现任何预填内容或事件模式痕迹。"},{"id":"A9","source":"brief.md","text":"匹配为文字包含关系，不做大小写以外的模糊推断；多个素材命中时取第一个匹配项。"},{"id":"A10","source":"brief.md","text":"中文与英文本地化键集完全一致，新增键两侧同时存在，界面无硬编码文案。"},{"id":"A11","source":"brief.md","text":"单元测试覆盖标题匹配、未命中只给跟踪事件、预填内容生成。"},{"id":"A12","source":"brief.md","text":"本机用 tree-sitter 静态解析全部 `.swift` 无新增 `ERROR` 节点；CI 结果出来前，构建与测试相关结论记为 `not-run`，不记为通过。"}],"children":null,"specChanges":[{"capability":"ios-client","operation":"modify","source":"specs/ios-client/spec.md"}]}}}},"shape.prepare":{"acceptance":[{"id":"A1","source":"brief.md","text":"正文里的行内链接在纸色底上视觉可辨（有颜色区分或下划线），点击仍由系统浏览器打开其 `url`。"},{"id":"A2","source":"brief.md","text":"正文小标题显示下划线，且整段标题可点击。"},{"id":"A3","source":"brief.md","text":"点击小标题弹出动作弹层，最多出现「查看原文」与「跟踪事件」两个选项。"},{"id":"A4","source":"brief.md","text":"正文 link 片段引用的素材中存在标题包含该小标题文字的素材时，弹层显示「查看原文」；点击后打开该素材的 `url`。"},{"id":"A5","source":"brief.md","text":"没有匹配素材时，弹层不显示「查看原文」，只显示「跟踪事件」；不出现空白项或死入口。"},{"id":"A6","source":"brief.md","text":"点击「跟踪事件」进入频道创建页，创建页的名称已填为该小标题文字，提示词已填为跟踪该事件的预填模板。"},{"id":"A7","source":"brief.md","text":"预填的标题与提示词都可被用户直接修改，提交后按普通频道创建。"},{"id":"A8","source":"brief.md","text":"普通入口（频道页的 +）新建频道时，名称与提示词仍为空，不出现任何预填内容或事件模式痕迹。"},{"id":"A9","source":"brief.md","text":"匹配为文字包含关系，不做大小写以外的模糊推断；多个素材命中时取第一个匹配项。"},{"id":"A10","source":"brief.md","text":"中文与英文本地化键集完全一致，新增键两侧同时存在，界面无硬编码文案。"},{"id":"A11","source":"brief.md","text":"单元测试覆盖标题匹配、未命中只给跟踪事件、预填内容生成。"},{"id":"A12","source":"brief.md","text":"本机用 tree-sitter 静态解析全部 `.swift` 无新增 `ERROR` 节点；CI 结果出来前，构建与测试相关结论记为 `not-run`，不记为通过。"}],"children":null,"specChanges":[{"capability":"ios-client","operation":"modify","source":"specs/ios-client/spec.md"}]}}},"inputHash":"5cb9263133683385ba724cbf957d11a70dc714468776033918a8db6a136eebe6","protocolVersion":1,"reason":"Portable recovery requires reconciliation of external execution","receipts":[],"reconciliations":[],"ref":"native-builder","requiredCapabilities":[],"retry":"manual","runId":"brief-heading-track","status":"unknown","stepId":"build.builder","type":"handoff"}],"actionContexts":{"brief-heading-track:1":{"results":{},"sequence":1},"brief-heading-track:3":{"results":{"shape.confirm":{"sequence":2,"value":{"choice":"approved","proposal":{"input":{"artifactRootRef":"docs","name":"brief-heading-track","task":"详情页两件事：\n1) 正文链接当前几乎看不见：全局 tint 是近黑色，与正文同色。需要让链接可辨（下划线/强调色），点击仍用系统浏览器打开。\n2) 正文小标题显示下划线且可点击；点击弹出两个选项：「查看原文」与「跟踪事件」。\n   - 查看原文：按小标题文字在已加载的素材里匹配标题包含关系，命中则打开该素材原文；未命中不显示该选项。\n   - 跟踪事件：进入频道创建页，复用现有创建页并增加事件模式：标题取小标题文字，提示词预填跟踪该事件的模板，用户仍可修改。"},"outputs":{"shape.prepare":{"acceptance":[{"id":"A1","source":"brief.md","text":"正文里的行内链接在纸色底上视觉可辨（有颜色区分或下划线），点击仍由系统浏览器打开其 `url`。"},{"id":"A2","source":"brief.md","text":"正文小标题显示下划线，且整段标题可点击。"},{"id":"A3","source":"brief.md","text":"点击小标题弹出动作弹层，最多出现「查看原文」与「跟踪事件」两个选项。"},{"id":"A4","source":"brief.md","text":"正文 link 片段引用的素材中存在标题包含该小标题文字的素材时，弹层显示「查看原文」；点击后打开该素材的 `url`。"},{"id":"A5","source":"brief.md","text":"没有匹配素材时，弹层不显示「查看原文」，只显示「跟踪事件」；不出现空白项或死入口。"},{"id":"A6","source":"brief.md","text":"点击「跟踪事件」进入频道创建页，创建页的名称已填为该小标题文字，提示词已填为跟踪该事件的预填模板。"},{"id":"A7","source":"brief.md","text":"预填的标题与提示词都可被用户直接修改，提交后按普通频道创建。"},{"id":"A8","source":"brief.md","text":"普通入口（频道页的 +）新建频道时，名称与提示词仍为空，不出现任何预填内容或事件模式痕迹。"},{"id":"A9","source":"brief.md","text":"匹配为文字包含关系，不做大小写以外的模糊推断；多个素材命中时取第一个匹配项。"},{"id":"A10","source":"brief.md","text":"中文与英文本地化键集完全一致，新增键两侧同时存在，界面无硬编码文案。"},{"id":"A11","source":"brief.md","text":"单元测试覆盖标题匹配、未命中只给跟踪事件、预填内容生成。"},{"id":"A12","source":"brief.md","text":"本机用 tree-sitter 静态解析全部 `.swift` 无新增 `ERROR` 节点；CI 结果出来前，构建与测试相关结论记为 `not-run`，不记为通过。"}],"children":null,"specChanges":[{"capability":"ios-client","operation":"modify","source":"specs/ios-client/spec.md"}]}}}}},"shape.prepare":{"sequence":1,"value":{"acceptance":[{"id":"A1","source":"brief.md","text":"正文里的行内链接在纸色底上视觉可辨（有颜色区分或下划线），点击仍由系统浏览器打开其 `url`。"},{"id":"A2","source":"brief.md","text":"正文小标题显示下划线，且整段标题可点击。"},{"id":"A3","source":"brief.md","text":"点击小标题弹出动作弹层，最多出现「查看原文」与「跟踪事件」两个选项。"},{"id":"A4","source":"brief.md","text":"正文 link 片段引用的素材中存在标题包含该小标题文字的素材时，弹层显示「查看原文」；点击后打开该素材的 `url`。"},{"id":"A5","source":"brief.md","text":"没有匹配素材时，弹层不显示「查看原文」，只显示「跟踪事件」；不出现空白项或死入口。"},{"id":"A6","source":"brief.md","text":"点击「跟踪事件」进入频道创建页，创建页的名称已填为该小标题文字，提示词已填为跟踪该事件的预填模板。"},{"id":"A7","source":"brief.md","text":"预填的标题与提示词都可被用户直接修改，提交后按普通频道创建。"},{"id":"A8","source":"brief.md","text":"普通入口（频道页的 +）新建频道时，名称与提示词仍为空，不出现任何预填内容或事件模式痕迹。"},{"id":"A9","source":"brief.md","text":"匹配为文字包含关系，不做大小写以外的模糊推断；多个素材命中时取第一个匹配项。"},{"id":"A10","source":"brief.md","text":"中文与英文本地化键集完全一致，新增键两侧同时存在，界面无硬编码文案。"},{"id":"A11","source":"brief.md","text":"单元测试覆盖标题匹配、未命中只给跟踪事件、预填内容生成。"},{"id":"A12","source":"brief.md","text":"本机用 tree-sitter 静态解析全部 `.swift` 无新增 `ERROR` 节点；CI 结果出来前，构建与测试相关结论记为 `not-run`，不记为通过。"}],"children":null,"specChanges":[{"capability":"ios-client","operation":"modify","source":"specs/ios-client/spec.md"}]}}},"sequence":3}},"waits":[{"id":"brief-heading-track:2","stepId":"shape.confirm","sequence":2,"status":"resolved","proposal":{"input":{"artifactRootRef":"docs","name":"brief-heading-track","task":"详情页两件事：\n1) 正文链接当前几乎看不见：全局 tint 是近黑色，与正文同色。需要让链接可辨（下划线/强调色），点击仍用系统浏览器打开。\n2) 正文小标题显示下划线且可点击；点击弹出两个选项：「查看原文」与「跟踪事件」。\n   - 查看原文：按小标题文字在已加载的素材里匹配标题包含关系，命中则打开该素材原文；未命中不显示该选项。\n   - 跟踪事件：进入频道创建页，复用现有创建页并增加事件模式：标题取小标题文字，提示词预填跟踪该事件的模板，用户仍可修改。"},"outputs":{"shape.prepare":{"acceptance":[{"id":"A1","source":"brief.md","text":"正文里的行内链接在纸色底上视觉可辨（有颜色区分或下划线），点击仍由系统浏览器打开其 `url`。"},{"id":"A2","source":"brief.md","text":"正文小标题显示下划线，且整段标题可点击。"},{"id":"A3","source":"brief.md","text":"点击小标题弹出动作弹层，最多出现「查看原文」与「跟踪事件」两个选项。"},{"id":"A4","source":"brief.md","text":"正文 link 片段引用的素材中存在标题包含该小标题文字的素材时，弹层显示「查看原文」；点击后打开该素材的 `url`。"},{"id":"A5","source":"brief.md","text":"没有匹配素材时，弹层不显示「查看原文」，只显示「跟踪事件」；不出现空白项或死入口。"},{"id":"A6","source":"brief.md","text":"点击「跟踪事件」进入频道创建页，创建页的名称已填为该小标题文字，提示词已填为跟踪该事件的预填模板。"},{"id":"A7","source":"brief.md","text":"预填的标题与提示词都可被用户直接修改，提交后按普通频道创建。"},{"id":"A8","source":"brief.md","text":"普通入口（频道页的 +）新建频道时，名称与提示词仍为空，不出现任何预填内容或事件模式痕迹。"},{"id":"A9","source":"brief.md","text":"匹配为文字包含关系，不做大小写以外的模糊推断；多个素材命中时取第一个匹配项。"},{"id":"A10","source":"brief.md","text":"中文与英文本地化键集完全一致，新增键两侧同时存在，界面无硬编码文案。"},{"id":"A11","source":"brief.md","text":"单元测试覆盖标题匹配、未命中只给跟踪事件、预填内容生成。"},{"id":"A12","source":"brief.md","text":"本机用 tree-sitter 静态解析全部 `.swift` 无新增 `ERROR` 节点；CI 结果出来前，构建与测试相关结论记为 `not-run`，不记为通过。"}],"children":null,"specChanges":[{"capability":"ios-client","operation":"modify","source":"specs/ios-client/spec.md"}]}}},"proposalHash":"34a51fc4fab8ef8acd81679403308494c6a598df93bf901bcd543f27de5d1bff","choices":["approved","rejected"],"results":{"shape.prepare":{"sequence":1,"value":{"acceptance":[{"id":"A1","source":"brief.md","text":"正文里的行内链接在纸色底上视觉可辨（有颜色区分或下划线），点击仍由系统浏览器打开其 `url`。"},{"id":"A2","source":"brief.md","text":"正文小标题显示下划线，且整段标题可点击。"},{"id":"A3","source":"brief.md","text":"点击小标题弹出动作弹层，最多出现「查看原文」与「跟踪事件」两个选项。"},{"id":"A4","source":"brief.md","text":"正文 link 片段引用的素材中存在标题包含该小标题文字的素材时，弹层显示「查看原文」；点击后打开该素材的 `url`。"},{"id":"A5","source":"brief.md","text":"没有匹配素材时，弹层不显示「查看原文」，只显示「跟踪事件」；不出现空白项或死入口。"},{"id":"A6","source":"brief.md","text":"点击「跟踪事件」进入频道创建页，创建页的名称已填为该小标题文字，提示词已填为跟踪该事件的预填模板。"},{"id":"A7","source":"brief.md","text":"预填的标题与提示词都可被用户直接修改，提交后按普通频道创建。"},{"id":"A8","source":"brief.md","text":"普通入口（频道页的 +）新建频道时，名称与提示词仍为空，不出现任何预填内容或事件模式痕迹。"},{"id":"A9","source":"brief.md","text":"匹配为文字包含关系，不做大小写以外的模糊推断；多个素材命中时取第一个匹配项。"},{"id":"A10","source":"brief.md","text":"中文与英文本地化键集完全一致，新增键两侧同时存在，界面无硬编码文案。"},{"id":"A11","source":"brief.md","text":"单元测试覆盖标题匹配、未命中只给跟踪事件、预填内容生成。"},{"id":"A12","source":"brief.md","text":"本机用 tree-sitter 静态解析全部 `.swift` 无新增 `ERROR` 节点；CI 结果出来前，构建与测试相关结论记为 `not-run`，不记为通过。"}],"children":null,"specChanges":[{"capability":"ios-client","operation":"modify","source":"specs/ios-client/spec.md"}]}}},"decision":{"id":"4c472cd413da6b983f1e273cbcc714d6eea4ed77c00beb9a4969d88d9894125f","choice":"approved","proposalHash":"34a51fc4fab8ef8acd81679403308494c6a598df93bf901bcd543f27de5d1bff"}}],"ready":[],"joins":{},"outputs":{"shape.confirm":{"sequence":2,"value":{"choice":"approved","proposal":{"input":{"artifactRootRef":"docs","name":"brief-heading-track","task":"详情页两件事：\n1) 正文链接当前几乎看不见：全局 tint 是近黑色，与正文同色。需要让链接可辨（下划线/强调色），点击仍用系统浏览器打开。\n2) 正文小标题显示下划线且可点击；点击弹出两个选项：「查看原文」与「跟踪事件」。\n   - 查看原文：按小标题文字在已加载的素材里匹配标题包含关系，命中则打开该素材原文；未命中不显示该选项。\n   - 跟踪事件：进入频道创建页，复用现有创建页并增加事件模式：标题取小标题文字，提示词预填跟踪该事件的模板，用户仍可修改。"},"outputs":{"shape.prepare":{"acceptance":[{"id":"A1","source":"brief.md","text":"正文里的行内链接在纸色底上视觉可辨（有颜色区分或下划线），点击仍由系统浏览器打开其 `url`。"},{"id":"A2","source":"brief.md","text":"正文小标题显示下划线，且整段标题可点击。"},{"id":"A3","source":"brief.md","text":"点击小标题弹出动作弹层，最多出现「查看原文」与「跟踪事件」两个选项。"},{"id":"A4","source":"brief.md","text":"正文 link 片段引用的素材中存在标题包含该小标题文字的素材时，弹层显示「查看原文」；点击后打开该素材的 `url`。"},{"id":"A5","source":"brief.md","text":"没有匹配素材时，弹层不显示「查看原文」，只显示「跟踪事件」；不出现空白项或死入口。"},{"id":"A6","source":"brief.md","text":"点击「跟踪事件」进入频道创建页，创建页的名称已填为该小标题文字，提示词已填为跟踪该事件的预填模板。"},{"id":"A7","source":"brief.md","text":"预填的标题与提示词都可被用户直接修改，提交后按普通频道创建。"},{"id":"A8","source":"brief.md","text":"普通入口（频道页的 +）新建频道时，名称与提示词仍为空，不出现任何预填内容或事件模式痕迹。"},{"id":"A9","source":"brief.md","text":"匹配为文字包含关系，不做大小写以外的模糊推断；多个素材命中时取第一个匹配项。"},{"id":"A10","source":"brief.md","text":"中文与英文本地化键集完全一致，新增键两侧同时存在，界面无硬编码文案。"},{"id":"A11","source":"brief.md","text":"单元测试覆盖标题匹配、未命中只给跟踪事件、预填内容生成。"},{"id":"A12","source":"brief.md","text":"本机用 tree-sitter 静态解析全部 `.swift` 无新增 `ERROR` 节点；CI 结果出来前，构建与测试相关结论记为 `not-run`，不记为通过。"}],"children":null,"specChanges":[{"capability":"ios-client","operation":"modify","source":"specs/ios-client/spec.md"}]}}}}},"shape.prepare":{"sequence":1,"value":{"acceptance":[{"id":"A1","source":"brief.md","text":"正文里的行内链接在纸色底上视觉可辨（有颜色区分或下划线），点击仍由系统浏览器打开其 `url`。"},{"id":"A2","source":"brief.md","text":"正文小标题显示下划线，且整段标题可点击。"},{"id":"A3","source":"brief.md","text":"点击小标题弹出动作弹层，最多出现「查看原文」与「跟踪事件」两个选项。"},{"id":"A4","source":"brief.md","text":"正文 link 片段引用的素材中存在标题包含该小标题文字的素材时，弹层显示「查看原文」；点击后打开该素材的 `url`。"},{"id":"A5","source":"brief.md","text":"没有匹配素材时，弹层不显示「查看原文」，只显示「跟踪事件」；不出现空白项或死入口。"},{"id":"A6","source":"brief.md","text":"点击「跟踪事件」进入频道创建页，创建页的名称已填为该小标题文字，提示词已填为跟踪该事件的预填模板。"},{"id":"A7","source":"brief.md","text":"预填的标题与提示词都可被用户直接修改，提交后按普通频道创建。"},{"id":"A8","source":"brief.md","text":"普通入口（频道页的 +）新建频道时，名称与提示词仍为空，不出现任何预填内容或事件模式痕迹。"},{"id":"A9","source":"brief.md","text":"匹配为文字包含关系，不做大小写以外的模糊推断；多个素材命中时取第一个匹配项。"},{"id":"A10","source":"brief.md","text":"中文与英文本地化键集完全一致，新增键两侧同时存在，界面无硬编码文案。"},{"id":"A11","source":"brief.md","text":"单元测试覆盖标题匹配、未命中只给跟踪事件、预填内容生成。"},{"id":"A12","source":"brief.md","text":"本机用 tree-sitter 静态解析全部 `.swift` 无新增 `ERROR` 节点；CI 结果出来前，构建与测试相关结论记为 `not-run`，不记为通过。"}],"children":null,"specChanges":[{"capability":"ios-client","operation":"modify","source":"specs/ios-client/spec.md"}]}}},"children":[],"lineage":[]},"sourceRevision":4,"sourceHash":"def8438d54708870674c77d623eb00ad43339c1882ab25a014ba499730ac825b"}

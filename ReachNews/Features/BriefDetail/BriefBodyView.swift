@@ -10,6 +10,8 @@ struct BriefBodyView: View {
     /// 输入正文。命名避开 `body`，否则会与 `View.body` 冲突。
     let content: BriefBody?
     var onOpenURL: (URL) -> Void
+    /// 点了正文小标题时的回调；为 nil 时标题只显示下划线，不可点。
+    var onTapHeading: ((String) -> Void)?
 
     @Environment(\.appLocale) private var locale
 
@@ -23,8 +25,12 @@ struct BriefBodyView: View {
         if isReadable, let content {
             // 正文是 Markdown：交给原生 CommonMark 解析器渲染，
             // 覆盖标题、列表、粗体、行内代码、引用块、代码块与链接。
-            MarkdownBodyView(markdown: content.markdown, onOpenURL: onOpenURL)
-                .accessibilityIdentifier("brief-body")
+            MarkdownBodyView(
+                markdown: content.markdown,
+                onOpenURL: onOpenURL,
+                onTapHeading: onTapHeading
+            )
+            .accessibilityIdentifier("brief-body")
         } else {
             Text(L10n.string("brief.body.empty", locale: locale))
                 .font(TypeFace.body(14))

@@ -198,3 +198,6 @@
 "brief.body.empty" = "No readable body for this issue";
 
 "brief.detail.title" = "Brief";
+"brief.heading.openSource" = "View source";
+"brief.heading.track" = "Track event";
+"brief.heading.track.prompt" = "Keep tracking developments on \"%@\": prefer primary sources, record key dates, parties involved and what changed, without commentary or predictions.";

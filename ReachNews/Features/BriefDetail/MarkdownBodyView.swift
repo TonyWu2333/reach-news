@@ -19,18 +19,43 @@ import Foundation
 struct MarkdownBodyView: View {
     let markdown: String
     var onOpenURL: (URL) -> Void
+    /// 点了某段小标题时的回调；为 nil 时标题保持不可点。
+    var onTapHeading: ((String) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.l) {
-            ForEach(Array(MarkdownBlockBuilder.parse(markdown).enumerated()), id: \.offset) { _, block in
-                block
+            let blocks = MarkdownBlockBuilder.parse(markdown)
+            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+                blockView(block, onTapHeading: onTapHeading)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        // 全局 tint 是近黑的 Palette.ink，链接会与正文同色而看不见；
+        // 这里把链接单独换成可辨的强调色。
+        .tint(Palette.link)
         .environment(\.openURL, OpenURLAction { url in
             onOpenURL(url)
             return .handled
         })
+    }
+
+    /// 标题块单独包一层按钮，其余块原样返回。
+    /// 标题的文字内容在切块时已作为纯文本保留，这里直接取来传给回调，
+    /// 不再从 AttributedString 里做反解析。
+    @ViewBuilder
+    private func blockView(_ block: MarkdownBlockBuilder.LaidOutBlock, onTapHeading: ((String) -> Void)?) -> some View {
+        if case .heading = block.kind, let onTapHeading, !block.plainText.isEmpty {
+            Button {
+                onTapHeading(block.plainText)
+            } label: {
+                block.view
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("brief-heading")
+        } else {
+            block.view
+        }
     }
 }
 
@@ -51,10 +76,32 @@ enum MarkdownBlockBuilder {
     struct Block {
         let kind: Kind
         let text: AttributedString
+
+        /// 纯文本形态，供小标题点击时把标题文字交给业务层。
+        var plainText: String {
+            String(text.characters).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
     }
 
-    static func parse(_ markdown: String) -> [AnyView] {
-        split(attributed(from: markdown)).map(view(for:))
+    /// 切块 + 映射成视图后的结果。
+    /// 视图负责长相，`kind` 与 `plainText` 留给调用方判断交互，
+    /// 这样渲染层不需要知道「点了标题要做什么」。
+    struct LaidOutBlock: Identifiable {
+        let id: Int
+        let kind: Kind
+        let plainText: String
+        let view: AnyView
+    }
+
+    static func parse(_ markdown: String) -> [LaidOutBlock] {
+        split(attributed(from: markdown)).enumerated().map { index, block in
+            LaidOutBlock(
+                id: index,
+                kind: block.kind,
+                plainText: block.plainText,
+                view: view(for: block)
+            )
+        }
     }
 
     /// Foundation 的 CommonMark 解析。失败时退回纯文本，保证正文不丢。
@@ -163,6 +210,8 @@ enum MarkdownBlockBuilder {
                 Text(block.text)
                     .font(TypeFace.heading(size))
                     .foregroundStyle(Palette.ink)
+                    // 小标题加下划线：它现在是可点的入口，需要看起来像可以点。
+                    .underline()
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, Space.xs)
