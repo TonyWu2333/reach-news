@@ -21,25 +21,10 @@ struct BriefBodyView: View {
 
     var body: some View {
         if isReadable, let content {
-            VStack(alignment: .leading, spacing: Space.l) {
-                ForEach(Array(content.paragraphs.enumerated()), id: \.offset) { _, paragraph in
-                    // 用 AttributedString 承载链接：Text 的字符串拼接无法绑定点击，
-                    // 富文本的 link 属性才会真正把片段变成可点链接。
-                    Text(paragraph.attributed)
-                        .font(TypeFace.body(16))
-                        .lineSpacing(7)
-                        .foregroundStyle(Palette.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .textSelection(.enabled)
-                        .environment(\.openURL, OpenURLAction { url in
-                            onOpenURL(url)
-                            return .handled
-                        })
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityIdentifier("brief-body")
+            // 正文是 Markdown：交给 swift-markdown 解析后渲染，
+            // 覆盖标题、列表、粗体、行内代码、引用块、代码块与链接。
+            MarkdownBodyView(markdown: content.markdown, onOpenURL: onOpenURL)
+                .accessibilityIdentifier("brief-body")
         } else {
             Text(L10n.string("brief.body.empty", locale: locale))
                 .font(TypeFace.body(14))
@@ -51,23 +36,28 @@ struct BriefBodyView: View {
     }
 }
 
-// MARK: - 段落富文本
+// MARK: - 正文汇编
 //
-// 文字片段原样保留；链接片段带 URL 属性，因此可点。
-// 未知或降级片段在 DTO 层已经变成纯文字，这里只处理两种已归一化的片段。
+// 把结构化片段拼回 Markdown 源码交给渲染器：
+// - text 片段原样保留（它本身就是 Markdown）；
+// - link 片段写成 [文字](url)，保证服务端校验过的链接仍然可点。
 
-extension BriefParagraph {
-    var attributed: AttributedString {
-        var result = AttributedString()
-        for segment in segments {
-            var piece = AttributedString(segment.displayText)
-            if let url = segment.linkURL {
-                piece.link = url
-                piece.underlineStyle = .single
-                piece.foregroundColor = Palette.runningForeground
-            }
-            result += piece
+extension BriefBody {
+    var markdown: String {
+        paragraphs.map { paragraph in
+            paragraph.segments.map { segment -> String in
+                switch segment {
+                case .text(let text):
+                    return text
+                case .link(let text, let url, _):
+                    // 文字里若含 Markdown 特殊字符，用方括号包裹会被误解析，这里按最简转义处理。
+                    let label = text.replacingOccurrences(of: "]", with: "\\]")
+                    return "[\(label)](\(url.absoluteString))"
+                }
+            }.joined()
         }
-        return result
+        // 每段是独立的 Markdown 块（可能自带 ## 小标题与列表），
+        // 用空行分隔才能让 CommonMark 正确断块，不会把相邻段落粘成一段。
+        .joined(separator: "\n\n")
     }
 }
