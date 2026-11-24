@@ -77,7 +77,7 @@ DTO 层一次完成，UI 与 Store 只见归一化后的类型：
 - 头部：标题与 `M月d日 HH:mm`；**不显示分组数与素材数**（它们来自 `sections`，在读者端已不可见）。`summary` 非空时展示在标题下方、正文之前，为空时整块不渲染。
 - **正文优先**：`body` 非空时渲染段落与行内链接。段落之间按正文间距排版，行高与行宽按长文阅读设置；不渲染成列表，不使用等宽字体。
 - 正文 `segments[].text` 是 Markdown，按 CommonMark 渲染：小标题、列表、粗体、行内代码、引用块、代码块与链接都要正确呈现，界面上不出现字面的 `##`、`-`、`**`、``` 等标记。
-- 用成熟 CommonMark 实现（Apple 的 `swift-markdown`）解析，不自研正则、不只处理部分语法；渲染范围严格限定 `body`。
+- 用成熟 CommonMark 实现解析，不自研正则、不只处理部分语法；渲染范围严格限定 `body`。当前用 Foundation 自带的 `AttributedString(markdown:options:)`（`interpretedSyntax: .full`），不引入第三方依赖；块级样式（标题字号、列表标记、代码块底纹、引用竖线）由视图按 `presentationIntent` 施加。
 - 渲染器覆盖：块级（标题 h1–h6、段落、无序/有序列表、引用块、围栏与缩进代码块、分隔线）与行内（粗体、斜体、行内代码、链接、删除线）。
 - 代码块等宽显示并保留换行与缩进；不使用语法高亮。
 - `title`、`summary`、`sections[].items[].title` 与 `.summary` 一律纯文本：即使含 Markdown 标记也原样显示，不解析。
