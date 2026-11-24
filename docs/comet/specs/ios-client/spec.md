@@ -296,7 +296,6 @@ DTO 层一次完成，UI 与 Store 只见归一化后的类型：
 - 单元测试覆盖：DTO 解码（含 `/cursor` snake_case 与整数 `enabled`、频道五个订阅字段、空字符串 `subscriptionColor`）、时间解析与时区展示、`missedReason`/`error.code` 的未知值保留、四个订阅错误码归一化、分页参数构造拒绝负值与越界、`lastSeenAt` 取最大 `created_at`、筛选与去重逻辑、频道可写性三判定（`canEdit`/`canSubscribe`/`canUnsubscribe`）、订阅与取消订阅与改色与 fork 的请求方法与路径、频道编辑只提交改动字段、`409 busy` 不丢输入。
 - 本轮的正文与摘要另需覆盖：`body` 的三种状态（有正文 / `null` / 字段缺失）、`paragraphs` 为空数组、`link` 缺 `url` 时降级为纯文字、未知 segment `type` 按纯文字处理、`summary` 为 `null` 与空字符串、以及「无论是否有正文都不渲染 `sections`」。
 - Markdown 渲染另需覆盖：`## 小标题`、无序列表、有序列表、`**粗体**`、`*斜体*`、行内代码、引用块、围栏代码块与链接，各自解析为对应视图而非字面标记；覆盖一期里同时出现多种语法；并确认 `title` / `summary` / `sections` 中的同种标记不被解析。
-- Markdown 渲染另需覆盖：`## 小标题`、无序列表、有序列表、`**粗体**`、`*斜体*`、行内代码、引用块、围栏代码块、链接，各自解析为对应视图而非字面标记；同时覆盖正文里同时出现多种语法的一期；并确认 `title` / `summary` / `sections` 中的同种标记不被解析。
 - 样本取自 `Fixtures/*.json`，必须覆盖：`lastBriefAt: null`、`connectorIds: []`、`owner: "subscriber"` 的订阅项、`subscriptionColor: ""`、`published: false` 的自建频道、`missed` + `no-material`、`failed`、多分组、条目引用多条素材；另需覆盖带 `body` 的日报、`body: null` 的日报、`summary: null` 的日报。
 - UI 测试以可访问性标识驱动，覆盖日报流的搜索与筛选、频道卡开关、订阅卡无编辑入口、订阅按钮把项从「发现更多」移入「订阅的频道」、编辑页 `409` 提示；UI 测试不打真实网络，使用可注入的固定响应。
 - 构建与测试证据来自 GitHub Actions 的 iOS 任务；Android 任务只需 `assembleDebug` 继续通过。
