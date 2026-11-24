@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI
 
 // MARK: - 小标题与素材的匹配
 //
@@ -33,8 +34,12 @@ enum HeadingSourceMatcher {
     }
 
     /// 在候选素材里取第一个命中项；没有命中返回 nil。
+    /// 还没取回标题的候选（离线或请求失败）直接跳过，不能当作命中。
     static func firstMatch(heading: String, candidates: [BriefHeadingCandidate]) -> BriefHeadingCandidate? {
-        candidates.first { matches(heading: $0.title, materialTitle: $0.materialTitle) }
+        candidates.first { candidate in
+            guard let title = candidate.materialTitle else { return false }
+            return matches(heading: heading, materialTitle: title)
+        }
     }
 }
 
