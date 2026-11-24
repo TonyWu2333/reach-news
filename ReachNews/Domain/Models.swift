@@ -150,6 +150,9 @@ struct AuthSession: Equatable {
 }
 
 // MARK: - 频道
+//
+// owner 决定可写性：订阅者只读，只有创建者能编辑、触发运行、删除。
+// 订阅是「用户 × 频道」的关系，不产生独立频道条目。
 
 struct Channel: Identifiable, Equatable, Hashable {
     let id: String
@@ -163,6 +166,12 @@ struct Channel: Identifiable, Equatable, Hashable {
     var connectors: [ChannelConnector]
     var lastBriefAt: Date?
     var kind: ChannelKind
+    var published: Bool = false
+    var owner: ChannelOwner = .creator
+    var subscribed: Bool = false
+    /// 订阅者自选颜色；未订阅为 nil，订阅时未给颜色则可能是空字符串。
+    var subscriptionColor: String? = nil
+    var subscriptionID: String? = nil
     var createdAt: Date
     var updatedAt: Date
 
@@ -171,9 +180,32 @@ struct Channel: Identifiable, Equatable, Hashable {
         connectorIDs.isEmpty
     }
 
-    /// 需要提示「运行将不会产出日报」的情形。
+    /// 需要提示「运行将不会产出日报」的情形。订阅频道不提示：连接器由创建者决定。
     var warnsAboutMissingConnectors: Bool {
-        enabled && hasNoConnectors
+        enabled && hasNoConnectors && owner.isCreator
+    }
+
+    // MARK: 可写性判定（唯一正确写法）
+    //
+    // 一律看 owner，不看 kind：kind 只区分「用户频道」与「跟踪」。
+
+    /// 能 PATCH / 触发运行 / 删除。
+    var canEdit: Bool { owner.isCreator }
+
+    /// 能订阅：已公开、不是自己创建的、当前未订阅。
+    var canSubscribe: Bool { published && !owner.isCreator && !subscribed }
+
+    /// 能取消订阅。
+    var canUnsubscribe: Bool { subscribed }
+
+    /// 当前用户是否为该频道的订阅者（只读）。
+    var isSubscription: Bool { owner == .subscriber && subscribed }
+
+    /// 订阅色的有效值：空字符串与 nil 都按「未设置」处理。
+    var effectiveSubscriptionColor: String? {
+        guard let color = subscriptionColor?.trimmingCharacters(in: .whitespaces),
+              !color.isEmpty else { return nil }
+        return color
     }
 }
 
@@ -199,12 +231,30 @@ struct Brief: Identifiable, Equatable, Hashable {
     let id: String
     let channelID: String
     let title: String
+    /// 这一期给读者的描述，可为 nil（模型未产出时是正常状态）。
+    var summary: String?
+    /// 精写正文；为 nil 时读者端显示「本期无可读正文」。
+    var body: BriefBody?
     let sections: [BriefSection]
+    /// 运行记忆，供 Ask 与后续运行使用。**不在任何界面展示**：措辞不是写给读者的。
     let memorySummary: String
     let createdAt: Date
     /// 全量日报端点自带频道信息，避免为了渲染名称再回查频道。
     var channelName: String?
     var channelKind: ChannelKind?
+
+    /// 有可读正文（body 非空且不是空白段落）。
+    var hasReadableBody: Bool {
+        guard let body else { return false }
+        return !body.isEmpty
+    }
+
+    /// 列表与详情展示用的描述；空字符串与 nil 一视同仁。
+    var displaySummary: String? {
+        guard let summary = summary?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !summary.isEmpty else { return nil }
+        return summary
+    }
 
     var entryCount: Int {
         sections.reduce(0) { $0 + $1.entries.count }
@@ -276,19 +326,6 @@ struct ChannelConnector: Identifiable, Equatable, Hashable {
 
     var displayName: String { name ?? id }
     var isUnavailable: Bool { removed || name == nil }
-}
-
-// MARK: - 预设模板
-//
-// 预设在服务端只作模板、不参与调度；客户端用它来新建频道。
-
-struct ChannelPreset: Identifiable, Equatable, Hashable {
-    let id: String
-    let name: String
-    let prompt: String
-    let tone: String
-    let schedule: Schedule
-    let connectorIDs: [String]
 }
 
 // MARK: - 运行

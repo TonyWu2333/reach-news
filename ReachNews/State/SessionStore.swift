@@ -214,6 +214,10 @@ extension APIError {
         case .server: return "error.server"
         case .decodingFailed: return "error.decoding"
         case .invalidConfiguration: return "error.configuration"
+        case .removed: return "error.presetsRemoved"
+        case .notPublished: return "error.notPublished"
+        case .ownChannel: return "error.ownChannel"
+        case .subscriberReadOnly: return "error.subscriberReadOnly"
         }
     }
 
@@ -221,7 +225,8 @@ extension APIError {
     var detailText: String? {
         switch self {
         case .invalidConnector(let message), .invalidInput(let message), .busy(let message),
-             .badRequest(let message), .server(let message):
+             .badRequest(let message), .server(let message), .removed(let message),
+             .notPublished(let message), .ownChannel(let message), .subscriberReadOnly(let message):
             return message.isEmpty ? nil : message
         case .transport(let message):
             return message.isEmpty ? nil : message

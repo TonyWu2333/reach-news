@@ -67,8 +67,29 @@ enum Palette {
 // MARK: - 频道标识色
 //
 // 由 channelId 稳定映射，保证同一频道在列表、详情、编辑页取到同一色。
+// 订阅色复用同一块色板：服务端只存 ≤32 字符的字符串，因此用色值本身承载索引。
 
 enum ChannelTint {
+    /// 调色板的色值字符串，顺序与 `Palette.channelTints` 一一对应。
+    /// 订阅时提交它，读取时比对它；服务端不维护枚举，客户端的色板就是唯一的解释。
+    static let paletteHexValues: [String] = [
+        "#2F6F9E", "#2E7D5B", "#B05A2A", "#8C3B63", "#6A4FA0", "#B08615",
+        "#1F7A76", "#9C2F2F", "#4A5D23", "#2E4E8F", "#7A5C3E", "#4A4A55"
+    ]
+
+    /// 把色板索引转成提交给服务端的订阅色值。
+    static func paletteColorValue(at index: Int) -> String {
+        paletteHexValues[max(0, min(index, paletteHexValues.count - 1))]
+    }
+
+    /// 把服务端返回的订阅色解析回色板索引；空字符串、非法值与色板外的值都返回 nil。
+    static func paletteIndex(for color: String?) -> Int? {
+        guard let color = color?.trimmingCharacters(in: .whitespaces), !color.isEmpty else {
+            return nil
+        }
+        return paletteHexValues.firstIndex { $0.caseInsensitiveCompare(color) == .orderedSame }
+    }
+
     /// 本地未设置时按 id 稳定取一个颜色（保证同一频道始终同色）。
     static func fallbackIndex(for channelID: String) -> Int {
         var accumulator: UInt32 = 0

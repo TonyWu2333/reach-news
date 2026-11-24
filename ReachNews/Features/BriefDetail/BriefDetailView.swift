@@ -20,27 +20,13 @@ struct BriefDetailView: View {
             VStack(alignment: .leading, spacing: 0) {
                 header
 
-                ForEach(store.brief.sections) { section in
-                    SectionStickyHeader(
-                        title: section.title,
-                        count: section.entries.count,
-                        locale: locale
-                    )
-                    .zIndex(1)
-
-                    VStack(spacing: Space.m) {
-                        ForEach(section.entries) { entry in
-                            EntryCard(
-                                entry: entry,
-                                store: store,
-                                onOpenMaterial: { url in openURL(url) }
-                            )
-                        }
-                    }
-                    .padding(.horizontal, Space.xl)
-                    .padding(.top, Space.m)
-                    .padding(.bottom, Space.s)
-                }
+                // 读者端只呈现正文：分组与条目不再进入这个界面。
+                BriefBodyView(
+                    content: store.brief.body,
+                    onOpenURL: { url in openURL(url) }
+                )
+                .padding(.horizontal, Space.xl)
+                .padding(.top, Space.m)
             }
             .padding(.bottom, 120)
             .background(
@@ -59,15 +45,9 @@ struct BriefDetailView: View {
         .background(Palette.canvas)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            // 顶部栏只给「日报」：标题已在正文区大字号呈现，重复显示没有意义。
             ToolbarItem(placement: .principal) {
-                HStack(spacing: Space.s) {
-                    ChannelDot(
-                        channelID: brief.channelID,
-                        diameter: 7,
-                        colorIndex: env.channelColors.colorIndex(for: brief.channelID)
-                    )
-                    NavTitle(text: store.brief.title)
-                }
+                NavTitle(text: L10n.string("brief.detail.title", locale: locale))
             }
         }
         .overlay(alignment: .bottomTrailing) {
@@ -94,13 +74,17 @@ struct BriefDetailView: View {
                 .foregroundStyle(Palette.ink)
                 .fixedSize(horizontal: false, vertical: true)
 
-            HStack(spacing: Space.s) {
-                MetaLine(text: DisplayTime.monthDayTime(store.brief.createdAt, locale: locale))
-                DotSeparator()
-                MetaLine(text: L10n.format("brief.sectionCount", locale: locale, store.brief.sections.count))
-                DotSeparator()
-                MetaLine(text: L10n.format("brief.materialCount", locale: locale, store.brief.materialCount))
+            // 描述紧跟在标题下；为空时整块不渲染，不留空洞。
+            if let summary = store.brief.displaySummary {
+                Text(summary)
+                    .font(TypeFace.body(15))
+                    .foregroundStyle(Palette.inkSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("brief-summary")
             }
+
+            // 分组数与素材数来自 sections，读者端不再展示，只留日期时刻。
+            MetaLine(text: DisplayTime.monthDayTime(store.brief.createdAt, locale: locale))
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Space.xl)
@@ -285,12 +269,13 @@ struct AskPill: View {
                         .font(TypeFace.heading(13.5))
                 }
             }
-            .foregroundStyle(Palette.canvas)
+            // 深底上的浅色文字用语义 token，而不是借用画布色。
+            .foregroundStyle(Palette.askUserText)
             .padding(.horizontal, isExpanded ? 15 : 0)
             .padding(.vertical, isExpanded ? 11 : 0)
             .frame(width: isExpanded ? nil : 46, height: isExpanded ? nil : 46)
-            .background(.thinMaterial, in: Capsule())
-            .background(Palette.askUser.opacity(0.92), in: Capsule())
+            // 直接用近黑色实底：再叠一层 thinMaterial 是半透明浅色，会把深色冲淡成灰。
+            .background(Palette.askUser, in: Capsule())
             .shadow(color: Palette.ink.opacity(0.32), radius: 12, y: 4)
         }
         .buttonStyle(.plain)

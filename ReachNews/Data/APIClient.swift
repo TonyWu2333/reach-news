@@ -73,7 +73,7 @@ enum Endpoint {
     case health
     case login
     case logout
-    case channels(cursor: String?, limit: Int)
+    case channels(cursor: String?, limit: Int, discover: Bool)
     case createChannel
     case channel(id: String)
     case briefs(channelID: String, cursor: String?, limit: Int)
@@ -86,8 +86,8 @@ enum Endpoint {
     case cursor(since: Date?)
     case allBriefs(cursor: String?, limit: Int)
     case connectors
-    case presets
-    case instantiatePreset(id: String)
+    case subscribe(channelID: String)
+    case fork(channelID: String)
     case settings
 
     var path: String {
@@ -122,10 +122,10 @@ enum Endpoint {
             return "/api/v1/briefs"
         case .connectors:
             return "/api/v1/connectors"
-        case .presets:
-            return "/api/v1/presets"
-        case .instantiatePreset(let id):
-            return "/api/v1/presets/\(id)/instantiate"
+        case .subscribe(let channelID):
+            return "/api/v1/channels/\(channelID)/subscribe"
+        case .fork(let channelID):
+            return "/api/v1/channels/\(channelID)/fork"
         case .settings:
             return "/api/v1/settings"
         }
@@ -133,8 +133,12 @@ enum Endpoint {
 
     var queryItems: [URLQueryItem] {
         switch self {
-        case .channels(let cursor, let limit),
-             .askHistory(_, let cursor, let limit):
+        case .channels(let cursor, let limit, let discover):
+            var items = Pagination.queryItems(cursor: cursor, limit: limit)
+            // discover 只接受 1 或 true；其他值等同于普通列表，因此只在这里显式加。
+            if discover { items.append(URLQueryItem(name: "discover", value: "1")) }
+            return items
+        case .askHistory(_, let cursor, let limit):
             return Pagination.queryItems(cursor: cursor, limit: limit)
         case .briefs(_, let cursor, let limit),
              .runs(_, let cursor, let limit),
@@ -143,7 +147,7 @@ enum Endpoint {
         case .cursor(let since):
             return [URLQueryItem(name: "since", value: PollingBaseline.sinceString(since))]
         case .health, .login, .logout, .createChannel, .channel, .brief, .material, .run, .ask,
-             .connectors, .presets, .instantiatePreset, .settings:
+             .connectors, .subscribe, .fork, .settings:
             return []
         }
     }
@@ -205,8 +209,15 @@ final class APIClient {
         let _: LogoutResponseDTO = try await send(Endpoint.logout, method: "POST", body: nil)
     }
 
-    func channels(cursor: String? = nil, limit: Int = Pagination.defaultLimit) async throws -> Page<Channel> {
-        let envelope: PageEnvelope<ChannelDTO> = try await get(Endpoint.channels(cursor: cursor, limit: limit))
+    /// 频道列表：默认是「我创建的 + 我订阅的」；`discover` 为 true 时列全部已公开频道。
+    func channels(
+        cursor: String? = nil,
+        limit: Int = Pagination.defaultLimit,
+        discover: Bool = false
+    ) async throws -> Page<Channel> {
+        let envelope: PageEnvelope<ChannelDTO> = try await get(
+            Endpoint.channels(cursor: cursor, limit: limit, discover: discover)
+        )
         return Page(items: envelope.items.map { $0.toDomain() },
                     nextCursor: Pagination.sanitizedCursor(envelope.nextCursor))
     }
@@ -298,13 +309,40 @@ final class APIClient {
         return envelope.items.map { $0.toDomain() }
     }
 
-    func presets() async throws -> [ChannelPreset] {
-        let envelope: PageEnvelope<PresetDTO> = try await get(Endpoint.presets)
-        return envelope.items.map { $0.toDomain() }
+    // MARK: 订阅
+
+    /// 订阅一个已公开频道。重复订阅是幂等的：服务端 200 与 201 都返回同一条记录。
+    @discardableResult
+    func subscribe(channelID: String, color: String) async throws -> SubscriptionDTO {
+        let body = try JSONEncoder().encode(SubscribeBody(color: color))
+        return try await send(Endpoint.subscribe(channelID: channelID), method: "POST", body: body)
     }
 
-    func instantiatePreset(id: String) async throws -> Channel {
-        let dto: ChannelDTO = try await send(Endpoint.instantiatePreset(id: id), method: "POST", body: nil)
+    /// 只改订阅颜色；返回完整 channel DTO，便于直接刷新列表项。
+    @discardableResult
+    func updateSubscriptionColor(channelID: String, color: String) async throws -> Channel {
+        let body = try JSONEncoder().encode(SubscriptionColorBody(color: color))
+        let dto: ChannelDTO = try await send(
+            Endpoint.subscribe(channelID: channelID),
+            method: "PATCH",
+            body: body
+        )
+        return dto.toDomain()
+    }
+
+    /// 取消订阅。频道与已发布日报不会删除，只是立即对本人不可见。
+    func unsubscribe(channelID: String) async throws {
+        let _: UnsubscribeResponseDTO = try await send(
+            Endpoint.subscribe(channelID: channelID),
+            method: "DELETE",
+            body: nil
+        )
+    }
+
+    /// 复制成自己的私有频道；服务端同时取消原订阅。
+    func forkChannel(id: String, name: String? = nil) async throws -> Channel {
+        let body = try JSONEncoder().encode(ForkChannelBody(name: name))
+        let dto: ChannelDTO = try await send(Endpoint.fork(channelID: id), method: "POST", body: body)
         return dto.toDomain()
     }
 

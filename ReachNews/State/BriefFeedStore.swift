@@ -73,6 +73,16 @@ final class BriefFeedStore {
 
     func isNew(_ brief: Brief) -> Bool { newBriefIDs.contains(brief.id) }
 
+    /// 订阅关系变化后调用：取消订阅的频道会立即对所有读取路径不可见，
+    /// 因此本地缓存的该频道日报与它的筛选选中项也要一并清掉。
+    func forgetChannel(_ channelID: String) {
+        channelsByID.removeValue(forKey: channelID)
+        briefs.removeAll { $0.channelID == channelID }
+        // 「新」标记只对仍在列表里的日报有意义。
+        newBriefIDs.formIntersection(Set(briefs.map(\.id)))
+        filter.channelIDs.remove(channelID)
+    }
+
     // MARK: 加载
 
     func loadIfNeeded() async {
@@ -203,8 +213,9 @@ final class BriefFeedStore {
         } while cursor != nil && rounds < 20
 
         if !collected.isEmpty {
+            // 默认列表已是「我的 + 订阅的」，不再按 kind 过滤：订阅频道的日报按原 channelId 呈现。
             var map: [String: Channel] = [:]
-            for channel in collected where channel.kind.isUserVisible {
+            for channel in collected {
                 map[channel.id] = channel
             }
             channelsByID = map

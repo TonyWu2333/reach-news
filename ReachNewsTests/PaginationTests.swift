@@ -45,7 +45,7 @@ final class PaginationTests: XCTestCase {
 
     func testEndpointsBuildContractPaths() {
         XCTAssertEqual(Endpoint.health.path, "/health")
-        XCTAssertEqual(Endpoint.channels(cursor: nil, limit: 20).path, "/api/v1/channels")
+        XCTAssertEqual(Endpoint.channels(cursor: nil, limit: 20, discover: false).path, "/api/v1/channels")
         XCTAssertEqual(Endpoint.briefs(channelID: "chn_1", cursor: nil, limit: 20).path, "/api/v1/channels/chn_1/briefs")
         XCTAssertEqual(Endpoint.brief(id: "brf_1").path, "/api/v1/briefs/brf_1")
         XCTAssertEqual(
@@ -56,12 +56,12 @@ final class PaginationTests: XCTestCase {
         XCTAssertEqual(Endpoint.run(id: "run_1").path, "/api/v1/runs/run_1")
         XCTAssertEqual(Endpoint.askHistory(briefID: "brf_1", cursor: nil, limit: 20).path, "/api/v1/briefs/brf_1/ask")
         // 客户端不构造任何 /admin/api 路径。
-        XCTAssertFalse(Endpoint.channels(cursor: nil, limit: 20).path.contains("admin"))
+        XCTAssertFalse(Endpoint.channels(cursor: nil, limit: 20, discover: false).path.contains("admin"))
     }
 
     func testOnlyHealthSkipsAuthorization() {
         XCTAssertFalse(Endpoint.health.requiresAuthorization)
-        XCTAssertTrue(Endpoint.channels(cursor: nil, limit: 20).requiresAuthorization)
+        XCTAssertTrue(Endpoint.channels(cursor: nil, limit: 20, discover: false).requiresAuthorization)
         XCTAssertTrue(Endpoint.brief(id: "b").requiresAuthorization)
         XCTAssertTrue(Endpoint.cursor(since: nil).requiresAuthorization)
     }

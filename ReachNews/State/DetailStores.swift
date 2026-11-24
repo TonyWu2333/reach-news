@@ -271,6 +271,15 @@ final class ChannelColorStore {
         assignments[channelID] ?? ChannelTint.fallbackIndex(for: channelID)
     }
 
+    /// 频道的显示色：订阅色（服务端）优先，其次本地色板，最后按 id 稳定回退。
+    /// 订阅色是空字符串或不在色板内时按「未设置」处理，不显示空色点。
+    func displayIndex(for channel: Channel) -> Int {
+        if let index = ChannelTint.paletteIndex(for: channel.subscriptionColor) {
+            return index
+        }
+        return effectiveIndex(for: channel.id)
+    }
+
     func setColorIndex(_ index: Int, for channelID: String) {
         storage.setColorIndex(index, for: channelID)
         assignments = storage.assignments

@@ -69,6 +69,10 @@ struct ErrorEnvelope: Decodable {
         case .busy: return .busy(error.message)
         case .badRequest: return .badRequest(error.message)
         case .internalError: return .server(error.message)
+        case .presetsRemoved: return .removed(error.message)
+        case .notPublished: return .notPublished(error.message)
+        case .ownChannel: return .ownChannel(error.message)
+        case .subscriberReadOnly: return .subscriberReadOnly(error.message)
         case .unknown: return .server(error.message)
         }
     }
@@ -105,6 +109,12 @@ struct ChannelDTO: Decodable {
     let connectors: [ChannelConnectorDTO]?
     let lastBriefAt: String?
     let kind: String?
+    /// 订阅模型新增：只增不减，字段形状向后兼容。
+    let published: FlexibleBool?
+    let owner: String?
+    let subscribed: FlexibleBool?
+    let subscriptionColor: String?
+    let subscriptionId: String?
     let createdAt: String?
     let updatedAt: String?
 
@@ -120,10 +130,25 @@ struct ChannelDTO: Decodable {
             connectors: (connectors ?? []).map { $0.toDomain() },
             lastBriefAt: JSONDate.parse(lastBriefAt),
             kind: ChannelKind(apiValue: kind),
+            published: published?.value ?? false,
+            owner: ChannelOwner(apiValue: owner),
+            subscribed: subscribed?.value ?? false,
+            // 服务端未订阅时为 null，订阅时未给颜色为空字符串；两者都交给上层按「未设置」处理。
+            subscriptionColor: subscriptionColor,
+            subscriptionID: subscriptionId,
             createdAt: JSONDate.parse(createdAt) ?? .distantPast,
             updatedAt: JSONDate.parse(updatedAt) ?? .distantPast
         )
     }
+}
+
+/// 订阅成功响应：`{ id, channelId, color, createdAt, subscribed }`。
+struct SubscriptionDTO: Decodable {
+    let id: String
+    let channelId: String
+    let color: String?
+    let createdAt: String?
+    let subscribed: FlexibleBool?
 }
 
 // MARK: - 日报
@@ -148,10 +173,57 @@ struct BriefSectionDTO: Decodable {
     }
 }
 
+// MARK: - 日报正文
+
+/// 正文片段：`{ type, text, url?, itemId? }`。
+struct BriefSegmentDTO: Decodable {
+    let type: String?
+    let text: String?
+    let url: String?
+    let itemId: String?
+
+    /// 归一化：只有 type 为 link 且 url 合法时才建链接，其余一律按纯文字，保证内容不丢。
+    func toDomain() -> BriefSegment? {
+        let content = text ?? ""
+        guard !content.isEmpty else { return nil }
+        guard (type ?? "text") == "link",
+              let raw = url,
+              let parsed = URL(string: raw),
+              parsed.scheme != nil else {
+            return .text(content)
+        }
+        return .link(text: content, url: parsed, itemID: itemId)
+    }
+}
+
+struct BriefParagraphDTO: Decodable {
+    let segments: [BriefSegmentDTO]?
+
+    func toDomain() -> BriefParagraph? {
+        let parsed = (segments ?? []).compactMap { $0.toDomain() }
+        return parsed.isEmpty ? nil : BriefParagraph(segments: parsed)
+    }
+}
+
+/// 正文：`{ paragraphs: [{ segments: [...] }] }`。
+/// null、字段缺失、空数组都归一化为 nil，走同一条「无可读正文」路径。
+struct BriefBodyDTO: Decodable {
+    let paragraphs: [BriefParagraphDTO]?
+
+    func toDomain() -> BriefBody? {
+        let parsed = (paragraphs ?? []).compactMap { $0.toDomain() }
+        guard !parsed.isEmpty else { return nil }
+        let body = BriefBody(paragraphs: parsed)
+        return body.isEmpty ? nil : body
+    }
+}
+
 struct BriefDTO: Decodable {
     let id: String
     let channelId: String
     let title: String
+    let summary: String?
+    let body: BriefBodyDTO?
     let sections: [BriefSectionDTO]?
     let memorySummary: String?
     let createdAt: String
@@ -164,6 +236,8 @@ struct BriefDTO: Decodable {
             id: id,
             channelID: channelId,
             title: title,
+            summary: summary,
+            body: body?.toDomain(),
             sections: (sections ?? []).map { $0.toDomain() },
             memorySummary: memorySummary ?? "",
             createdAt: JSONDate.parse(createdAt) ?? .distantPast,
@@ -173,7 +247,7 @@ struct BriefDTO: Decodable {
     }
 }
 
-// MARK: - 连接器与预设
+// MARK: - 连接器
 
 struct ConnectorDTO: Decodable {
     let id: String
@@ -182,26 +256,6 @@ struct ConnectorDTO: Decodable {
 
     func toDomain() -> Connector {
         Connector(id: id, name: name, kind: kind ?? "")
-    }
-}
-
-struct PresetDTO: Decodable {
-    let id: String
-    let name: String
-    let prompt: String?
-    let tone: String?
-    let schedule: [String: [String]]?
-    let connectorIds: [String]?
-
-    func toDomain() -> ChannelPreset {
-        ChannelPreset(
-            id: id,
-            name: name,
-            prompt: prompt ?? "",
-            tone: tone ?? "",
-            schedule: Schedule(timesByWeekday: schedule ?? [:]),
-            connectorIDs: connectorIds ?? []
-        )
     }
 }
 
@@ -496,4 +550,35 @@ struct ChannelPatchBody: Encodable {
         try container.encodeIfPresent(enabled, forKey: .enabled)
         try container.encodeIfPresent(connectorIds, forKey: .connectorIds)
     }
+}
+
+// MARK: - 订阅请求体
+//
+// 订阅体只有 color 一个字段（≤32 字符）；fork 的 name 可选。
+
+struct SubscribeBody: Encodable {
+    let color: String
+}
+
+struct SubscriptionColorBody: Encodable {
+    let color: String
+}
+
+struct ForkChannelBody: Encodable {
+    let name: String?
+
+    private enum CodingKeys: String, CodingKey {
+        case name
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(name, forKey: .name)
+    }
+}
+
+/// 取消订阅响应：`{ channelId, subscribed: false }`。
+struct UnsubscribeResponseDTO: Decodable {
+    let channelId: String
+    let subscribed: FlexibleBool?
 }

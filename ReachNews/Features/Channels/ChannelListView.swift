@@ -2,6 +2,8 @@ import SwiftUI
 
 // MARK: - 频道列表
 //
+// 三段式单页：我的频道 → 订阅的频道 → 发现更多。
+// 可写性一律看 owner：订阅卡只读，「发现更多」只用「订阅」一个动作。
 // enabled 行上直接切换、失败回滚；运行状态只轮询可见行。
 
 struct ChannelListView: View {
@@ -9,8 +11,12 @@ struct ChannelListView: View {
     @Environment(\.appLocale) private var locale
     @State private var path = NavigationPath()
     @State private var showsCreateSheet = false
-    @State private var editingChannel: Channel?
-    @State private var showsPresetPicker = false
+
+    /// 同一个 NavigationStack 里有两种目的地，用枚举区分，避免同类型 item 互相覆盖。
+    enum Route: Hashable {
+        case edit(Channel)
+        case subscribed(Channel)
+    }
 
     var body: some View {
         NavigationStack(path: $path) {
@@ -22,18 +28,8 @@ struct ChannelListView: View {
                     NavTitle(text: L10n.string("tab.channels", locale: locale))
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    // 一个 + 号，菜单里区分「空白新建」与「从模板」。
-                    Menu {
-                        Button {
-                            showsCreateSheet = true
-                        } label: {
-                            Label(L10n.string("channel.create.blank", locale: locale), systemImage: "square.and.pencil")
-                        }
-                        Button {
-                            showsPresetPicker = true
-                        } label: {
-                            Label(L10n.string("channel.create.fromPreset", locale: locale), systemImage: "square.on.square")
-                        }
+                    Button {
+                        showsCreateSheet = true
                     } label: {
                         Image(systemName: "plus")
                             .font(.system(size: 18, weight: .regular))
@@ -44,14 +40,38 @@ struct ChannelListView: View {
                 }
             }
             // 必须挂在 NavigationStack 内部，否则点击无反应。
-            .navigationDestination(item: $editingChannel) { channel in
-                ChannelEditView(
-                    channel: channel,
-                    editor: env.makeChannelEditor(channel: channel),
-                    onSaved: { updated in
-                        env.channels.replace(updated)
-                    }
-                )
+            .navigationDestination(for: Route.self) { route in
+                switch route {
+                case .edit(let channel):
+                    ChannelEditView(
+                        channel: channel,
+                        editor: env.makeChannelEditor(channel: channel),
+                        onSaved: { updated in
+                            env.channels.replace(updated)
+                        }
+                    )
+                case .subscribed(let channel):
+                    SubscribedChannelDetail(
+                        channel: channel,
+                        onUpdated: { updated in
+                            // 详情页自己持有最新快照；这里只同步列表。
+                            env.channels.replace(updated)
+                        },
+                        onForked: { created in
+                            env.channels.replace(created)
+                            // fork 会取消原订阅：原频道的日报同样立即不可见。
+                            env.feed.forgetChannel(channel.id)
+                            // 先退出只读页，再进入新频道的编辑页，避免两页叠在一起。
+                            path = NavigationPath()
+                            path.append(Route.edit(created))
+                        },
+                        onUnsubscribed: {
+                            // 服务端立即对所有读取路径隐藏该频道，本地日报流同步清掉。
+                            env.feed.forgetChannel(channel.id)
+                            path = NavigationPath()
+                        }
+                    )
+                }
             }
             .navigationDestination(isPresented: $showsCreateSheet) {
                 ChannelCreateSheet(
@@ -69,15 +89,6 @@ struct ChannelListView: View {
         .onDisappear {
             env.channels.stopPolling()
         }
-        .sheet(isPresented: $showsPresetPicker) {
-            PresetPicker(store: env.channels, isPresented: $showsPresetPicker) { channel in
-                env.channels.replace(channel)
-                editingChannel = channel
-            }
-            .presentationDetents(SheetMetrics.detents)
-            .presentationDragIndicator(.visible)
-            .presentationBackground(Palette.canvas)
-        }
     }
 
     @ViewBuilder
@@ -85,11 +96,11 @@ struct ChannelListView: View {
         VStack(spacing: 0) {
             masthead(store)
 
-            if store.isLoading && store.channels.isEmpty {
+            if store.isLoading && store.myChannels.isEmpty && store.subscribedChannels.isEmpty {
                 Spacer()
                 LoadingLine(text: L10n.string("common.loading", locale: locale))
                 Spacer()
-            } else if let error = store.error, store.channels.isEmpty {
+            } else if let error = store.error, store.myChannels.isEmpty, store.subscribedChannels.isEmpty {
                 Spacer()
                 MessageStateView(
                     title: L10n.string(error.messageKey, locale: locale),
@@ -99,7 +110,7 @@ struct ChannelListView: View {
                     action: { Task { await store.load() } }
                 )
                 Spacer()
-            } else if store.isEmpty {
+            } else if store.isFullyEmpty {
                 Spacer()
                 MessageStateView(
                     title: L10n.string("channel.empty.title", locale: locale),
@@ -140,34 +151,47 @@ struct ChannelListView: View {
     private func list(_ store: ChannelStore) -> some View {
         ScrollView {
             LazyVStack(spacing: Space.m) {
-                ForEach(store.channels) { channel in
-                    Button {
-                        editingChannel = channel
-                    } label: {
-                        ChannelCard(
-                            channel: channel,
-                            run: store.latestRun(for: channel.id),
-                            isPending: store.pendingChannelIDs.contains(channel.id),
-                            colorIndex: env.channelColors.colorIndex(for: channel.id),
-                            onToggle: { enabled in
-                                Task { await store.setEnabled(enabled, for: channel.id) }
-                            }
-                        )
-                    }
-                    .buttonStyle(.plain)
-                    .onAppear {
-                        store.updateVisibleChannels(store.visibleChannelIDs.union([channel.id]))
-                        store.startPolling()
-                    }
-                    .onDisappear {
-                        var visible = store.visibleChannelIDs
-                        visible.remove(channel.id)
-                        store.updateVisibleChannels(visible)
-                        if visible.isEmpty {
-                            store.stopPolling()
+                if !store.myChannels.isEmpty {
+                    sectionHeader("channel.section.mine")
+                    ForEach(store.myChannels) { channel in
+                        Button {
+                            path.append(Route.edit(channel))
+                        } label: {
+                            ChannelCard(
+                                channel: channel,
+                                run: store.latestRun(for: channel.id),
+                                isPending: store.pendingChannelIDs.contains(channel.id),
+                                colorIndex: env.channelColors.displayIndex(for: channel),
+                                onToggle: { enabled in
+                                    Task { await store.setEnabled(enabled, for: channel.id) }
+                                }
+                            )
                         }
+                        .buttonStyle(.plain)
+                        .onAppear { track(channel, store: store) }
+                        .onDisappear { untrack(channel, store: store) }
                     }
                 }
+
+                if !store.subscribedChannels.isEmpty {
+                    sectionHeader("channel.section.subscribed")
+                    ForEach(store.subscribedChannels) { channel in
+                        Button {
+                            path.append(Route.subscribed(channel))
+                        } label: {
+                            SubscribedChannelCard(
+                                channel: channel,
+                                run: store.latestRun(for: channel.id),
+                                colorIndex: env.channelColors.displayIndex(for: channel)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                        .onAppear { track(channel, store: store) }
+                        .onDisappear { untrack(channel, store: store) }
+                    }
+                }
+
+                discoverSection(store)
             }
             .padding(.horizontal, Space.xl)
             .padding(.top, Space.l)
@@ -178,9 +202,124 @@ struct ChannelListView: View {
         }
         .accessibilityIdentifier("channel-list")
     }
+
+    // MARK: 发现更多
+
+    @ViewBuilder
+    private func discoverSection(_ store: ChannelStore) -> some View {
+        VStack(spacing: Space.m) {
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    store.isDiscoverExpanded.toggle()
+                }
+                if store.isDiscoverExpanded && store.discoverableChannels.isEmpty {
+                    Task { await store.loadDiscoverable() }
+                }
+            } label: {
+                HStack(spacing: Space.s) {
+                    Text(L10n.string("channel.section.discover", locale: locale))
+                        .font(TypeFace.label(11))
+                        .tracking(1)
+                        .foregroundStyle(Palette.inkTertiary)
+                    if !store.discoverableChannels.isEmpty {
+                        Text("\(store.discoverableChannels.count)")
+                            .font(TypeFace.condensed(10.5, weight: .semibold))
+                            .foregroundStyle(Palette.inkTertiary)
+                    }
+                    Rectangle()
+                        .fill(Palette.line)
+                        .frame(height: 1)
+                    Image(systemName: store.isDiscoverExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(Palette.inkTertiary)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("channel-discover-toggle")
+
+            // 失败原因不随折叠隐藏：否则用户只看到「发现更多」是空的。
+            if let error = store.discoverError {
+                VStack(alignment: .leading, spacing: Space.s) {
+                    InlineNotice(
+                        text: L10n.string(error.messageKey, locale: locale),
+                        detail: error.detailText,
+                        kind: .error
+                    )
+                    Button(L10n.string("common.retry", locale: locale)) {
+                        Task { await store.loadDiscoverable() }
+                    }
+                    .font(TypeFace.heading(13))
+                    .foregroundStyle(Palette.ink)
+                    .accessibilityIdentifier("channel-discover-retry")
+                }
+            }
+
+            if store.isDiscoverExpanded {
+                if store.discoverError != nil {
+                    EmptyView()
+                } else if store.discoverableChannels.isEmpty {
+                    Text(L10n.string("channel.discover.empty", locale: locale))
+                        .font(TypeFace.footnote)
+                        .foregroundStyle(Palette.inkTertiary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                } else {
+                    ForEach(store.discoverableChannels) { channel in
+                        DiscoverableChannelRow(
+                            channel: channel,
+                            // 预览色按 id 稳定取，避免每次渲染都换一个「建议色」。
+                            colorIndex: ChannelTint.fallbackIndex(for: channel.id),
+                            isPending: store.pendingChannelIDs.contains(channel.id),
+                            onSubscribe: {
+                                Task {
+                                    // 用与预览一致的稳定色，避免「看到的颜色」和「订阅后得到的颜色」不同。
+                                    let index = ChannelTint.fallbackIndex(for: channel.id)
+                                    if let subscribed = await store.subscribe(channel.id, colorIndex: index) {
+                                        env.channelColors.setColorIndex(index, for: subscribed.id)
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+        .padding(.top, Space.l)
+        .accessibilityIdentifier("channel-discover-section")
+    }
+
+    private func sectionHeader(_ key: String) -> some View {
+        HStack(spacing: Space.s) {
+            Text(L10n.string(key, locale: locale))
+                .font(TypeFace.label(11))
+                .tracking(1)
+                .foregroundStyle(Palette.inkTertiary)
+            Rectangle()
+                .fill(Palette.line)
+                .frame(height: 1)
+        }
+        .padding(.top, Space.xs)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(.isHeader)
+        .accessibilityIdentifier("channel-section-\(key)")
+    }
+
+    private func track(_ channel: Channel, store: ChannelStore) {
+        store.updateVisibleChannels(store.visibleChannelIDs.union([channel.id]))
+        store.startPolling()
+    }
+
+    private func untrack(_ channel: Channel, store: ChannelStore) {
+        var visible = store.visibleChannelIDs
+        visible.remove(channel.id)
+        store.updateVisibleChannels(visible)
+        if visible.isEmpty {
+            store.stopPolling()
+        }
+    }
 }
 
-// MARK: - 频道卡
+// MARK: - 我的频道卡
 
 struct ChannelCard: View {
     let channel: Channel
@@ -198,16 +337,8 @@ struct ChannelCard: View {
                 Text(channel.name)
                     .font(TypeFace.heading(15))
                     .foregroundStyle(Palette.ink)
-                if channel.kind == .follow {
-                    Text(L10n.string("channel.kind.follow", locale: locale))
-                        .font(TypeFace.condensed(9.5, weight: .semibold))
-                        .foregroundStyle(Palette.inkTertiary)
-                        .padding(.horizontal, 4)
-                        .padding(.vertical, 1.5)
-                        .overlay {
-                            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                                .strokeBorder(Palette.lineStrong, lineWidth: 1)
-                        }
+                if channel.kind.isFollow {
+                    ChannelBadge(textKey: "channel.kind.follow")
                 }
                 Spacer(minLength: 0)
                 ChannelToggle(isOn: channel.enabled, isPending: isPending, action: onToggle)
@@ -258,7 +389,7 @@ struct ChannelCard: View {
         }
         .padding(.horizontal, 15)
         .padding(.vertical, 14)
-        .background(Palette.surface, in: RoundedRectangle(cornerRadius: Radius.medium, style: .continuous))
+        .background(cardBackground)
         .overlay {
             RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
                 .strokeBorder(Palette.line, lineWidth: 1)
@@ -268,11 +399,177 @@ struct ChannelCard: View {
         .accessibilityIdentifier("channel-card-\(channel.id)")
     }
 
+    private var cardBackground: some View {
+        RoundedRectangle(cornerRadius: Radius.medium, style: .continuous).fill(Palette.surface)
+    }
+
     /// 运行状态三分法：进行中绿、错过中性灰、失败警示色。
     private var statusChip: StatusChip? {
         guard channel.enabled else {
             return StatusChip(style: .neutral, text: L10n.string("channel.state.disabled", locale: locale))
         }
+        return RunStatusChip.make(run: run, locale: locale)
+    }
+
+    /// 「周一、三、五 08:00」「每天 07:30」「每周二 09:00」
+    private var scheduleText: String? {
+        ScheduleDisplay.summary(channel.schedule, locale: locale)
+    }
+}
+
+// MARK: - 订阅频道卡（只读）
+//
+// 不渲染开关、编辑、立即运行、删除：服务端对这些操作返回 403 / 404。
+
+struct SubscribedChannelCard: View {
+    let channel: Channel
+    let run: Run?
+    var colorIndex: Int?
+
+    @Environment(\.appLocale) private var locale
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: Space.s) {
+                ChannelDot(channelID: channel.id, diameter: 8, colorIndex: colorIndex)
+                Text(channel.name)
+                    .font(TypeFace.heading(15))
+                    .foregroundStyle(Palette.ink)
+                ChannelBadge(textKey: "channel.kind.subscribed")
+                if channel.kind.isFollow {
+                    ChannelBadge(textKey: "channel.kind.follow")
+                }
+                Spacer(minLength: 0)
+            }
+
+            if !channel.prompt.isEmpty {
+                Text(channel.prompt)
+                    .font(TypeFace.body(12.5))
+                    .foregroundStyle(Palette.inkSecondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 7)
+            }
+
+            HStack(spacing: Space.s) {
+                if let status = RunStatusChip.make(run: run, locale: locale) {
+                    status
+                }
+                if let scheduleText {
+                    Text(scheduleText)
+                        .font(TypeFace.condensed(11, weight: .semibold))
+                        .foregroundStyle(Palette.inkTertiary)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Palette.inkTertiary)
+            }
+            .padding(.top, 11)
+        }
+        .padding(.horizontal, 15)
+        .padding(.vertical, 14)
+        .background(
+            RoundedRectangle(cornerRadius: Radius.medium, style: .continuous).fill(Palette.surface)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                .strokeBorder(Palette.line, lineWidth: 1)
+        }
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("subscribed-card-\(channel.id)")
+    }
+
+    private var scheduleText: String? {
+        ScheduleDisplay.summary(channel.schedule, locale: locale)
+    }
+}
+
+// MARK: - 可订阅行
+
+struct DiscoverableChannelRow: View {
+    let channel: Channel
+    var colorIndex: Int?
+    let isPending: Bool
+    var onSubscribe: () -> Void
+
+    @Environment(\.appLocale) private var locale
+
+    var body: some View {
+        HStack(spacing: Space.m) {
+            ChannelDot(channelID: channel.id, diameter: 8, colorIndex: colorIndex)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text(channel.name)
+                    .font(TypeFace.body(14.5))
+                    .foregroundStyle(Palette.ink)
+                    .lineLimit(1)
+                if !channel.prompt.isEmpty {
+                    Text(channel.prompt)
+                        .font(TypeFace.footnote)
+                        .foregroundStyle(Palette.inkTertiary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            Button(action: onSubscribe) {
+                if isPending {
+                    ProgressView().controlSize(.small)
+                } else {
+                    Text(L10n.string("channel.subscribe.action", locale: locale))
+                        .font(TypeFace.condensed(11, weight: .semibold))
+                        .foregroundStyle(Palette.canvas)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(Palette.ink))
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(isPending)
+            .accessibilityIdentifier("channel-subscribe-\(channel.id)")
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .background(
+            RoundedRectangle(cornerRadius: Radius.medium, style: .continuous).fill(Palette.surface)
+        )
+        .overlay {
+            RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                .strokeBorder(Palette.line, lineWidth: 1)
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("discover-row-\(channel.id)")
+    }
+}
+
+// MARK: - 小徽标
+
+struct ChannelBadge: View {
+    let textKey: String
+    @Environment(\.appLocale) private var locale
+
+    var body: some View {
+        Text(L10n.string(textKey, locale: locale))
+            .font(TypeFace.condensed(9.5, weight: .semibold))
+            .foregroundStyle(Palette.inkTertiary)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 1.5)
+            .overlay {
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .strokeBorder(Palette.lineStrong, lineWidth: 1)
+            }
+    }
+}
+
+// MARK: - 运行状态 chip
+//
+// 我的频道与订阅频道共用同一套三分法。
+
+enum RunStatusChip {
+    static func make(run: Run?, locale: Locale) -> StatusChip? {
         guard let run else { return nil }
         switch run.state {
         case .queued, .collecting, .writing:
@@ -284,11 +581,6 @@ struct ChannelCard: View {
         case .published, .cancelled:
             return nil
         }
-    }
-
-    /// 「周一、三、五 08:00」「每天 07:30」「每周二 09:00」
-    private var scheduleText: String? {
-        ScheduleDisplay.summary(channel.schedule, locale: locale)
     }
 }
 

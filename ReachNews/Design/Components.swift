@@ -167,25 +167,6 @@ struct PrimaryButton: View {
     }
 }
 
-// MARK: - 次按钮
-
-struct SecondaryButton: View {
-    let title: String
-    var action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(title)
-                .font(TypeFace.heading(14))
-                .foregroundStyle(Palette.inkSecondary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(RoundedRectangle(cornerRadius: 11, style: .continuous).fill(Palette.chip))
-        }
-        .buttonStyle(.plain)
-    }
-}
-
 // MARK: - 空态 / 错误态
 
 struct MessageStateView: View {
@@ -314,37 +295,6 @@ struct InlineNotice: View {
         switch kind {
         case .warning, .error: return Palette.failedBackground
         }
-    }
-}
-
-// MARK: - 开发中占位
-//
-// 稿子里有、但服务端未提供数据支撑的位置统一用这个组件标注。
-
-struct FeatureInProgressView: View {
-    var detail: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: Space.xxs) {
-            Label {
-                Text(String(localized: "common.featureInProgress"))
-                    .font(TypeFace.label(11))
-            } icon: {
-                Image(systemName: "hammer")
-                    .font(.system(size: 10, weight: .semibold))
-            }
-            .foregroundStyle(Palette.inkTertiary)
-            if let detail {
-                Text(detail)
-                    .font(TypeFace.body(10.5))
-                    .foregroundStyle(Palette.inkTertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, Space.m)
-        .padding(.vertical, Space.s)
-        .background(RoundedRectangle(cornerRadius: Radius.small, style: .continuous).fill(Palette.chip))
     }
 }
 

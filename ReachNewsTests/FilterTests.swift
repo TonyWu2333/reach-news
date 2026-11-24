@@ -68,18 +68,29 @@ final class FilterTests: XCTestCase {
     }
 
     func testThisWeekFilterExcludesOlderBriefs() {
-        let now = calendar.date(from: DateComponents(year: 2026, month: 11, day: 20, hour: 12))!
+        // BriefFeed.filtered 用的是真实当前时间，因此样本必须相对「现在」构造，
+        // 否则测试结果会随运行当天是星期几而变（周日时「本周」只剩当天）。
+        let now = Date()
         var filter = FeedFilter()
         filter.time = .thisWeek
 
         let range = try? XCTUnwrap(filter.resolvedRange(now: now))
         XCTAssertNotNil(range)
+        let weekStart = try? XCTUnwrap(range?.lowerBound)
 
-        let inside = makeBrief(id: "in", createdAt: now)
-        let outside = makeBrief(
-            id: "out",
-            createdAt: calendar.date(byAdding: .day, value: -30, to: now)!
-        )
+        // 区间内：取本周起点与现在之间的中点，保证落在本周；
+        // 若本周刚开始（间隔为 0），退回用「现在」本身。
+        let insideMoment = weekStart
+            .flatMap { start -> Date? in
+                let span = now.timeIntervalSince(start)
+                return span > 0 ? start.addingTimeInterval(span / 2) : now
+            } ?? now
+        let inside = makeBrief(id: "in", createdAt: insideMoment)
+        // 区间外：早于本周起点一天，必然不在本周。
+        let outsideMoment = weekStart
+            .map { calendar.date(byAdding: .day, value: -1, to: $0)! }
+            ?? calendar.date(byAdding: .day, value: -8, to: now)!
+        let outside = makeBrief(id: "out", createdAt: outsideMoment)
 
         let result = BriefFeed.filtered([inside, outside], query: "", filter: filter)
         XCTAssertEqual(result.map(\.id), ["in"])

@@ -1,6 +1,5 @@
 /* Reach News — 界面文案 */
 
-"ask.action.sections" = "看这期分组";
 "ask.cited.count" = "%d 条";
 "ask.cited.deterministic" = "当前是确定性应答，引用为本期素材全集。";
 "ask.cited.empty" = "这一轮回答没有关联素材。";
@@ -13,22 +12,16 @@
 "ask.loadEarlier" = "加载更早的追问";
 "ask.nav.title" = "本期日报";
 "ask.pill" = "追问";
-"brief.materialCount" = "%d 条素材";
-"brief.sectionCount" = "%d 个分组";
 "briefDetail.entryCount" = "%d 条";
 "briefDetail.materialCount" = "%d 条素材";
 "briefDetail.materialFailed" = "素材加载失败";
 "channel.count" = "%d 个频道";
 "channel.create.accessibility" = "新建频道";
-"channel.create.blank" = "新建频道";
 "channel.create.connectors.empty" = "还没有可用连接器";
 "channel.create.connectors.required" = "请至少选择一个连接器";
-"channel.create.empty.message" = "管理员还没有创建预设模板。";
-"channel.create.empty.title" = "没有模板";
-"channel.create.fromPreset" = "从模板新建";
 "channel.create.submit" = "创建";
 "channel.create.title" = "新建频道";
-"channel.empty.message" = "频道由管理员开通。开通后会出现在这里。";
+"channel.empty.message" = "频道由管理员开通，或先订阅一个公开频道。";
 "channel.empty.title" = "还没有频道";
 "channel.kind.follow" = "跟踪";
 "channel.noConnectors" = "未配置连接器，运行将不会产出日报";
@@ -73,7 +66,6 @@
 "common.cancel" = "取消";
 "common.clearFilters" = "清除筛选";
 "common.done" = "完成";
-"common.featureInProgress" = "功能开发中";
 "common.loading" = "加载中…";
 "common.off" = "已关闭";
 "common.ok" = "好";
@@ -86,7 +78,6 @@
 "connection.credential.stored" = "已保存";
 "connection.currentAddress" = "当前地址";
 "connection.expires" = "凭证到期";
-"connection.footer" = "凭证只保存在本机钥匙串，不随收藏或偏好同步。";
 "connection.signOut" = "退出登录";
 "connection.submit" = "连接";
 "connection.subtitle" = "输入管理员签发的凭证。凭证明文只显示一次，客户端把它存在系统钥匙串里。";
@@ -150,9 +141,7 @@
 "me.saved" = "收藏";
 "me.saved.empty.message" = "在日报详情或列表里收藏后，会出现在这里。";
 "me.saved.empty.title" = "还没有收藏";
-"me.saved.note" = "收藏只保存在本机，不会同步到服务端。";
 "me.saved.remove" = "移除收藏";
-"preferences.baseURL.footer" = "地址变更后需要重新验证凭证才会生效。";
 "preferences.baseURL.heading" = "服务地址";
 "preferences.baseURL.save" = "保存地址";
 "preferences.language" = "界面语言";
@@ -183,3 +172,26 @@
 "weekday.tue.short" = "二";
 "weekday.wed" = "周三";
 "weekday.wed.short" = "三";
+
+"channel.section.mine" = "我的频道";
+"channel.section.subscribed" = "订阅的频道";
+"channel.section.discover" = "发现更多";
+"channel.discover.empty" = "暂时没有可订阅的公开频道。";
+"channel.subscribe.action" = "订阅";
+"channel.kind.subscribed" = "订阅";
+"subscribed.detail.title" = "订阅频道";
+"subscribed.detail.tone.empty" = "未设置";
+"subscribed.fork" = "复制成我的频道";
+"subscribed.fork.confirm.title" = "复制成我的频道？";
+"subscribed.fork.confirm.message" = "会复制名称、频道方向、口吻、时间表与连接器，并取消当前订阅。原频道不变。";
+"subscribed.unsubscribe" = "取消订阅";
+"subscribed.unsubscribe.confirm.title" = "取消订阅这个频道？";
+"subscribed.unsubscribe.confirm.message" = "取消后它和它的日报会立即从你的列表消失。频道与已发布日报不会被删除。";
+"error.presetsRemoved" = "旧接口已停用";
+"error.notPublished" = "该频道尚未公开";
+"error.ownChannel" = "这是你自己的频道";
+"error.subscriberReadOnly" = "订阅频道只读，可 fork 后修改";
+
+"brief.body.empty" = "本期无可读正文";
+
+"brief.detail.title" = "日报";

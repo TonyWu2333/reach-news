@@ -2,22 +2,34 @@ import Foundation
 
 // MARK: - 频道类型
 //
-// 服务端 CHANNEL_KINDS 为 channel / follow / preset。
-// preset 是管理员账号的模板频道，且会参与调度，因此不能当作普通频道渲染。
+// 服务端 CHANNEL_KINDS 只剩 channel / follow：订阅是关系，不是类型。
+// 旧值与未知值一律降级为普通频道，不丢数据也不崩溃。
 
-enum ChannelKind: String, Equatable {
+enum ChannelKind: String, Equatable, CaseIterable {
     case channel
     case follow
-    case preset
 
     init(apiValue: String?) {
         self = ChannelKind(rawValue: apiValue ?? "") ?? .channel
     }
 
-    /// 是否出现在用户的频道列表中（preset 归管理员，普通用户看不到）。
-    var isUserVisible: Bool {
-        self != .preset
+    /// `kind` 只区分「用户频道」与「跟踪」，与订阅无关；可写性一律看 `owner`。
+    var isFollow: Bool { self == .follow }
+}
+
+// MARK: - 当前用户相对频道的身份
+//
+// 可写性判定的唯一依据：creator 才能编辑、触发运行、删除。
+
+enum ChannelOwner: String, Equatable {
+    case creator
+    case subscriber
+
+    init(apiValue: String?) {
+        self = ChannelOwner(rawValue: apiValue ?? "") ?? .creator
     }
+
+    var isCreator: Bool { self == .creator }
 }
 
 // MARK: - 运行状态
@@ -79,8 +91,9 @@ enum MissedReason: Equatable, Hashable {
 
 // MARK: - 错误码
 //
-// 已实测六值；unknown 保留，不因为新增 code 就丢弃原因。
+// 未知值保留，不因为新增 code 就丢弃原因。
 // not_found 的两义不参与判断：资源是否存在由调用方按路径决定。
+// presets_removed 与 not_found 必须区分：前者是「旧接口已停用」。
 
 enum APIErrorCode: Equatable {
     case unauthorized
@@ -91,6 +104,10 @@ enum APIErrorCode: Equatable {
     case busy
     case badRequest
     case internalError
+    case presetsRemoved
+    case notPublished
+    case ownChannel
+    case subscriberReadOnly
     case unknown(String)
 
     static func parse(_ raw: String) -> APIErrorCode {
@@ -103,6 +120,10 @@ enum APIErrorCode: Equatable {
         case "busy": return .busy
         case "bad_request": return .badRequest
         case "internal_error": return .internalError
+        case "presets_removed": return .presetsRemoved
+        case "not_published": return .notPublished
+        case "own_channel": return .ownChannel
+        case "subscriber_read_only": return .subscriberReadOnly
         default: return .unknown(raw)
         }
     }
@@ -117,6 +138,10 @@ enum APIErrorCode: Equatable {
         case .busy: return "busy"
         case .badRequest: return "bad_request"
         case .internalError: return "internal_error"
+        case .presetsRemoved: return "presets_removed"
+        case .notPublished: return "not_published"
+        case .ownChannel: return "own_channel"
+        case .subscriberReadOnly: return "subscriber_read_only"
         case .unknown(let value): return value
         }
     }
@@ -164,6 +189,14 @@ enum APIError: Error, Equatable {
     case server(String)
     case decodingFailed
     case invalidConfiguration
+    /// 旧接口已停用（presets_removed）：与「资源不存在」区分。
+    case removed(String)
+    /// 频道未公开：订阅或 fork 别人的私有频道。
+    case notPublished(String)
+    /// 订阅自己的频道。
+    case ownChannel(String)
+    /// 订阅频道只读：修改频道或触发运行被拒。
+    case subscriberReadOnly(String)
 
     var errorCode: APIErrorCode? {
         switch self {
@@ -175,6 +208,10 @@ enum APIError: Error, Equatable {
         case .busy: return .busy
         case .badRequest: return .badRequest
         case .server: return .internalError
+        case .removed: return .presetsRemoved
+        case .notPublished: return .notPublished
+        case .ownChannel: return .ownChannel
+        case .subscriberReadOnly: return .subscriberReadOnly
         case .offline, .transport, .decodingFailed, .invalidConfiguration: return nil
         }
     }
