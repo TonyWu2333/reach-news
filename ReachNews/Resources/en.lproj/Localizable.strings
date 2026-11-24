@@ -1,6 +1,5 @@
 /* Reach News — 界面文案 */
 
-"ask.action.sections" = "View sections";
 "ask.cited.count" = "%d items";
 "ask.cited.deterministic" = "Deterministic reply; these are all materials in this brief.";
 "ask.cited.empty" = "This answer has no associated materials.";
@@ -13,8 +12,6 @@
 "ask.loadEarlier" = "Load earlier questions";
 "ask.nav.title" = "This brief";
 "ask.pill" = "Ask";
-"brief.materialCount" = "%d materials";
-"brief.sectionCount" = "%d sections";
 "briefDetail.entryCount" = "%d entries";
 "briefDetail.materialCount" = "%d materials";
 "briefDetail.materialFailed" = "Couldn't load material";
@@ -194,3 +191,7 @@
 "error.notPublished" = "This channel isn't public";
 "error.ownChannel" = "This is your own channel";
 "error.subscriberReadOnly" = "Subscribed channels are read-only; fork it to edit";
+
+"brief.body.empty" = "No readable body for this issue";
+
+"brief.detail.title" = "Brief";

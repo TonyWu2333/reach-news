@@ -337,6 +337,17 @@ struct BriefRow: View {
                 Spacer(minLength: 0)
             }
 
+            // 描述非空时展示在标题下，一到两行截断；为空时不留空洞。
+            if let summary = brief.displaySummary {
+                Text(summary)
+                    .font(TypeFace.body(12.5))
+                    .foregroundStyle(Palette.inkTertiary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+                    .accessibilityIdentifier("brief-row-summary")
+            }
+
+            // 分组数与素材数来自 sections，读者端不再展示。
             HStack(spacing: 7) {
                 ChannelDot(channelID: channelID, colorIndex: colorIndex)
                 Text(channelName)
@@ -344,12 +355,6 @@ struct BriefRow: View {
                     .foregroundStyle(Palette.inkSecondary)
                 DotSeparator()
                 MetaLine(text: DisplayTime.clock(brief.createdAt, locale: locale))
-                DotSeparator()
-                MetaLine(text: L10n.format("brief.sectionCount", locale: locale, brief.sections.count))
-                if brief.materialCount > 0 {
-                    DotSeparator()
-                    MetaLine(text: L10n.format("brief.materialCount", locale: locale, brief.materialCount))
-                }
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

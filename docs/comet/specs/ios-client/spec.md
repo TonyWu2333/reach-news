@@ -13,7 +13,12 @@
 - `subscriptionColor` 可为 `null`（未订阅）或空字符串（订阅时未给颜色）；两者在客户端都按「未设置」处理，不显示空色点。
 - 订阅是「用户 × 频道」上的一条关系，不是频道对象，也不是一种 `kind`；订阅频道的 `id` 就是原频道的 `id`，列表中不出现副本条目。
 - `Schedule`：周一到周日各可配零到多个 `HH:MM`；未配置的星期视为无触发。所有时刻按 `Asia/Shanghai` 解释。
-- `Brief`：`id`、`channelID`、`title`、`sections: [BriefSection]`、`memorySummary`、`createdAt: Date`。
+- `Brief`：`id`、`channelID`、`title`、`summary: String?`、`body: BriefBody?`、`sections: [BriefSection]`、`memorySummary`、`createdAt: Date`。
+- `BriefBody`：`paragraphs: [BriefParagraph]`。`body` 为精写成稿，可为 `nil`。
+- `BriefParagraph`：`segments: [BriefSegment]`。
+- `BriefSegment`：`.text(String)` 或 `.link(text: String, url: URL, itemID: String?)`。`itemID` 只用于定位原文，不参与业务判断。
+- `summary` 是这一期给读者的描述，可为 `nil`；`memorySummary` 是运行记忆，**不在任何界面展示**，两者不可混用。
+- 频道展示名一律用 `name`：服务端已移除 `title` / `description` / `displayTitle`，客户端不得读取或回退到这三个字段。
 - `BriefSection`：`title`、`entries: [Entry]`。
 - `Entry`：`title`、`summary`、`materialIDs: [String]`。
 - `Material`：`id`、`title`、`url: URL`、`publishedAt: Date?`、`metadata`、`content`。`content` 只解析不展示。
@@ -31,6 +36,9 @@ DTO 层一次完成，UI 与 Store 只见归一化后的类型：
 - `missedReason` 归一化为 `.noMaterial` / `.queueTimeout` / `.resumeWriting` / `.unknown(String)`；未知值保留原始字符串，不丢弃。
 - `error.code` 归一化为 `.unauthorized` / `.tooManyAttempts` / `.invalidConnector` / `.notFound` / `.invalidInput` / `.busy` / `.badRequest` / `.internalError` / `.presetsRemoved` / `.notPublished` / `.ownChannel` / `.subscriberReadOnly` / `.unknown(String)`。
 - `not_found` 的两义不参与判断：资源是否存在由发起请求的路径和调用点决定，不由 `code` 推断。`presets_removed` 与普通 `not_found` 必须区分：前者是「旧接口已停用」，后者是资源缺失。
+- `body`：`null`、字段缺失、`paragraphs` 为空数组三种情况一律归一化为 `nil`，走同一降级路径。
+- `body.paragraphs[].segments[]`：`type` 为 `text` 取 `text`；为 `link` 且 `url` 可解析为合法 URL 时建链接片段，否则降级为纯文字；其他未知 `type` 按 `text` 处理，不丢内容。
+- `summary`：`null`、字段缺失、空字符串三种情况一律归一化为 `nil`。
 
 ## 应用外壳与导航
 
@@ -47,7 +55,8 @@ DTO 层一次完成，UI 与 Store 只见归一化后的类型：
 - 搜索框常驻顶部，按日报标题过滤已加载内容；输入即筛，无内容时显示空结果说明。
 - 筛选按钮显示当前已应用维度数量；有筛选时按钮为深色激活态。
 - 列表按 `createdAt` 倒序、按日期分组：今天、昨天使用相对词，更早使用「M月d日」。分组标题为小号大写风格标签加一条分隔线。
-- 每行为紧凑行：标题（两行以内）、频道标识点 + 频道名、`Asia/Shanghai` 时刻、分组数、素材数。素材数取自该期全部条目的 `materialIDs` 去重计数。
+- 每行为紧凑行：标题（两行以内）、`summary`（非空时，一到两行截断）、频道标识点 + 频道名、时区时刻。不再显示分组数与素材数。
+- `summary` 为 `nil` 或空字符串时不留空洞，行内直接进入元信息。
 - 频道标识色由 `channelId` 稳定映射到 steel / moss / clay / plum 四色之一，保证同名频道跨屏一致。
 - 滚动到底部自动加载下一页；加载中显示底部加载指示；到达边界显示无更多内容。
 - 下拉刷新从接口重取最新一页并按 ID 合并。
@@ -65,12 +74,18 @@ DTO 层一次完成，UI 与 Store 只见归一化后的类型：
 
 ## 日报详情
 
-- 头部：标题、`M月d日 HH:mm`、分组数、素材数。
-- 每个分组以吸顶标题呈现：分组名 + 「N 条」，吸顶时带背景模糊。
-- 每个条目为白底卡片：标题、摘要、素材数、展开箭头。
-- 展开后内联显示该条目的素材行：字母方块（取自来源域名首字母两字以内）、标题单行截断、域名、外开箭头。
-- 素材行点击用系统浏览器打开 `url`。`content` 字段在客户端任何位置都不渲染。
-- 素材文本按需调用 `GET /api/v1/briefs/:id/items/:itemId` 获取；列表页不带正文，因此进入详情前也无需预取。
+- 头部：标题与 `M月d日 HH:mm`；**不显示分组数与素材数**（它们来自 `sections`，在读者端已不可见）。`summary` 非空时展示在标题下方、正文之前，为空时整块不渲染。
+- **正文优先**：`body` 非空时渲染段落与行内链接。段落之间按正文间距排版，行高与行宽按长文阅读设置；不渲染成列表，不使用等宽字体。
+- 正文 `segments[].text` 是 Markdown，按 CommonMark 渲染：小标题、列表、粗体、行内代码、引用块、代码块与链接都要正确呈现，界面上不出现字面的 `##`、`-`、`**`、``` 等标记。
+- 用成熟 CommonMark 实现解析，不自研正则、不只处理部分语法；渲染范围严格限定 `body`。当前用 Foundation 自带的 `AttributedString(markdown:options:)`（`interpretedSyntax: .full`），不引入第三方依赖；块级样式（标题字号、列表标记、代码块底纹、引用竖线）由视图按 `presentationIntent` 施加。
+- 渲染器覆盖：块级（标题 h1–h6、段落、无序/有序列表、引用块、围栏与缩进代码块、分隔线）与行内（粗体、斜体、行内代码、链接、删除线）。
+- 代码块等宽显示并保留换行与缩进；不使用语法高亮。
+- `title`、`summary`、`sections[].items[].title` 与 `.summary` 一律纯文本：即使含 Markdown 标记也原样显示，不解析。
+- `link` 片段渲染为可点文本，点击用系统浏览器打开 `url`；`url` 缺失或非法的片段降级为纯文字，不产生死链。
+- **正文缺失**：`body` 为 `nil` 或字段缺失时，标题与描述照常显示，正文区显示一句「本期无可读正文」的说明；不回退到分组渲染，页面不出现分组列表，也不报错。
+- **读者端不渲染 `sections`**：详情页没有分组标题、条目卡与「本期采集」入口。`sections` 仍照常解析并保留在模型中（供后台核对与将来使用），但不进入这个界面。
+- 页面结构固定为「标题 → 描述（非空时）→ 正文」，三段之外不追加其他区块。
+- `body` 与 `sections` 是两件事：正文可只引用部分素材，`sections` 是本期全量条目。读者可读性由正文承担，不用 `sections` 补正文或反推正文内容。
 - 运行状态不在此页以装置形式出现：`published` 只呈现日报本身。
 
 ## 追问胶囊
@@ -88,7 +103,8 @@ DTO 层一次完成，UI 与 Store 只见归一化后的类型：
 - 发送后等待服务端同步返回并直接呈现回答；不显示「正在思考」、不逐字输出、不使用流式。回答到达前输入框保持可用状态与已发送消息的呈现即可，不额外造等待语汇。
 - 请求失败时在会话内以可重试样式呈现失败的那一轮，不丢失已输入内容。
 - 稿件中的「引用的素材 · N 条」内嵌卡按稿子留位，卡内标注「功能开发中」，并说明引用与归属数据待服务端支持。卡片不填入素材，也不表示这些素材是回答的依据。
-- 快捷动作中「看这期分组」可跳转到本期分组；「展开素材 X」依赖服务端的引用关系，标注为功能开发中。
+- 「展开素材 X」依赖服务端的引用关系，标注为功能开发中。
+- 不提供「看这期分组」快捷动作：读者端不再展示分组，该动作已移除。
 
 ## 删除频道
 
@@ -278,7 +294,9 @@ DTO 层一次完成，UI 与 Store 只见归一化后的类型：
 ## 测试策略
 
 - 单元测试覆盖：DTO 解码（含 `/cursor` snake_case 与整数 `enabled`、频道五个订阅字段、空字符串 `subscriptionColor`）、时间解析与时区展示、`missedReason`/`error.code` 的未知值保留、四个订阅错误码归一化、分页参数构造拒绝负值与越界、`lastSeenAt` 取最大 `created_at`、筛选与去重逻辑、频道可写性三判定（`canEdit`/`canSubscribe`/`canUnsubscribe`）、订阅与取消订阅与改色与 fork 的请求方法与路径、频道编辑只提交改动字段、`409 busy` 不丢输入。
-- 样本取自 `Fixtures/*.json`，必须覆盖：`lastBriefAt: null`、`connectorIds: []`、`owner: "subscriber"` 的订阅项、`subscriptionColor: ""`、`published: false` 的自建频道、`missed` + `no-material`、`failed`、多分组、条目引用多条素材。
+- 本轮的正文与摘要另需覆盖：`body` 的三种状态（有正文 / `null` / 字段缺失）、`paragraphs` 为空数组、`link` 缺 `url` 时降级为纯文字、未知 segment `type` 按纯文字处理、`summary` 为 `null` 与空字符串、以及「无论是否有正文都不渲染 `sections`」。
+- Markdown 渲染另需覆盖：`## 小标题`、无序列表、有序列表、`**粗体**`、`*斜体*`、行内代码、引用块、围栏代码块与链接，各自解析为对应视图而非字面标记；覆盖一期里同时出现多种语法；并确认 `title` / `summary` / `sections` 中的同种标记不被解析。
+- 样本取自 `Fixtures/*.json`，必须覆盖：`lastBriefAt: null`、`connectorIds: []`、`owner: "subscriber"` 的订阅项、`subscriptionColor: ""`、`published: false` 的自建频道、`missed` + `no-material`、`failed`、多分组、条目引用多条素材；另需覆盖带 `body` 的日报、`body: null` 的日报、`summary: null` 的日报。
 - UI 测试以可访问性标识驱动，覆盖日报流的搜索与筛选、频道卡开关、订阅卡无编辑入口、订阅按钮把项从「发现更多」移入「订阅的频道」、编辑页 `409` 提示；UI 测试不打真实网络，使用可注入的固定响应。
 - 构建与测试证据来自 GitHub Actions 的 iOS 任务；Android 任务只需 `assembleDebug` 继续通过。
 
@@ -293,6 +311,11 @@ DTO 层一次完成，UI 与 Store 只见归一化后的类型：
 - 枚举或选择连接器（`/admin/api/connectors` 需管理员鉴权）。
 - 取消运行（服务端无路径进入 `cancelled`）。
 - 依赖 `PUT` 等未实现方法的方法错误区分（服务端回 404）。
+- 在读者端展示 `sections` 分组、条目卡或「本期采集」入口；`sections` 不进入这个界面。
+- 把 `sections` 当作正文的脚注或字幕，或用它反推正文应当写什么。
+- 对 `body` 以外的字段做 Markdown 解析：`title`、`summary`、`sections` 的标题与摘要一律纯文本。
+- 在正文里渲染 HTML：正文只按 CommonMark 处理，不引入 HTML 渲染。
+- 读取频道的 `title` / `description` / `displayTitle`（服务端已移除）。
 
 ## 范围约束
 

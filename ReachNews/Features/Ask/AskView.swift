@@ -82,12 +82,10 @@ struct AskView: View {
 
                         // 引用素材卡：服务端不返回引用关系，按稿子留位并标开发中。
                         if store.turns.last?.role == .assistant {
-                            VStack(alignment: .leading, spacing: Space.s) {
-                                citedMaterialsCard
-                                askQuickActions
-                            }
-                            .padding(.top, Space.xs)
-                            .padding(.bottom, Space.m)
+                            // 读者端不再展示分组，原来的「看这期分组」动作已移除。
+                            citedMaterialsCard
+                                .padding(.top, Space.xs)
+                                .padding(.bottom, Space.m)
                         }
                     }
                 }
@@ -173,27 +171,6 @@ struct AskView: View {
     private static func indexLabel(_ index: Int) -> String {
         guard let scalar = UnicodeScalar(65 + index % 26) else { return "A" }
         return String(Character(scalar))
-    }
-
-    private var askQuickActions: some View {
-        HStack(spacing: 7) {
-            Button(L10n.string("ask.action.sections", locale: locale)) {
-                dismissToDetail()
-            }
-            .font(TypeFace.label(11.5))
-            .foregroundStyle(Palette.inkSecondary)
-            .padding(.horizontal, Space.m)
-            .padding(.vertical, Space.xs)
-            .background(Palette.askSurface, in: Capsule())
-            .overlay { Capsule().strokeBorder(Palette.lineStrong, lineWidth: 1) }
-            .accessibilityIdentifier("ask-action-sections")
-        }
-    }
-
-    @Environment(\.dismiss) private var dismiss
-
-    private func dismissToDetail() {
-        dismiss()
     }
 
     // MARK: 输入栏
