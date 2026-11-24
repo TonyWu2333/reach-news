@@ -74,6 +74,7 @@ enum MarkdownBlockBuilder {
         var blocks: [Block] = []
         var current = AttributedString()
         var currentKind: Kind = .paragraph
+        var currentIdentity: Int?
 
         func flush() {
             guard !current.characters.isEmpty, !isBlank(current) else {
@@ -86,9 +87,13 @@ enum MarkdownBlockBuilder {
 
         for run in attributed.runs {
             let kind = kind(of: run.presentationIntent)
-            if kind != currentKind {
+            // 相邻两个段落种类相同，只看 kind 会把它们并成一块；
+            // 因此同时看 intent 的 identity —— 不同段落有各自的 identity。
+            let identity = run.presentationIntent?.components.last?.identity
+            if kind != currentKind || identity != currentIdentity {
                 flush()
                 currentKind = kind
+                currentIdentity = identity
             }
             // 保留行内样式即可；Text 不会因为块级 intent 自动加项目符号或放大标题，
             // 块级表现完全由下面的视图映射决定。
