@@ -52,26 +52,42 @@ final class BriefDetailStore {
         failedMaterialIDs.contains(materialID)
     }
 
+    /// 同一素材正在取回时的等待者：连点小标题不应该让候选直接消失。
+    @ObservationIgnored private var materialWaiters: [String: [CheckedContinuation<Material?, Never>]] = [:]
+
     /// 取回单条素材；小标题「查看原文」需要按 itemID 现取，
     /// 读者端没有预先展开的条目，不能指望素材已经在缓存里。
+    ///
+    /// 已经在取回同一条时不返回 nil，而是等同一个请求的结果：
+    /// 早先的实现直接 return nil，连点会让候选丢失，本该出现的「查看原文」偶发不出现。
     func loadMaterial(itemID: String) async -> Material? {
         if let cached = materialsByID[itemID] { return cached }
-        guard !loadingMaterialIDs.contains(itemID) else { return nil }
+        if materialWaiters[itemID] != nil || loadingMaterialIDs.contains(itemID) {
+            return await withCheckedContinuation { continuation in
+                materialWaiters[itemID, default: []].append(continuation)
+            }
+        }
+
         loadingMaterialIDs.insert(itemID)
-        defer { loadingMaterialIDs.remove(itemID) }
+        let result: Material?
         do {
             let material = try await client.material(briefID: brief.id, materialID: itemID)
             materialsByID[itemID] = material
             failedMaterialIDs.remove(itemID)
-            return material
+            result = material
         } catch let apiError as APIError {
             failedMaterialIDs.insert(itemID)
             if apiError == .unauthorized { error = apiError }
-            return nil
+            result = nil
         } catch {
             failedMaterialIDs.insert(itemID)
-            return nil
+            result = nil
         }
+        loadingMaterialIDs.remove(itemID)
+
+        let waiters = materialWaiters.removeValue(forKey: itemID) ?? []
+        for waiter in waiters { waiter.resume(returning: result) }
+        return result
     }
 
     /// 正文 link 片段里出现过的素材 id，按出现顺序去重。

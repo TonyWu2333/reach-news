@@ -19,11 +19,12 @@ final class BriefHeadingTests: XCTestCase {
         )
     }
 
-    func testMatchingIgnoresCaseAndDiacritics() {
+    func testMatchingIgnoresCaseOnly() {
         XCTAssertTrue(
-            HeadingSourceMatcher.matches(heading: "vLLM", materialTitle: "vLLM 推理性能翻倍的那次合并")
+            HeadingSourceMatcher.matches(heading: "vllm", materialTitle: "vLLM 推理性能翻倍的那次合并")
         )
-        XCTAssertTrue(
+        // 需求限定「只忽略大小写」：变音符号不视为相同字符，不做模糊归一。
+        XCTAssertFalse(
             HeadingSourceMatcher.matches(heading: "CAFE", materialTitle: "Café 里的那段对话")
         )
     }
@@ -39,9 +40,11 @@ final class BriefHeadingTests: XCTestCase {
         XCTAssertFalse(HeadingSourceMatcher.matches(heading: "", materialTitle: ""))
     }
 
-    func testHeadingTrailingColonIsTrimmed() {
-        XCTAssertEqual(HeadingSourceMatcher.normalizedHeading("  来源： "), "来源")
-        XCTAssertTrue(
+    func testHeadingIsOnlyTrimmedNotRewritten() {
+        // 只裁首尾空白，不改写文字：去掉冒号之类会让匹配结果难以解释。
+        XCTAssertEqual(HeadingSourceMatcher.normalizedHeading("  来源  "), "来源")
+        XCTAssertEqual(HeadingSourceMatcher.normalizedHeading("来源："), "来源：")
+        XCTAssertFalse(
             HeadingSourceMatcher.matches(heading: "来源：", materialTitle: "来源梳理")
         )
     }
@@ -75,10 +78,32 @@ final class BriefHeadingTests: XCTestCase {
         XCTAssertFalse(candidates[0].isResolved)
     }
 
+    // MARK: 动作层选项
+
+    func testActionsIncludeOpenSourceOnlyWhenMatched() {
+        let withSource = HeadingActionContext(
+            heading: "事件进展",
+            sourceURL: URL(string: "https://a.test/1"),
+            locale: Locale(identifier: "zh-Hans")
+        )
+        XCTAssertEqual(HeadingActionPlanner.actions(for: withSource), [.openSource, .trackEvent])
+    }
+
+    func testActionsFallBackToTrackEventOnly() {
+        let withoutSource = HeadingActionContext(
+            heading: "事件进展",
+            sourceURL: nil,
+            locale: Locale(identifier: "zh-Hans")
+        )
+        // 未命中时只剩跟踪事件，且永远不是空列表——不会出现空白项或死入口。
+        XCTAssertEqual(HeadingActionPlanner.actions(for: withoutSource), [.trackEvent])
+        XCTAssertFalse(HeadingActionPlanner.actions(for: withoutSource).isEmpty)
+    }
+
     // MARK: 事件预填
 
     func testEventDraftNameUsesHeadingText() {
-        XCTAssertEqual(TrackedEventDraft.name(heading: "  模型竞赛进入下半场： "), "模型竞赛进入下半场")
+        XCTAssertEqual(TrackedEventDraft.name(heading: "  模型竞赛进入下半场  "), "模型竞赛进入下半场")
     }
 
     func testEventDraftPromptEmbedsHeading() {

@@ -16,13 +16,11 @@ enum HeadingSourceMatcher {
 
     /// 小标题文字是否被素材标题包含。
     ///
-    /// 只裁掉首尾空白与结尾的冒号（Markdown 小标题常写成「来源：」这类形式），
-    /// 不做其它改写：改写越多，误命中越难解释。
+    /// 只裁首尾空白，不改写文字本身：需求明确限定「只忽略大小写」，
+    /// 去掉冒号、忽略变音符号之类的宽松化会让匹配结果难以向用户解释，
+    /// 也会让「为什么这里没有查看原文」变成猜谜。
     static func normalizedHeading(_ heading: String) -> String {
-        heading
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .trimmingCharacters(in: CharacterSet(charactersIn: "：:"))
-            .trimmingCharacters(in: .whitespacesAndNewlines)
+        heading.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     static func matches(heading: String, materialTitle: String) -> Bool {
@@ -30,7 +28,7 @@ enum HeadingSourceMatcher {
         guard !needle.isEmpty else { return false }
         let haystack = materialTitle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !haystack.isEmpty else { return false }
-        return haystack.range(of: needle, options: [.caseInsensitive, .diacriticInsensitive]) != nil
+        return haystack.range(of: needle, options: [.caseInsensitive]) != nil
     }
 
     /// 在候选素材里取第一个命中项；没有命中返回 nil。
@@ -90,6 +88,26 @@ enum TrackedEventDraft {
 // 用 confirmationDialog 而不是自制弹层：它是 iOS 惯用的动作选择，
 // 并且天然支持「当前只有一个动作」的情况。
 
+// MARK: - 动作层的选项
+//
+// 抽成纯函数，这样「未命中时只剩跟踪事件」可以由单元测试直接断言，
+// 而不是只能靠 firstMatch 的返回值间接推测。
+
+enum HeadingActionKind: Equatable, Hashable {
+    case openSource
+    case trackEvent
+}
+
+enum HeadingActionPlanner {
+    /// 最多两项，顺序固定：有原文时先给原文，事件跟踪永远在。
+    static func actions(for context: HeadingActionContext) -> [HeadingActionKind] {
+        var actions: [HeadingActionKind] = []
+        if context.sourceURL != nil { actions.append(.openSource) }
+        actions.append(.trackEvent)
+        return actions
+    }
+}
+
 extension View {
     /// 把动作层挂到详情页上。`selection` 为 nil 时不显示。
     func briefHeadingActions(
@@ -106,16 +124,24 @@ extension View {
             ),
             titleVisibility: .visible
         ) {
+            // 按钮顺序与可见性由 HeadingActionPlanner 决定，界面只负责渲染，
+            // 这样「未命中时只剩跟踪事件」可以被单元测试直接覆盖。
             if let context = selection.wrappedValue {
-                if let url = context.sourceURL {
-                    Button(L10n.string("brief.heading.openSource", locale: context.locale)) {
-                        selection.wrappedValue = nil
-                        onOpenSource(url)
+                ForEach(HeadingActionPlanner.actions(for: context), id: \.self) { action in
+                    switch action {
+                    case .openSource:
+                        if let url = context.sourceURL {
+                            Button(L10n.string("brief.heading.openSource", locale: context.locale)) {
+                                selection.wrappedValue = nil
+                                onOpenSource(url)
+                            }
+                        }
+                    case .trackEvent:
+                        Button(L10n.string("brief.heading.track", locale: context.locale)) {
+                            selection.wrappedValue = nil
+                            onTrackEvent(context.heading)
+                        }
                     }
-                }
-                Button(L10n.string("brief.heading.track", locale: context.locale)) {
-                    selection.wrappedValue = nil
-                    onTrackEvent(context.heading)
                 }
             }
             Button(L10n.string("common.cancel", locale: selection.wrappedValue?.locale ?? .current), role: .cancel) {
@@ -126,10 +152,17 @@ extension View {
 }
 
 /// 动作层需要的上下文：点了哪个标题、命中的原文地址、渲染用的语言。
+///
+/// 没有素材候选时以「未解析」状态先弹出（用户点了马上有反应），
+/// 素材取回后再修正 sourceURL；`unresolved` 仅用于界面判断是否还在找。
 struct HeadingActionContext: Identifiable {
     let heading: String
-    let sourceURL: URL?
+    var sourceURL: URL?
     let locale: Locale
+    /// 点击时正文没引用任何素材，那么「查看原文」永远不会出现，不必等。
+    var awaitingSource: Bool = false
 
-    var id: String { heading + "|" + (sourceURL?.absoluteString ?? "") }
+    var id: String {
+        heading + "|" + (sourceURL?.absoluteString ?? "") + "|" + (awaitingSource ? "waiting" : "settled")
+    }
 }
