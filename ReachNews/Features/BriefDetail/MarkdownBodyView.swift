@@ -137,14 +137,17 @@ enum MarkdownBlockBuilder {
         return .paragraph
     }
 
-    /// 去掉块首尾的空行与空格，避免段间出现多余留白。
+    /// 去掉块首尾的空行与空白，同时保留行内样式（粗体、链接等）。
+    ///
+    /// AttributedString 本身是 Collection<Character>，直接用自身索引裁剪即可；
+    /// 不要混用 characters 视图的索引。
     static func trimmingEdges(_ attributed: AttributedString) -> AttributedString {
         var result = attributed
-        while let first = result.characters.first, first.isNewline || first == " " {
-            result.removeSubrange(result.startIndex..<result.characters.index(after: result.startIndex))
+        while let first = result.first, first.isNewline || first == " " {
+            result.removeSubrange(result.startIndex..<result.index(after: result.startIndex))
         }
-        while let last = result.characters.last, last.isNewline || last == " " {
-            result.removeSubrange(result.characters.index(before: result.endIndex)..<result.endIndex)
+        while let last = result.last, last.isNewline || last == " " {
+            result.removeSubrange(result.index(before: result.endIndex)..<result.endIndex)
         }
         return result
     }
@@ -187,7 +190,7 @@ enum MarkdownBlockBuilder {
             return AnyView(
                 ScrollView(.horizontal, showsIndicators: false) {
                     // 代码块不加行内样式，等宽并保留换行与缩进；不做语法高亮。
-                    Text(AttributedString(block.text.characters.map(String.init).joined()))
+                    Text(String(block.text))
                         .font(.system(size: 13.5, design: .monospaced))
                         .foregroundStyle(Palette.ink)
                         .textSelection(.enabled)

@@ -19,7 +19,7 @@ final class MarkdownBodyTests: XCTestCase {
 
         XCTAssertEqual(blocks.count, 1)
         XCTAssertEqual(blocks.first?.kind, .heading(level: 2), "## 应识别为二级标题")
-        XCTAssertEqual(String(blocks.first?.text.characters ?? ""), "一句话结论")
+        XCTAssertEqual(plainText(of: blocks.first), "一句话结论")
     }
 
     func testHeadingLevelsArePreserved() {
@@ -65,7 +65,7 @@ final class MarkdownBodyTests: XCTestCase {
         let code = blocks.first { $0.kind == .codeBlock }
 
         XCTAssertNotNil(code, "围栏代码块应识别为 codeBlock")
-        let text = String(code?.text.characters ?? "")
+        let text = plainText(of: code)
         XCTAssertTrue(text.contains("let x = 1"), "代码内容应保留")
         XCTAssertFalse(text.contains("```"), "不应残留围栏标记")
     }
@@ -84,7 +84,7 @@ final class MarkdownBodyTests: XCTestCase {
         let blocks = MarkdownBlockBuilder.split(MarkdownBlockBuilder.attributed(from: "只是一段普通文字。"))
         XCTAssertEqual(blocks.count, 1)
         XCTAssertEqual(blocks.first?.kind, .paragraph)
-        XCTAssertEqual(String(blocks.first?.text.characters ?? ""), "只是一段普通文字。")
+        XCTAssertEqual(plainText(of: blocks.first), "只是一段普通文字。")
     }
 
     // MARK: 行内语法
@@ -193,6 +193,14 @@ final class MarkdownBodyTests: XCTestCase {
         let paragraphs = blocks.filter { $0.kind == .paragraph }
 
         XCTAssertEqual(paragraphs.count, 2, "两段之间留空行，不应被粘成一段")
+    }
+
+    // MARK: 辅助
+
+    /// AttributedString 的纯文本；缺块时返回空串。
+    private func plainText(of block: MarkdownBlockBuilder.Block?) -> String {
+        guard let block else { return "" }
+        return String(block.text)
     }
 
     // MARK: 渲染范围只限 body
