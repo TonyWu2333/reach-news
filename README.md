@@ -9,6 +9,7 @@ Reach News 的手机客户端。iOS 端连接 `reachapi.niuma.art` 的真实 `/a
 - `android/` — Kotlin + Jetpack Compose Android 客户端（本轮未改动）。
 - `Fixtures/` — 真实响应形状的样本，供单元测试与 Preview 使用。
 - `docs/client-contract.md` — 客户端侧契约（归一化、状态映射、分页、轮询、鉴权）。
+- `docs/development-notes.md` — 开发踩坑与工作流（环境限制、凭证、CI、测试、iOS 与 Comet 的坑）。新会话先读这个。
 - `docs/adr/` — 本轮重设计的关键决策。
 - `GLOSSARY.md` — 跨端共享的术语表。
 - `.github/workflows/build.yml` — 构建与测试，全部在 GitHub Actions 上执行。
