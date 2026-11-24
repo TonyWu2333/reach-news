@@ -1,23 +1,28 @@
 import SwiftUI
-import Markdown
+import Foundation
 
-// MARK: - 正文 Markdown 渲染
+// MARK: - 正文 Markdown 渲染（原生实现）
 //
-// 服务端把正文写在 segments[].text 里，内容是 AI 按技能模板生成的 Markdown，
-// 语法不受逐字控制（会出现小标题、列表、代码块等）。因此这里接入 Apple 官方
-// 的 swift-markdown（CommonMark 参考实现）解析，再把 AST 映射成 SwiftUI 视图，
-// 不自研正则，也不做「只认 ## 和 **」的最小实现。
+// 正文的 segments[].text 是 AI 按技能模板生成的 Markdown，语法不受逐字控制，
+// 会出现标题、列表、代码块等——只认 ## 和 ** 的最小实现必然漏语法。
+//
+// 这里用 Foundation 自带的 CommonMark 解析器 `AttributedString(markdown:)`
+// （interpretedSyntax: .full），不引入第三方依赖，也不自研正则。
+//
+// 它把 Markdown 解析成 AttributedString，块级结构记录在 `presentationIntent` 上：
+// components 是从最外层到最内层的链（例如 [unorderedList, listItem]），
+// `Text` 不会因为 intent 自动放大标题或缩进列表，所以这里按 intent 切块，
+// 块级样式（标题字号、项目符号、代码底纹）由 SwiftUI 自己施加。
 //
 // 渲染范围严格限定 body：title / summary / sections 一律纯文本，不走这里。
 
-/// 把一个 Markdown 源码片段渲染成视图块序列。
 struct MarkdownBodyView: View {
     let markdown: String
     var onOpenURL: (URL) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.l) {
-            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+            ForEach(Array(MarkdownBlockBuilder.parse(markdown).enumerated()), id: \.offset) { _, block in
                 block
             }
         }
@@ -27,257 +32,207 @@ struct MarkdownBodyView: View {
             return .handled
         })
     }
-
-    /// 解析一次，得到有序的块级视图。
-    private var blocks: [AnyView] {
-        let document = Document(parsing: markdown)
-        var renderer = MarkdownBlockRenderer()
-        return renderer.visit(document)
-    }
 }
 
-// MARK: - 块级渲染
-//
-// 只处理正文可能出现的块：标题、段落、列表、引用、代码块、分隔线。
-// 未知块按段落降级，保证内容不丢。
+// MARK: - 分块与渲染
 
-struct MarkdownBlockRenderer: MarkupVisitor {
-    typealias Result = [AnyView]
+enum MarkdownBlockBuilder {
 
-    mutating func defaultVisit(_ markup: Markup) -> [AnyView] {
-        // 未知块：把它的子节点铺平，避免内容消失。
-        // 注意不能写成 children.flatMap { visit($0) }：闭包里 self 是只读的，mutating 方法调不了。
-        flattened(markup)
+    /// 块级种类：取 intent 链里最深的那一层。
+    enum Kind: Equatable {
+        case paragraph
+        case heading(level: Int)
+        case listItem(ordered: Bool, ordinal: Int)
+        case codeBlock
+        case blockQuote
+        case thematicBreak
     }
 
-    mutating func visitDocument(_ document: Document) -> [AnyView] {
-        flattened(document)
+    struct Block {
+        let kind: Kind
+        let text: AttributedString
     }
 
-    /// 递归铺平子节点的块视图。
-    private mutating func flattened(_ markup: Markup) -> [AnyView] {
-        var result: [AnyView] = []
-        for child in markup.children {
-            result.append(contentsOf: visit(child))
+    static func parse(_ markdown: String) -> [AnyView] {
+        split(attributed(from: markdown)).map(view(for:))
+    }
+
+    /// Foundation 的 CommonMark 解析。失败时退回纯文本，保证正文不丢。
+    static func attributed(from markdown: String) -> AttributedString {
+        let options = AttributedString.MarkdownParsingOptions(
+            interpretedSyntax: .full,
+            failurePolicy: .returnPartiallyParsedIfPossible
+        )
+        if let parsed = try? AttributedString(markdown: markdown, options: options) {
+            return parsed
         }
-        return result
+        return AttributedString(markdown)
     }
 
-    mutating func visitParagraph(_ paragraph: Paragraph) -> [AnyView] {
-        [AnyView(
-            Text(inlineAttributed(for: paragraph))
-                .font(TypeFace.body(16))
-                .lineSpacing(7)
-                .foregroundStyle(Palette.ink)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .textSelection(.enabled)
-        )]
-    }
+    /// 按块级 intent 切分：intent 变一次就换块。
+    static func split(_ attributed: AttributedString) -> [Block] {
+        var blocks: [Block] = []
+        var current = AttributedString()
+        var currentKind: Kind = .paragraph
 
-    mutating func visitHeading(_ heading: Heading) -> [AnyView] {
-        // 正文里的小标题：按级别给字号，保持层级感但不喧宾夺主。
-        let size: CGFloat
-        switch heading.level {
-        case 1: size = 22
-        case 2: size = 19
-        case 3: size = 17
-        default: size = 16
+        func flush() {
+            guard !current.characters.isEmpty else { return }
+            let trimmed = trimmingEdges(current)
+            if !trimmed.characters.isEmpty {
+                blocks.append(Block(kind: currentKind, text: trimmed))
+            }
+            current = AttributedString()
         }
-        return [AnyView(
-            Text(inlineAttributed(for: heading))
-                .font(TypeFace.heading(size))
-                .foregroundStyle(Palette.ink)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, Space.xs)
-                .accessibilityAddTraits(.isHeader)
-        )]
+
+        for run in attributed.runs {
+            let kind = kind(of: run.presentationIntent)
+            if kind != currentKind {
+                flush()
+                currentKind = kind
+            }
+            // 保留行内样式即可；Text 不会因为块级 intent 自动加项目符号或放大标题，
+            // 块级表现完全由下面的视图映射决定。
+            current += AttributedString(attributed[run.range])
+        }
+        flush()
+        return blocks
     }
 
-    mutating func visitUnorderedList(_ list: UnorderedList) -> [AnyView] {
-        listItems(list, marker: "•")
-    }
+    /// 从 intent 链判断该块的种类。
+    ///
+    /// 链是从最外层到最内层（例如列表项里的文字是 [unorderedList, listItem, paragraph]）。
+    /// 因此不能只看最深一层：那样列表项会被当成普通段落而丢掉项目符号。
+    /// 这里从内往外找第一个需要块级表现的种类，列表的有序性再由链里的容器决定。
+    static func kind(of intent: PresentationIntent?) -> Kind {
+        guard let components = intent?.components, !components.isEmpty else {
+            return .paragraph
+        }
 
-    mutating func visitOrderedList(_ list: OrderedList) -> [AnyView] {
-        // startIndex 在 swift-markdown 里不是 public，外部读不到；
-        // 正文的有序列表从 1 开始编号即可，无需还原自定义起始值。
-        var result: [AnyView] = []
-        for (offset, child) in list.children.enumerated() {
-            guard let item = child as? ListItem else {
-                result.append(contentsOf: visit(child))
+        var isOrdered = false
+        var isUnordered = false
+        for component in components {
+            switch component.kind {
+            case .orderedList: isOrdered = true
+            case .unorderedList: isUnordered = true
+            default: break
+            }
+        }
+
+        for component in components.reversed() {
+            switch component.kind {
+            case .header(let level):
+                return .heading(level: level)
+            case .listItem(let ordinal):
+                return .listItem(ordered: isOrdered && !isUnordered, ordinal: ordinal)
+            case .codeBlock:
+                return .codeBlock
+            case .blockQuote:
+                return .blockQuote
+            case .thematicBreak:
+                return .thematicBreak
+            default:
                 continue
             }
-            let body = itemBody(item)
-            result.append(AnyView(
-                HStack(alignment: .firstTextBaseline, spacing: Space.s) {
-                    Text("\(offset + 1).")
-                        .font(TypeFace.condensed(14, weight: .semibold))
-                        .foregroundStyle(Palette.inkTertiary)
-                        .frame(minWidth: 20, alignment: .trailing)
-                    body
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-            ))
+        }
+        return .paragraph
+    }
+
+    /// 去掉块首尾的空行与空格，避免段间出现多余留白。
+    static func trimmingEdges(_ attributed: AttributedString) -> AttributedString {
+        var result = attributed
+        while let first = result.characters.first, first.isNewline || first == " " {
+            result.removeSubrange(result.startIndex..<result.characters.index(after: result.startIndex))
+        }
+        while let last = result.characters.last, last.isNewline || last == " " {
+            result.removeSubrange(result.characters.index(before: result.endIndex)..<result.endIndex)
         }
         return result
     }
 
-    mutating func visitCodeBlock(_ codeBlock: CodeBlock) -> [AnyView] {
-        // 等宽、保留换行与缩进；不做语法高亮。
-        [AnyView(
-            ScrollView(.horizontal, showsIndicators: false) {
-                Text(codeBlock.code)
-                    .font(.system(size: 13.5, design: .monospaced))
+    // MARK: 视图映射
+
+    private static func view(for block: Block) -> AnyView {
+        switch block.kind {
+        case .heading(let level):
+            let sizes: [CGFloat] = [22, 19, 17, 16, 16, 16]
+            let size = sizes[min(max(level, 1), 6) - 1]
+            return AnyView(
+                Text(block.text)
+                    .font(TypeFace.heading(size))
                     .foregroundStyle(Palette.ink)
-                    .textSelection(.enabled)
-                    .padding(Space.m)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
-                    .fill(Palette.paper)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, Space.xs)
+                    .accessibilityAddTraits(.isHeader)
             )
-        )]
-    }
 
-    mutating func visitBlockQuote(_ blockQuote: BlockQuote) -> [AnyView] {
-        let inner = flattened(blockQuote)
-        return [AnyView(
-            HStack(alignment: .top, spacing: Space.m) {
-                Rectangle()
-                    .fill(Palette.lineStrong)
-                    .frame(width: 3)
-                VStack(alignment: .leading, spacing: Space.s) {
-                    ForEach(Array(inner.enumerated()), id: \.offset) { _, view in view }
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, Space.xxs)
-        )]
-    }
-
-    mutating func visitThematicBreak(_ thematicBreak: ThematicBreak) -> [AnyView] {
-        [AnyView(
-            Rectangle()
-                .fill(Palette.line)
-                .frame(height: 1)
-                .padding(.vertical, Space.xs)
-        )]
-    }
-
-    // MARK: 辅助
-
-    private mutating func listItems(_ list: Markup, marker: String) -> [AnyView] {
-        var result: [AnyView] = []
-        for child in list.children {
-            guard let item = child as? ListItem else {
-                result.append(contentsOf: visit(child))
-                continue
-            }
-            let body = itemBody(item)
-            result.append(AnyView(
+        case .listItem(let ordered, let ordinal):
+            let marker = ordered ? "\(max(ordinal, 1))." : "•"
+            return AnyView(
                 HStack(alignment: .firstTextBaseline, spacing: Space.s) {
                     Text(marker)
-                        .font(TypeFace.body(16))
+                        .font(ordered ? TypeFace.condensed(14, weight: .semibold) : TypeFace.body(16))
                         .foregroundStyle(Palette.inkTertiary)
-                    body
+                        .frame(minWidth: 18, alignment: .trailing)
+                    Text(block.text)
+                        .font(TypeFace.body(16))
+                        .lineSpacing(7)
+                        .foregroundStyle(Palette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-            ))
-        }
-        return result
-    }
+            )
 
-    /// 列表项内部可能还有嵌套段落与子列表，递归取块视图。
-    /// 返回 AnyView 而不是 some View：调用方处在 mutating 上下文里，
-    /// 返回不透明类型会把 mutating 访问泄漏到视图构建过程中。
-    private mutating func itemBody(_ item: ListItem) -> AnyView {
-        var inner: [AnyView] = []
-        for child in item.children {
-            inner.append(contentsOf: visit(child))
-        }
-        return AnyView(
-            VStack(alignment: .leading, spacing: Space.xs) {
-                ForEach(Array(inner.enumerated()), id: \.offset) { _, view in
-                    view
+        case .codeBlock:
+            return AnyView(
+                ScrollView(.horizontal, showsIndicators: false) {
+                    // 代码块不加行内样式，等宽并保留换行与缩进；不做语法高亮。
+                    Text(AttributedString(block.text.characters.map(String.init).joined()))
+                        .font(.system(size: 13.5, design: .monospaced))
+                        .foregroundStyle(Palette.ink)
+                        .textSelection(.enabled)
+                        .padding(Space.m)
                 }
-            }
-        )
-    }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: Radius.medium, style: .continuous)
+                        .fill(Palette.paper)
+                )
+            )
 
-    /// 行内样式（粗体、斜体、代码、链接）合成一个 AttributedString。
-    private func inlineAttributed(for markup: Markup) -> AttributedString {
-        var visitor = MarkdownInlineRenderer()
-        var result = AttributedString()
-        for child in markup.children {
-            result += visitor.visit(child)
+        case .blockQuote:
+            return AnyView(
+                HStack(alignment: .top, spacing: Space.m) {
+                    Rectangle()
+                        .fill(Palette.lineStrong)
+                        .frame(width: 3)
+                    Text(block.text)
+                        .font(TypeFace.body(15))
+                        .lineSpacing(6)
+                        .foregroundStyle(Palette.inkSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            )
+
+        case .thematicBreak:
+            return AnyView(
+                Rectangle()
+                    .fill(Palette.line)
+                    .frame(height: 1)
+                    .padding(.vertical, Space.xs)
+            )
+
+        case .paragraph:
+            return AnyView(
+                Text(block.text)
+                    .font(TypeFace.body(16))
+                    .lineSpacing(7)
+                    .foregroundStyle(Palette.ink)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            )
         }
-        return result
-    }
-}
-
-// MARK: - 行内渲染
-//
-// 行内元素合成富文本：粗体、斜体、行内代码、链接、删除线、换行。
-
-struct MarkdownInlineRenderer: MarkupVisitor {
-    typealias Result = AttributedString
-
-    mutating func defaultVisit(_ markup: Markup) -> AttributedString {
-        // 同样不能在 reduce/遍历闭包里调用 mutating 的 visit。
-        var result = AttributedString()
-        for child in markup.children {
-            result += visit(child)
-        }
-        return result
-    }
-
-    mutating func visitText(_ text: Text) -> AttributedString {
-        AttributedString(text.string)
-    }
-
-    mutating func visitStrong(_ strong: Strong) -> AttributedString {
-        var result = defaultVisit(strong)
-        result.inlinePresentationIntent = .stronglyEmphasized
-        return result
-    }
-
-    mutating func visitEmphasis(_ emphasis: Emphasis) -> AttributedString {
-        var result = defaultVisit(emphasis)
-        result.inlinePresentationIntent = .emphasized
-        return result
-    }
-
-    mutating func visitInlineCode(_ inlineCode: InlineCode) -> AttributedString {
-        var result = AttributedString(inlineCode.code)
-        result.inlinePresentationIntent = .code
-        result.foregroundColor = Palette.inkSecondary
-        return result
-    }
-
-    mutating func visitStrikethrough(_ strikethrough: Strikethrough) -> AttributedString {
-        var result = defaultVisit(strikethrough)
-        result.inlinePresentationIntent = .strikethrough
-        return result
-    }
-
-    mutating func visitLink(_ link: Link) -> AttributedString {
-        var result = defaultVisit(link)
-        if let destination = link.destination, let url = URL(string: destination) {
-            result.link = url
-            result.underlineStyle = .single
-            result.foregroundColor = Palette.runningForeground
-        }
-        return result
-    }
-
-    mutating func visitLineBreak(_ lineBreak: LineBreak) -> AttributedString {
-        AttributedString("\n")
-    }
-
-    mutating func visitSoftBreak(_ softBreak: SoftBreak) -> AttributedString {
-        // 软换行在段落里按空格处理，避免把一段话拆成多行。
-        AttributedString(" ")
     }
 }
