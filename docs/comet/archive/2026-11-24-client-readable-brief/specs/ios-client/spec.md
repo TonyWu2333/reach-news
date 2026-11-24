@@ -76,7 +76,11 @@ DTO 层一次完成，UI 与 Store 只见归一化后的类型：
 
 - 头部：标题与 `M月d日 HH:mm`；**不显示分组数与素材数**（它们来自 `sections`，在读者端已不可见）。`summary` 非空时展示在标题下方、正文之前，为空时整块不渲染。
 - **正文优先**：`body` 非空时渲染段落与行内链接。段落之间按正文间距排版，行高与行宽按长文阅读设置；不渲染成列表，不使用等宽字体。
-- 正文只有段落与链接，没有小标题、加粗、图片；客户端不做 Markdown 解析。
+- 正文 `segments[].text` 是 Markdown，按 CommonMark 渲染：小标题、列表、粗体、行内代码、引用块、代码块与链接都要正确呈现，界面上不出现字面的 `##`、`-`、`**`、``` 等标记。
+- 用成熟 CommonMark 实现（Apple 的 `swift-markdown`）解析，不自研正则、不只处理部分语法；渲染范围严格限定 `body`。
+- 渲染器覆盖：块级（标题 h1–h6、段落、无序/有序列表、引用块、围栏与缩进代码块、分隔线）与行内（粗体、斜体、行内代码、链接、删除线）。
+- 代码块等宽显示并保留换行与缩进；不使用语法高亮。
+- `title`、`summary`、`sections[].items[].title` 与 `.summary` 一律纯文本：即使含 Markdown 标记也原样显示，不解析。
 - `link` 片段渲染为可点文本，点击用系统浏览器打开 `url`；`url` 缺失或非法的片段降级为纯文字，不产生死链。
 - **正文缺失**：`body` 为 `nil` 或字段缺失时，标题与描述照常显示，正文区显示一句「本期无可读正文」的说明；不回退到分组渲染，页面不出现分组列表，也不报错。
 - **读者端不渲染 `sections`**：详情页没有分组标题、条目卡与「本期采集」入口。`sections` 仍照常解析并保留在模型中（供后台核对与将来使用），但不进入这个界面。
@@ -291,6 +295,8 @@ DTO 层一次完成，UI 与 Store 只见归一化后的类型：
 
 - 单元测试覆盖：DTO 解码（含 `/cursor` snake_case 与整数 `enabled`、频道五个订阅字段、空字符串 `subscriptionColor`）、时间解析与时区展示、`missedReason`/`error.code` 的未知值保留、四个订阅错误码归一化、分页参数构造拒绝负值与越界、`lastSeenAt` 取最大 `created_at`、筛选与去重逻辑、频道可写性三判定（`canEdit`/`canSubscribe`/`canUnsubscribe`）、订阅与取消订阅与改色与 fork 的请求方法与路径、频道编辑只提交改动字段、`409 busy` 不丢输入。
 - 本轮的正文与摘要另需覆盖：`body` 的三种状态（有正文 / `null` / 字段缺失）、`paragraphs` 为空数组、`link` 缺 `url` 时降级为纯文字、未知 segment `type` 按纯文字处理、`summary` 为 `null` 与空字符串、以及「无论是否有正文都不渲染 `sections`」。
+- Markdown 渲染另需覆盖：`## 小标题`、无序列表、有序列表、`**粗体**`、`*斜体*`、行内代码、引用块、围栏代码块与链接，各自解析为对应视图而非字面标记；覆盖一期里同时出现多种语法；并确认 `title` / `summary` / `sections` 中的同种标记不被解析。
+- Markdown 渲染另需覆盖：`## 小标题`、无序列表、有序列表、`**粗体**`、`*斜体*`、行内代码、引用块、围栏代码块、链接，各自解析为对应视图而非字面标记；同时覆盖正文里同时出现多种语法的一期；并确认 `title` / `summary` / `sections` 中的同种标记不被解析。
 - 样本取自 `Fixtures/*.json`，必须覆盖：`lastBriefAt: null`、`connectorIds: []`、`owner: "subscriber"` 的订阅项、`subscriptionColor: ""`、`published: false` 的自建频道、`missed` + `no-material`、`failed`、多分组、条目引用多条素材；另需覆盖带 `body` 的日报、`body: null` 的日报、`summary: null` 的日报。
 - UI 测试以可访问性标识驱动，覆盖日报流的搜索与筛选、频道卡开关、订阅卡无编辑入口、订阅按钮把项从「发现更多」移入「订阅的频道」、编辑页 `409` 提示；UI 测试不打真实网络，使用可注入的固定响应。
 - 构建与测试证据来自 GitHub Actions 的 iOS 任务；Android 任务只需 `assembleDebug` 继续通过。
@@ -308,7 +314,8 @@ DTO 层一次完成，UI 与 Store 只见归一化后的类型：
 - 依赖 `PUT` 等未实现方法的方法错误区分（服务端回 404）。
 - 在读者端展示 `sections` 分组、条目卡或「本期采集」入口；`sections` 不进入这个界面。
 - 把 `sections` 当作正文的脚注或字幕，或用它反推正文应当写什么。
-- 对正文做 Markdown / HTML 解析：正文只有段落与行内链接。
+- 对 `body` 以外的字段做 Markdown 解析：`title`、`summary`、`sections` 的标题与摘要一律纯文本。
+- 在正文里渲染 HTML：正文只按 CommonMark 处理，不引入 HTML 渲染。
 - 读取频道的 `title` / `description` / `displayTitle`（服务端已移除）。
 
 ## 范围约束
