@@ -66,7 +66,7 @@ struct BriefHeadingCandidate: Equatable, Hashable, Identifiable {
 
 enum TrackedEventDraft {
 
-    /// 预填名称：直接用小标题文字，去掉首尾空白与结尾冒号。
+    /// 预填名称：直接用小标题文字，只去掉首尾空白（不改写文字本身）。
     static func name(heading: String) -> String {
         HeadingSourceMatcher.normalizedHeading(heading)
     }
@@ -153,16 +153,12 @@ extension View {
 
 /// 动作层需要的上下文：点了哪个标题、命中的原文地址、渲染用的语言。
 ///
-/// 没有素材候选时以「未解析」状态先弹出（用户点了马上有反应），
-/// 素材取回后再修正 sourceURL；`unresolved` 仅用于界面判断是否还在找。
+/// 构造时 `sourceURL` 已经确定（命中就是素材原文地址，未命中就是 nil），
+/// 弹层不依赖「展示期间被重建」来补齐选项。
 struct HeadingActionContext: Identifiable {
     let heading: String
-    var sourceURL: URL?
+    let sourceURL: URL?
     let locale: Locale
-    /// 点击时正文没引用任何素材，那么「查看原文」永远不会出现，不必等。
-    var awaitingSource: Bool = false
 
-    var id: String {
-        heading + "|" + (sourceURL?.absoluteString ?? "") + "|" + (awaitingSource ? "waiting" : "settled")
-    }
+    var id: String { heading + "|" + (sourceURL?.absoluteString ?? "") }
 }

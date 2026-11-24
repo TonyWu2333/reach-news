@@ -101,26 +101,14 @@ final class BriefDetailStore {
     }
 
     /// 展开条目时按需取回该条目的素材。
+    ///
+    /// 走 `loadMaterial(itemID:)` 而不是自己发请求：否则这里只会写
+    /// `loadingMaterialIDs`，从不 resume `materialWaiters`，
+    /// 与之并发的等待者会永久挂起。
     func loadMaterials(for entry: Entry) async {
-        let missing = entry.materialIDs.filter { materialsByID[$0] == nil && !loadingMaterialIDs.contains($0) }
-        guard !missing.isEmpty else { return }
-
-        for materialID in missing {
-            loadingMaterialIDs.insert(materialID)
-            defer { loadingMaterialIDs.remove(materialID) }
-            do {
-                let material = try await client.material(briefID: brief.id, materialID: materialID)
-                materialsByID[materialID] = material
-                failedMaterialIDs.remove(materialID)
-            } catch let apiError as APIError {
-                failedMaterialIDs.insert(materialID)
-                if apiError == .unauthorized {
-                    error = apiError
-                    return
-                }
-            } catch {
-                failedMaterialIDs.insert(materialID)
-            }
+        for materialID in entry.materialIDs {
+            if Task.isCancelled { return }
+            _ = await loadMaterial(itemID: materialID)
         }
     }
 }

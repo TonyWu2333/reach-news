@@ -29,7 +29,7 @@ struct BriefDetailView: View {
                     content: store.brief.body,
                     onOpenURL: { url in openURL(url) },
                     onTapHeading: { heading in
-                        presentHeadingActions(for: heading)
+                        Task { await presentHeadingActions(for: heading) }
                     }
                 )
                 .padding(.horizontal, Space.xl)
@@ -96,17 +96,17 @@ struct BriefDetailView: View {
         }
     }
 
-    /// 点小标题时**立刻**弹出动作层，再在后台按需取回正文引用过的素材补上「查看原文」。
+    /// 点小标题时先确定「有没有可打开的原文」，再弹出动作层。
     ///
-    /// 之前是先把素材全部取回再弹层，正文链接多时会明显迟滞；现在先用已知缓存判断一次，
-    /// 立刻出弹层，取回结果再修正。素材取不回来（离线、404）只让「查看原文」不出现，
-    /// 不影响事件跟踪。
-    private func presentHeadingActions(for heading: String) {
+    /// 这里刻意**不**依赖「弹层展示期间 SwiftUI 会重建按钮」：那样第一次点击可能看不到
+    /// 「查看原文」，要再点一次才出现。读者端不预载素材，因此先取回候选、算出命中，
+    /// 再一次性把带 sourceURL 的上下文交给弹层，保证点开即见。
+    /// 取回失败的素材被跳过（离线、404），此时只少一个选项，不影响事件跟踪。
+    private func presentHeadingActions(for heading: String) async {
         let normalized = HeadingSourceMatcher.normalizedHeading(heading)
         let itemIDs = store.referencedItemIDs
 
-        // 已缓存的素材先算一遍，避免本来就有结果时还要等网络。
-        let cachedCandidates = itemIDs.compactMap { itemID -> BriefHeadingCandidate? in
+        var candidates: [BriefHeadingCandidate] = itemIDs.compactMap { itemID in
             guard let material = store.material(id: itemID) else { return nil }
             return BriefHeadingCandidate(
                 itemID: itemID,
@@ -114,22 +114,12 @@ struct BriefDetailView: View {
                 materialURL: material.url
             )
         }
-        let cachedMatch = HeadingSourceMatcher.firstMatch(heading: normalized, candidates: cachedCandidates)
 
-        headingAction = HeadingActionContext(
-            heading: normalized,
-            sourceURL: cachedMatch?.materialURL,
-            locale: locale,
-            awaitingSource: cachedMatch == nil && !itemIDs.isEmpty
-        )
-
-        guard cachedMatch == nil, !itemIDs.isEmpty else { return }
-
-        Task {
-            var resolved = cachedCandidates
-            for itemID in itemIDs where !resolved.contains(where: { $0.itemID == itemID }) {
+        // 只取还没命中的素材；一旦确定有原文就不再多取。
+        if HeadingSourceMatcher.firstMatch(heading: normalized, candidates: candidates) == nil {
+            for itemID in itemIDs where !candidates.contains(where: { $0.itemID == itemID }) {
                 if let material = await store.loadMaterial(itemID: itemID) {
-                    resolved.append(
+                    candidates.append(
                         BriefHeadingCandidate(
                             itemID: itemID,
                             materialTitle: material.title,
@@ -138,14 +128,14 @@ struct BriefDetailView: View {
                     )
                 }
             }
-
-            let match = HeadingSourceMatcher.firstMatch(heading: normalized, candidates: resolved)
-            // 用户可能已经关掉或点了别的标题，只在仍是同一个标题时修正。
-            guard var current = headingAction, current.heading == normalized else { return }
-            current.sourceURL = match?.materialURL
-            current.awaitingSource = false
-            headingAction = current
         }
+
+        let match = HeadingSourceMatcher.firstMatch(heading: normalized, candidates: candidates)
+        headingAction = HeadingActionContext(
+            heading: normalized,
+            sourceURL: match?.materialURL,
+            locale: locale
+        )
     }
 
     private var header: some View {
