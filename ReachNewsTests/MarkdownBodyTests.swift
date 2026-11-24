@@ -200,7 +200,7 @@ final class MarkdownBodyTests: XCTestCase {
     /// AttributedString 的纯文本；缺块时返回空串。
     private func plainText(of block: MarkdownBlockBuilder.Block?) -> String {
         guard let block else { return "" }
-        return String(block.text)
+        return String(block.text.characters)
     }
 
     // MARK: 渲染范围只限 body

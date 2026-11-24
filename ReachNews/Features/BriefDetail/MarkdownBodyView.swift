@@ -76,11 +76,11 @@ enum MarkdownBlockBuilder {
         var currentKind: Kind = .paragraph
 
         func flush() {
-            guard !current.characters.isEmpty else { return }
-            let trimmed = trimmingEdges(current)
-            if !trimmed.characters.isEmpty {
-                blocks.append(Block(kind: currentKind, text: trimmed))
+            guard !current.characters.isEmpty, !isBlank(current) else {
+                current = AttributedString()
+                return
             }
+            blocks.append(Block(kind: currentKind, text: current))
             current = AttributedString()
         }
 
@@ -137,19 +137,14 @@ enum MarkdownBlockBuilder {
         return .paragraph
     }
 
-    /// 去掉块首尾的空行与空白，同时保留行内样式（粗体、链接等）。
+    /// 清掉块首尾的换行与空白。
     ///
-    /// AttributedString 本身是 Collection<Character>，直接用自身索引裁剪即可；
-    /// 不要混用 characters 视图的索引。
-    static func trimmingEdges(_ attributed: AttributedString) -> AttributedString {
-        var result = attributed
-        while let first = result.first, first.isNewline || first == " " {
-            result.removeSubrange(result.startIndex..<result.index(after: result.startIndex))
-        }
-        while let last = result.last, last.isNewline || last == " " {
-            result.removeSubrange(result.index(before: result.endIndex)..<result.endIndex)
-        }
-        return result
+    /// 不做精细的富文本裁剪：attributed 的字符视图索引不能直接用于
+    /// removeSubrange，而 CommonMark 已经按块切好了 run，
+    /// 块首尾的空行只影响外观，统一在视图层用 padding 处理更简单可靠。
+    /// 这里只把「纯空白块」判定出来，避免出现空段落占位。
+    static func isBlank(_ attributed: AttributedString) -> Bool {
+        attributed.characters.allSatisfy { $0.isNewline || $0 == " " || $0 == "\t" }
     }
 
     // MARK: 视图映射
@@ -190,7 +185,7 @@ enum MarkdownBlockBuilder {
             return AnyView(
                 ScrollView(.horizontal, showsIndicators: false) {
                     // 代码块不加行内样式，等宽并保留换行与缩进；不做语法高亮。
-                    Text(String(block.text))
+                    Text(String(block.text.characters))
                         .font(.system(size: 13.5, design: .monospaced))
                         .foregroundStyle(Palette.ink)
                         .textSelection(.enabled)
