@@ -10,6 +10,7 @@ import XCTest
 
 final class RegistrationTests: XCTestCase {
 
+    @MainActor
     private func makeSession(
         transport: StubTransport,
         credentials: InMemoryCredentials = InMemoryCredentials(),
