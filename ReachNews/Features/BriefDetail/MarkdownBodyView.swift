@@ -213,16 +213,19 @@ enum MarkdownBlockBuilder {
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
                     // 标题右侧跟一个「跟踪」按钮：标题本身保持普通样式、不可点。
-                    Button {
-                        (onTrackHeading)(block.plainText)
-                    } label: {
-                        Image(systemName: "plus.circle")
-                            .font(.system(size: 13, weight: .regular))
-                            .foregroundStyle(Palette.inkTertiary)
+                    // 没有回调时不渲染按钮，避免出现点了没反应的死入口。
+                    if let onTrackHeading {
+                        Button {
+                            onTrackHeading(block.plainText)
+                        } label: {
+                            Image(systemName: "plus.circle")
+                                .font(.system(size: 13, weight: .regular))
+                                .foregroundStyle(Palette.inkTertiary)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(Text(L10n.string("brief.heading.track", locale: .current)))
+                        .accessibilityIdentifier("brief-heading-track")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(Text(L10n.string("brief.heading.track", locale: .current)))
-                    .accessibilityIdentifier("brief-heading-track")
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, Space.xs)
