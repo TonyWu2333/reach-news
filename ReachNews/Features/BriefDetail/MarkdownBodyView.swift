@@ -193,24 +193,31 @@ enum MarkdownBlockBuilder {
 
     /// 块内文字，并在**每条链接之后**各插一个外链图标。
     ///
-    /// 图标属于图标而不是可点文字：它不继承 link 属性，点图标只当普通文字，
-    /// 点链接文字才跳转（链接本身已带下划线，用户不会误解点击区域）。
-    /// 不能在整段末尾只加一个——一段里有多条链接时，用户需要逐条看出哪个是链接。
-    static func linkText(_ block: Block) -> AttributedString {
-        var result = block.text
-        // 没有链接就不必重建；有链接时按 run 顺序插入。
-        guard block.text.runs.contains(where: { $0.link != nil }) else { return result }
+    /// 不用 `AttributedString(Image:)`：该初始化器要求 Image 满足 Sequence，
+    /// 在目标 SDK 上不可用。改为把块按「链接结束位置」切开，用 `Text + Image`
+    /// 逐段拼接——SwiftUI 的 Text 支持与 Image 相加，且能保留各段的行内样式。
+    static func linkText(_ block: Block) -> Text {
+        let links = block.text.runs.filter { $0.link != nil }
+        // 没有链接就不必拆分。
+        guard !links.isEmpty else { return Text(block.text) }
 
-        // 从后往前插入，避免前面的插入让后面的 range 失效。
-        let runs = Array(block.text.runs)
-        for run in runs.reversed() where run.link != nil {
-            var icon = AttributedString(" ")
-            icon += AttributedString(Image(systemName: "arrow.up.forward.app"))
-            // 图标不参与跳转：清掉 link，只留文字样式。
-            icon.link = nil
-            result.insert(icon, at: run.range.upperBound)
+        var pieces: [Text] = []
+        var cursor = block.text.startIndex
+        for run in links {
+            // 链接之前的普通文字（含本条链接本身）。
+            if cursor < run.range.lowerBound {
+                pieces.append(Text(String(block.text[cursor..<run.range.lowerBound].characters)))
+            }
+            pieces.append(Text(AttributedString(block.text[run.range])))
+            // 图标紧跟这条链接，且不参与跳转。
+            pieces.append(Text(" "))
+            pieces.append(Text(Image(systemName: "arrow.up.forward.app")))
+            cursor = run.range.upperBound
         }
-        return result
+        if cursor < block.text.endIndex {
+            pieces.append(Text(String(block.text[cursor...].characters)))
+        }
+        return pieces.reduce(Text("")) { $0 + $1 }
     }
 
     private static func view(for block: Block, onTrackHeading: ((String) -> Void)?) -> AnyView {
@@ -256,7 +263,7 @@ enum MarkdownBlockBuilder {
                         .font(ordered ? TypeFace.condensed(14, weight: .semibold) : TypeFace.body(16))
                         .foregroundStyle(Palette.inkTertiary)
                         .frame(minWidth: 18, alignment: .trailing)
-                    Text(linkText(block))
+                    linkText(block)
                         .font(TypeFace.body(16))
                         .lineSpacing(7)
                         .foregroundStyle(Palette.ink)
@@ -288,7 +295,7 @@ enum MarkdownBlockBuilder {
                     Rectangle()
                         .fill(Palette.lineStrong)
                         .frame(width: 3)
-                    Text(linkText(block))
+                    linkText(block)
                         .font(TypeFace.body(15))
                         .lineSpacing(6)
                         .foregroundStyle(Palette.inkSecondary)
@@ -307,7 +314,7 @@ enum MarkdownBlockBuilder {
 
         case .paragraph:
             return AnyView(
-                Text(linkText(block))
+                linkText(block)
                     .font(TypeFace.body(16))
                     .lineSpacing(7)
                     .foregroundStyle(Palette.ink)
