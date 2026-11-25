@@ -1,4 +1,5 @@
 import XCTest
+import SwiftUI
 @testable import ReachNews
 
 // MARK: - 正文小标题
@@ -121,5 +122,71 @@ final class BriefHeadingTests: XCTestCase {
 
         XCTAssertTrue(en.contains("Model race"))
         XCTAssertNotEqual(en, zh)
+    }
+}
+
+// MARK: - 正文链接着色
+//
+// 用户最初的报障是「链接看不见」。全局 tint 是近黑色，同段 Text 又带
+// .foregroundStyle(Palette.ink)，仅靠 tint 无法保证链接可辨。
+// 现在把颜色直接写进链接 run——这是纯 AttributedString 属性，
+// 不需要渲染就能断言，因此可以让 CI 证明「颜色确实写进去了」。
+
+final class BriefLinkColoringTests: XCTestCase {
+
+    private func attributed(_ markdown: String) -> AttributedString {
+        MarkdownBlockBuilder.attributed(from: markdown)
+    }
+
+    func testLinkRunsGetTheLinkColor() {
+        let colored = MarkdownBlockBuilder.coloringLinks(
+            attributed("看这条 [原文](https://example.test/a) 的报道。")
+        )
+
+        let linked = colored.runs.filter { $0.link != nil }
+        XCTAssertFalse(linked.isEmpty, "markdown 里的链接应当产生 link run")
+        for run in linked {
+            XCTAssertEqual(run.foregroundColor, Palette.link)
+        }
+    }
+
+    func testNonLinkRunsKeepTheirColor() {
+        let source = attributed("普通文字，与 [链接](https://example.test/a)。")
+        let colored = MarkdownBlockBuilder.coloringLinks(source)
+
+        // 非链接 run 不应被改成链接色：正文颜色由视图层决定，这里不能越权。
+        let plain = colored.runs.filter { $0.link == nil }
+        XCTAssertFalse(plain.isEmpty)
+        for run in plain {
+            XCTAssertNotEqual(run.foregroundColor, Palette.link)
+        }
+    }
+
+    func testTextWithoutLinksIsUnchanged() {
+        let source = attributed("只有正文，没有任何链接。")
+        let colored = MarkdownBlockBuilder.coloringLinks(source)
+
+        XCTAssertEqual(String(colored.characters), String(source.characters))
+        for run in colored.runs {
+            XCTAssertNil(run.foregroundColor)
+        }
+    }
+
+    func testSplitAppliesColoringToEveryBlock() {
+        // 标题、段落、列表里的链接都要着色，不能只处理某一种块类型。
+        let markdown = """
+        ## 小标题
+
+        段落里有 [链接一](https://example.test/1)。
+
+        - 列表里有 [链接二](https://example.test/2)
+        """
+        let blocks = MarkdownBlockBuilder.split(attributed(markdown))
+
+        let allLinkRuns = blocks.flatMap { $0.text.runs.filter { $0.link != nil } }
+        XCTAssertFalse(allLinkRuns.isEmpty)
+        for run in allLinkRuns {
+            XCTAssertEqual(run.foregroundColor, Palette.link)
+        }
     }
 }
