@@ -150,15 +150,18 @@ final class BriefLinkColoringTests: XCTestCase {
         }
     }
 
-    func testNonLinkRunsKeepTheirColor() {
+    func testNonLinkRunsGetNoColorWritten() {
         let source = attributed("普通文字，与 [链接](https://example.test/a)。")
         let colored = MarkdownBlockBuilder.coloringLinks(source)
 
-        // 非链接 run 不应被改成链接色：正文颜色由视图层决定，这里不能越权。
+        // 非链接 run 不应被写入任何颜色：正文颜色由视图层决定，这里不能越权。
+        //
+        // 注意不要用 XCTAssertNotEqual(run.foregroundColor, Palette.link)：
+        // nil != Palette.link 恒真，那条断言几乎什么都证明不了。这里直接断言仍为 nil。
         let plain = colored.runs.filter { $0.link == nil }
         XCTAssertFalse(plain.isEmpty)
         for run in plain {
-            XCTAssertNotEqual(run.foregroundColor, Palette.link)
+            XCTAssertNil(run.foregroundColor)
         }
     }
 
@@ -174,8 +177,10 @@ final class BriefLinkColoringTests: XCTestCase {
 
     func testSplitAppliesColoringToEveryBlock() {
         // 标题、段落、列表里的链接都要着色，不能只处理某一种块类型。
+        // 三个块里各放一个链接：只写「小标题」这样的纯文本标题会让这条测试
+        // 悄悄退化成只覆盖段落与列表，名字却在宣称覆盖标题。
         let markdown = """
-        ## 小标题
+        ## 标题里的 [链接零](https://example.test/0)
 
         段落里有 [链接一](https://example.test/1)。
 
@@ -183,10 +188,17 @@ final class BriefLinkColoringTests: XCTestCase {
         """
         let blocks = MarkdownBlockBuilder.split(attributed(markdown))
 
-        let allLinkRuns = blocks.flatMap { $0.text.runs.filter { $0.link != nil } }
-        XCTAssertFalse(allLinkRuns.isEmpty)
-        for run in allLinkRuns {
-            XCTAssertEqual(run.foregroundColor, Palette.link)
+        // 先确认三种块都产生了 link run，否则下面的遍历会因为集合为空而空转通过。
+        let headings = blocks.filter { if case .heading = $0.kind { return true }; return false }
+        let paragraphs = blocks.filter { $0.kind == .paragraph }
+        let listItems = blocks.filter { if case .listItem = $0.kind { return true }; return false }
+
+        for (name, group) in [("heading", headings), ("paragraph", paragraphs), ("listItem", listItems)] {
+            let linkRuns = group.flatMap { $0.text.runs.filter { $0.link != nil } }
+            XCTAssertFalse(linkRuns.isEmpty, "\(name) 里应当有 link run 被着色")
+            for run in linkRuns {
+                XCTAssertEqual(run.foregroundColor, Palette.link)
+            }
         }
     }
 }
