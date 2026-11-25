@@ -191,14 +191,26 @@ enum MarkdownBlockBuilder {
 
     // MARK: 视图映射
 
-    /// 块内文字；含链接时在末尾补一个外链图标（方框 + 斜向右上箭头），提示这里可以跳转。
-    /// 图标只加一次：一段里有多条链接时，末尾一个已足够。
-    private static func linkText(_ block: Block) -> Text {
-        guard block.text.runs.contains(where: { $0.link != nil }) else {
-            return Text(block.text)
+    /// 块内文字，并在**每条链接之后**各插一个外链图标。
+    ///
+    /// 图标属于图标而不是可点文字：它不继承 link 属性，点图标只当普通文字，
+    /// 点链接文字才跳转（链接本身已带下划线，用户不会误解点击区域）。
+    /// 不能在整段末尾只加一个——一段里有多条链接时，用户需要逐条看出哪个是链接。
+    static func linkText(_ block: Block) -> AttributedString {
+        var result = block.text
+        // 没有链接就不必重建；有链接时按 run 顺序插入。
+        guard block.text.runs.contains(where: { $0.link != nil }) else { return result }
+
+        // 从后往前插入，避免前面的插入让后面的 range 失效。
+        let runs = Array(block.text.runs)
+        for run in runs.reversed() where run.link != nil {
+            var icon = AttributedString(" ")
+            icon += AttributedString(Image(systemName: "arrow.up.forward.app"))
+            // 图标不参与跳转：清掉 link，只留文字样式。
+            icon.link = nil
+            result.insert(icon, at: run.range.upperBound)
         }
-        // 用户指定用「外链」图标（方框 + 斜向右上箭头），不是链条。
-        return Text(block.text) + Text(" ") + Text(Image(systemName: "arrow.up.forward.app"))
+        return result
     }
 
     private static func view(for block: Block, onTrackHeading: ((String) -> Void)?) -> AnyView {
@@ -206,27 +218,31 @@ enum MarkdownBlockBuilder {
         case .heading(let level):
             let sizes: [CGFloat] = [22, 19, 17, 16, 16, 16]
             let size = sizes[min(max(level, 1), 6) - 1]
+            // 标题文字后面紧接着一个 follow 按钮：按钮是文字标签，
+            // 紧贴标题而不是被推到整块最右端（不用 Spacer，也不用图标）。
             return AnyView(
-                HStack(alignment: .firstTextBaseline, spacing: Space.s) {
+                HStack(alignment: .firstTextBaseline, spacing: Space.xs) {
                     Text(block.text)
                         .font(TypeFace.heading(size))
                         .foregroundStyle(Palette.ink)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityAddTraits(.isHeader)
-                    // 标题右侧跟一个「跟踪」按钮：标题本身保持普通样式、不可点。
-                    // 没有回调时不渲染按钮，避免出现点了没反应的死入口。
+
                     if let onTrackHeading {
                         Button {
                             onTrackHeading(block.plainText)
                         } label: {
-                            Image(systemName: "plus.circle")
-                                .font(.system(size: 13, weight: .regular))
-                                .foregroundStyle(Palette.inkTertiary)
+                            Text(L10n.string("brief.heading.follow", locale: .current))
+                                .font(TypeFace.label(11))
+                                .foregroundStyle(Palette.inkSecondary)
+                                .padding(.horizontal, Space.xs)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(Palette.chip))
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel(Text(L10n.string("brief.heading.track", locale: .current)))
-                        .accessibilityIdentifier("brief-heading-track")
+                        .accessibilityIdentifier("brief-heading-follow")
                     }
+                    Spacer(minLength: 0)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.top, Space.xs)
@@ -240,7 +256,7 @@ enum MarkdownBlockBuilder {
                         .font(ordered ? TypeFace.condensed(14, weight: .semibold) : TypeFace.body(16))
                         .foregroundStyle(Palette.inkTertiary)
                         .frame(minWidth: 18, alignment: .trailing)
-                    linkText(block)
+                    Text(linkText(block))
                         .font(TypeFace.body(16))
                         .lineSpacing(7)
                         .foregroundStyle(Palette.ink)
@@ -272,7 +288,7 @@ enum MarkdownBlockBuilder {
                     Rectangle()
                         .fill(Palette.lineStrong)
                         .frame(width: 3)
-                    linkText(block)
+                    Text(linkText(block))
                         .font(TypeFace.body(15))
                         .lineSpacing(6)
                         .foregroundStyle(Palette.inkSecondary)
@@ -291,7 +307,7 @@ enum MarkdownBlockBuilder {
 
         case .paragraph:
             return AnyView(
-                linkText(block)
+                Text(linkText(block))
                     .font(TypeFace.body(16))
                     .lineSpacing(7)
                     .foregroundStyle(Palette.ink)

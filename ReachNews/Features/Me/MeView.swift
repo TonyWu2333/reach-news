@@ -24,8 +24,8 @@ struct MeView: View {
                     SavedBriefsView(store: env.feed, saved: env.saved)
                 case .preferences:
                     PreferencesView(session: env.session, preferences: env.preferences)
-                case .connection:
-                    ConnectionInfoView(session: env.session)
+                case .account:
+                    AccountDetailView(session: env.session)
                 }
             }
         }
@@ -33,8 +33,16 @@ struct MeView: View {
 
     private func content(_ env: AppEnvironment) -> some View {
         List {
-            AccountHeaderView(profile: env.profile)
-                .listRowBackground(Palette.surface)
+            // 整张账号卡片点进个人页；连接信息不再单列入口。
+            NavigationLink(value: MeDestination.account) {
+                AccountHeaderView(profile: env.profile)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .listRowInsets(EdgeInsets(top: Space.s, leading: Space.l, bottom: Space.s, trailing: Space.l))
+            .listRowBackground(Palette.surface)
+            .accessibilityIdentifier("me-account-card")
 
             Section {
                 NavigationLink(value: MeDestination.saved) {
@@ -56,14 +64,6 @@ struct MeView: View {
                 }
                 .accessibilityIdentifier("me-preferences")
 
-                NavigationLink(value: MeDestination.connection) {
-                    Label {
-                        Text(L10n.string("me.connection", locale: locale))
-                    } icon: {
-                        Image(systemName: "link")
-                    }
-                }
-                .accessibilityIdentifier("me-connection")
             }
             .listRowBackground(Palette.surface)
         }
@@ -76,7 +76,8 @@ struct MeView: View {
 enum MeDestination: Hashable {
     case saved
     case preferences
-    case connection
+    /// 账号卡片点进去的个人页：资料、头像、密码与退出登录都在这里。
+    case account
 }
 
 // MARK: - 收藏列表
@@ -154,7 +155,6 @@ struct PreferencesView: View {
     let session: SessionStore
     let preferences: PreferencesStoring
     @Environment(\.appLocale) private var locale
-    @State private var baseURLString: String = ""
 
     var body: some View {
         List {
@@ -176,27 +176,6 @@ struct PreferencesView: View {
             }
             .listRowBackground(Palette.surface)
 
-            Section {
-                TextField(L10n.string("connection.baseURL.placeholder", locale: locale), text: $baseURLString)
-                    .font(TypeFace.body(13))
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .keyboardType(.URL)
-                    .accessibilityIdentifier("preferences-baseurl")
-
-                Button {
-                    saveBaseURL()
-                } label: {
-                    Text(L10n.string("preferences.baseURL.save", locale: locale))
-                        .font(TypeFace.heading(13.5))
-                        .foregroundStyle(hasValidChange ? Palette.ink : Palette.inkTertiary)
-                }
-                .disabled(!hasValidChange)
-                .accessibilityIdentifier("preferences-baseurl-save")
-            } header: {
-                Text(L10n.string("preferences.baseURL.heading", locale: locale))
-            }
-            .listRowBackground(Palette.surface)
         }
         .scrollContentBackground(.hidden)
         .background(Palette.canvas)
@@ -206,85 +185,5 @@ struct PreferencesView: View {
                 NavTitle(text: L10n.string("me.preferences", locale: locale))
             }
         }
-        .onAppear {
-            baseURLString = preferences.baseURLString
-        }
-    }
-
-    private var hasValidChange: Bool {
-        guard let url = BaseURLDefaults.parse(baseURLString) else { return false }
-        return url.absoluteString != preferences.baseURLString
-    }
-
-    private func saveBaseURL() {
-        guard let url = BaseURLDefaults.parse(baseURLString) else { return }
-        preferences.baseURLString = url.absoluteString
-        baseURLString = url.absoluteString
-    }
-}
-
-// MARK: - 连接信息
-
-struct ConnectionInfoView: View {
-    let session: SessionStore
-    @Environment(\.appLocale) private var locale
-
-    var body: some View {
-        List {
-            Section {
-                HStack {
-                    Text(L10n.string("connection.currentAddress", locale: locale))
-                        .font(TypeFace.body(13))
-                        .foregroundStyle(Palette.inkSecondary)
-                    Spacer(minLength: Space.s)
-                    Text(session.baseURLString)
-                        .font(TypeFace.condensed(12.5, weight: .medium))
-                        .foregroundStyle(Palette.ink)
-                        .lineLimit(1)
-                }
-                HStack {
-                    Text(L10n.string("connection.credential", locale: locale))
-                        .font(TypeFace.body(13))
-                        .foregroundStyle(Palette.inkSecondary)
-                    Spacer(minLength: Space.s)
-                    Text(L10n.string(session.credentialSummaryKey, locale: locale))
-                        .font(TypeFace.label(12.5))
-                        .foregroundStyle(session.isSignedIn ? Palette.runningForeground : Palette.inkTertiary)
-                }
-            }
-            .listRowBackground(Palette.surface)
-
-            Section {
-                if let expires = session.expiresAt {
-                    HStack {
-                        Text(L10n.string("connection.expires", locale: locale))
-                            .font(TypeFace.body(13))
-                            .foregroundStyle(Palette.inkSecondary)
-                        Spacer(minLength: Space.s)
-                        Text(DisplayTime.monthDayTime(expires, locale: locale))
-                            .font(TypeFace.condensed(12.5, weight: .medium))
-                            .foregroundStyle(Palette.ink)
-                    }
-                }
-
-                Button(role: .destructive) {
-                    Task { await session.signOut() }
-                } label: {
-                    Text(L10n.string("connection.signOut", locale: locale))
-                        .font(TypeFace.body(13.5))
-                }
-                .accessibilityIdentifier("connection-signout")
-            }
-            .listRowBackground(Palette.surface)
-        }
-        .scrollContentBackground(.hidden)
-        .background(Palette.canvas)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                NavTitle(text: L10n.string("me.connection", locale: locale))
-            }
-        }
-        .accessibilityIdentifier("connection-info")
     }
 }

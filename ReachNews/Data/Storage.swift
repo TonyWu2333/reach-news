@@ -142,9 +142,11 @@ final class UserDefaultsPreferences: PreferencesStoring {
         self.defaults = defaults
     }
 
+    /// 服务地址固定，不再从偏好读取用户输入。
+    /// 仍然可写：写入被忽略，避免调用方拿到旧值造成不一致。
     var baseURLString: String {
-        get { defaults.string(forKey: Keys.baseURL) ?? BaseURLDefaults.host }
-        set { defaults.set(newValue, forKey: Keys.baseURL) }
+        get { BaseURLDefaults.host }
+        set { defaults.removeObject(forKey: Keys.baseURL) }
     }
 
     var languagePreference: String {

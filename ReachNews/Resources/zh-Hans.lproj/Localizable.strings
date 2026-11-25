@@ -199,7 +199,6 @@
 "brief.body.empty" = "本期无可读正文";
 
 "brief.detail.title" = "日报";
-"brief.heading.track" = "跟踪";
 "brief.heading.track.prompt" = "持续跟踪「%@」的进展：优先一手来源，记录关键时间点、涉及方与变化，不过度评论，也不预测结论。";
 "me.account.email.empty" = "未填写邮箱";
 "login.goRegister" = "还没有账号？注册";
@@ -225,3 +224,24 @@
 "register.error.password_too_short" = "密码至少 8 位";
 "register.error.password_confirm_required" = "请再次输入密码";
 "register.error.password_mismatch" = "两次输入的密码不一致";
+
+"common.save" = "保存";
+"brief.heading.follow" = "follow";
+"account.title" = "账号";
+"account.profile.heading" = "资料";
+"account.security.heading" = "安全";
+"account.nickname.label" = "昵称";
+"account.nickname.title" = "切换昵称";
+"account.email.label" = "邮箱";
+"account.email.title" = "换绑邮箱";
+"account.tier.label" = "套餐";
+"account.password.label" = "修改密码";
+"account.password.title" = "修改密码";
+"account.password.current" = "当前密码";
+"account.password.new" = "新密码";
+"account.password.confirm" = "确认新密码";
+"account.avatar.change" = "修改头像";
+"account.avatar.failed" = "头像上传失败，请重试";
+"account.unavailable.nickname" = "服务端暂未提供修改昵称接口";
+"account.unavailable.email" = "服务端暂未提供换绑邮箱接口";
+"account.unavailable.password" = "服务端暂未提供修改密码接口";

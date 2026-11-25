@@ -561,6 +561,8 @@ final class APIClient {
 // MARK: - 基础地址
 
 enum BaseURLDefaults {
+    /// 服务地址固定：客户端不再提供修改入口，用户无需也不能改。
+    /// 保留 `host` 常量而不是散落字面量，方便将来换环境时只改一处。
     static let host = "https://reachapi.niuma.art"
 
     static var url: URL {

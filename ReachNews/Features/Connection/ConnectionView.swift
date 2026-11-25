@@ -16,7 +16,6 @@ struct ConnectionView: View {
     @State private var showsRegister = false
 
     private enum Field {
-        case baseURL
         case username
         case password
     }
@@ -46,20 +45,6 @@ struct ConnectionView: View {
                         kind: .warning
                     )
                     .accessibilityIdentifier("connection-throttled")
-                }
-
-                field(labelKey: "connection.baseURL.heading") {
-                    TextField(
-                        L10n.string("connection.baseURL.placeholder", locale: locale),
-                        text: $session.baseURLString
-                    )
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .keyboardType(.URL)
-                    .focused($focusedField, equals: .baseURL)
-                    .submitLabel(.next)
-                    .onSubmit { focusedField = .username }
-                    .accessibilityIdentifier("connection-baseurl")
                 }
 
                 field(labelKey: "login.username.heading") {

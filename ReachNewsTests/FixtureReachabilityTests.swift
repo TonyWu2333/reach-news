@@ -77,7 +77,7 @@ final class LocalizationTests: XCTestCase {
             "subscribed.fork", "subscribed.unsubscribe",
             "error.ownChannel", "error.notPublished", "error.subscriberReadOnly",
             "brief.body.empty",
-            "brief.heading.track", "brief.heading.track.prompt",
+            "brief.heading.follow", "brief.heading.track.prompt",
             "me.account.email.empty", "login.goRegister",
             "register.title", "register.submit", "register.nickname", "register.email",
             "register.email.hint", "register.password", "register.passwordConfirm",
@@ -88,7 +88,13 @@ final class LocalizationTests: XCTestCase {
             "register.error.email_required", "register.error.email_invalid",
             "register.error.email_taken", "register.error.password_required",
             "register.error.password_too_short", "register.error.password_confirm_required",
-            "register.error.password_mismatch", "error.channelQuotaExceeded"
+            "register.error.password_mismatch", "error.channelQuotaExceeded",
+            "common.save", "account.title", "account.profile.heading", "account.security.heading",
+            "account.nickname.label", "account.nickname.title", "account.email.label",
+            "account.email.title", "account.tier.label", "account.password.label",
+            "account.password.title", "account.password.current", "account.password.new",
+            "account.password.confirm", "account.avatar.change", "account.avatar.failed",
+            "account.unavailable.nickname", "account.unavailable.email", "account.unavailable.password"
         ]
         let zh = try keys(in: "Localizable", table: nil, language: "zh-Hans")
         let en = try keys(in: "Localizable", table: nil, language: "en")

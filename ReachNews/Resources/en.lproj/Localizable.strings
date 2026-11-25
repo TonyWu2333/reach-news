@@ -199,7 +199,6 @@
 "brief.body.empty" = "No readable body for this issue";
 
 "brief.detail.title" = "Brief";
-"brief.heading.track" = "Track";
 "brief.heading.track.prompt" = "Keep tracking developments on \"%@\": prefer primary sources, record key dates, parties involved and what changed, without commentary or predictions.";
 "me.account.email.empty" = "No email";
 "login.goRegister" = "No account yet? Register";
@@ -225,3 +224,24 @@
 "register.error.password_too_short" = "Password needs at least 8 characters";
 "register.error.password_confirm_required" = "Enter the password again";
 "register.error.password_mismatch" = "Passwords do not match";
+
+"common.save" = "Save";
+"brief.heading.follow" = "follow";
+"account.title" = "Account";
+"account.profile.heading" = "Profile";
+"account.security.heading" = "Security";
+"account.nickname.label" = "Nickname";
+"account.nickname.title" = "Change nickname";
+"account.email.label" = "Email";
+"account.email.title" = "Change email";
+"account.tier.label" = "Plan";
+"account.password.label" = "Change password";
+"account.password.title" = "Change password";
+"account.password.current" = "Current password";
+"account.password.new" = "New password";
+"account.password.confirm" = "Confirm new password";
+"account.avatar.change" = "Change photo";
+"account.avatar.failed" = "Upload failed. Try again";
+"account.unavailable.nickname" = "The server does not support changing nicknames yet";
+"account.unavailable.email" = "The server does not support changing emails yet";
+"account.unavailable.password" = "The server does not support changing passwords yet";

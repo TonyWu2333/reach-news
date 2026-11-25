@@ -1,79 +1,51 @@
 import SwiftUI
 
-// MARK: - 账号头部
+// MARK: - 账号卡片
 //
-// 「我的」页最上方的一条资料行：圆形头像 + 用户名 / 邮箱 / 套餐标识 + 行尾箭头。
-// 三行数据全部来自服务端真实字段，见 `ProfileStore`。
-// 本轮没有个人资料页，因此整行不可点：箭头只保留参考图的观感。
+// 「我的」页最上方的一张卡：圆形头像 + 用户名 / 邮箱 / 套餐标签 + 行尾箭头。
+// 数据全部来自服务端真实字段，见 `ProfileStore`。
+// 整卡可点，进入个人页（`AccountDetailView`）。
 
 struct AccountHeaderView: View {
     let profile: ProfileStore
     @Environment(\.appLocale) private var locale
 
-    private let avatarSize: CGFloat = 46
+    /// 卡片里的头像明显大于普通列表行，让它成为这一页的视觉主体。
+    private let avatarSize: CGFloat = 62
 
     var body: some View {
         HStack(spacing: Space.m) {
-            avatar
-            VStack(alignment: .leading, spacing: 2) {
+            AvatarView(url: profile.avatarURL, size: avatarSize)
+
+            VStack(alignment: .leading, spacing: 3) {
                 Text(profile.userName)
-                    .font(TypeFace.heading(15))
+                    .font(TypeFace.heading(19))
                     .foregroundStyle(Palette.ink)
                     .lineLimit(1)
                     .accessibilityIdentifier("account-name")
 
                 // 邮箱可能为 null：显示占位而不是空行，也不显示字面 null。
                 Text(profile.email ?? L10n.string("me.account.email.empty", locale: locale))
-                    .font(TypeFace.body(12))
+                    .font(TypeFace.body(13))
                     .foregroundStyle(profile.email == nil ? Palette.inkTertiary : Palette.inkSecondary)
                     .lineLimit(1)
                     .accessibilityIdentifier("account-email")
 
-                Text(profile.planLabel)
-                    .font(TypeFace.label(11))
-                    .foregroundStyle(Palette.inkTertiary)
-                    .accessibilityIdentifier("account-plan")
+                // 套餐做成标签，按档位配色；紧跟邮箱之下，不再占一整行文字。
+                TierBadge(tier: profile.planLabel)
+                    .padding(.top, 1)
             }
+
             Spacer(minLength: Space.s)
+
             Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .semibold))
+                .font(.system(size: 12, weight: .semibold))
                 .foregroundStyle(Palette.inkTertiary)
         }
-        .padding(.vertical, Space.xxs)
+        .padding(.vertical, Space.s)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("me-account-header")
         .accessibilityLabel(Text(accessibilitySummary))
-    }
-
-    /// 有 `avatarUrl` 时按异步图片加载；没有、加载中或失败都显示缺省图形，
-    /// 不会出现空白圆或破图。
-    private var avatar: some View {
-        ZStack {
-            Circle().fill(Palette.paper)
-            if let url = profile.avatarURL {
-                AsyncImage(url: url) { phase in
-                    switch phase {
-                    case let .success(image):
-                        image.resizable().scaledToFill()
-                    default:
-                        placeholderGlyph
-                    }
-                }
-                .clipShape(Circle())
-            } else {
-                placeholderGlyph
-            }
-        }
-        .frame(width: avatarSize, height: avatarSize)
-        .overlay { Circle().strokeBorder(Palette.line, lineWidth: 1) }
-        .clipShape(Circle())
-        .accessibilityHidden(true)
-    }
-
-    private var placeholderGlyph: some View {
-        Image(systemName: "person.fill")
-            .font(.system(size: 20, weight: .regular))
-            .foregroundStyle(Palette.inkTertiary)
     }
 
     private var accessibilitySummary: String {

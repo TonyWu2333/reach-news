@@ -3,12 +3,20 @@
 日报详情页的正文有两处需要改动。
 
 1. **正文链接可辨**：当前正文里的行内链接能点，但与正文同色（全局 tint 是近黑色 `Palette.ink`），在纸色底上等于看不见。
-   用户实机试用后明确：**不要蓝色着色**，改为**下划线 + 外链图标**（SF Symbols `arrow.up.forward.app`，方框加斜向右上箭头），文字保持正文色，点击行为不变（仍用系统浏览器打开）。
-2. **小标题后面跟「跟踪」按钮**：小标题本身**不加下划线、不可点**，保持普通标题样式；在其右侧跟随一个「跟踪」按钮。点该按钮**直接进入频道创建页**，不弹窗、不需要二次选择。
+   用户实机试用后明确：**不要蓝色着色**，改为**下划线 + 外链图标**（SF Symbols `arrow.up.forward.app`），文字保持正文色，点击行为不变（仍用系统浏览器打开）。
+   **每条链接后面都要跟一个图标**，不是整段只有末尾一个。
+2. **小标题后面跟「follow」按钮**：小标题本身**不加下划线、不可点**，保持普通标题样式；按钮文字为 **follow**，**紧跟标题文字之后**（不是贴在小标题整块的右边，也不是加号图标）。点该按钮**直接进入频道创建页**，不弹窗、不需要二次选择。
    创建页沿用事件模式：标题取小标题文字，提示词预填跟踪该事件的模板，二者均可修改后按普通频道提交。
    **去掉「查看原文」**：本轮不再提供跳转原文的入口，也不再需要把标题与素材做匹配（用户已明确取消该功能）。
 
 3. **账号头部接入真实数据 + 修复用户名不显示**：用户实机发现「我的」页用户名是空的。账号头部改读后端真实字段（`GET /api/v1/me` 的 `name` / `email` / `tier` / `avatarUrl` / `capabilities`），套餐按服务端实际取值建模（实测有 `admin` / `free` / `ultra`，**无 `pro`**），未知档也原样显示不映射成 ultra，头像用 `avatarUrl`（`null` 时缺省），并支持 `POST /api/v1/me/avatar` 上传。
+
+3b. **账号卡片与个人页**（用户实机反馈）：
+   - 账号卡片**加大**（头像与字号放大），并减少卡片上方与顶部栏之间的空白。
+   - 套餐标识做成**标签样式**（胶囊/圆角底），按档位配色：`admin` 紫、`ultra` 金、`free` 中性灰。
+   - 去掉「我的」页里的「连接信息」入口；改由**点账号卡片进入个人页**承载。
+   - 个人页提供：切换昵称、换绑邮箱、修改头像、修改密码、退出登录。
+   - 昵称/邮箱/密码后端暂无接口（实测 `PATCH /api/v1/me`、`POST /api/v1/me/password`、`POST /api/v1/me/email` 均 404），**入口与界面照做，提交按钮置灰**并注明暂未支持；头像上传与退出登录是真实可用的。
 
 4. **注册页与登录改造**：按 `api-changes-invite-registration.md` 增加邀请码注册（昵称/邮箱/密码/确认密码/邀请码），注册成功直接进 App；登录改为接受邮箱或昵称；两者都消费 `user` 与 `capabilities`。
 
@@ -18,6 +26,7 @@
 
 ### 新建
 
+- `ReachNews/Features/Me/ProfileDetailView.swift`：账号卡片点进去的个人页，承载切换昵称、换绑邮箱、修改头像、修改密码、退出登录。
 - `ReachNews/Features/Auth/RegisterView.swift`：邀请码注册页（昵称、邮箱、密码、确认密码、邀请码），按服务端 code 逐项提示。
 - `ReachNews/Domain/UserProfile.swift`：当前用户与能力模型（`name` / `email` / `tier` / `avatarUrl` / `capabilities`）。
 - `ReachNewsTests/RegistrationTests.swift`：覆盖注册请求编码、错误码到提示的映射、注册成功直接建立会话。
@@ -30,7 +39,9 @@
 - `ReachNews/Data/DTO/DTOs.swift`：登录响应解析新增 `email` / `tier` / `avatarUrl` 与 `capabilities`；新增注册与 me 的 DTO。
 - `ReachNews/State/SessionStore.swift`：登录接受邮箱或昵称；新增注册成功后的建会话路径；恢复会话后拉 `/api/v1/me`。
 - `ReachNews/State/ProfileStore.swift`：用户名/邮箱/套餐/头像改读真实字段，删除本地占位常量；套餐改 `free` / `ultra` 两档。
-- `ReachNews/Features/Me/AccountHeaderView.swift`：头像按 `avatarUrl` 加载，`null` 与加载失败都回退缺省头像。
+- `ReachNews/Features/Me/AccountHeaderView.swift`：卡片加大；套餐改为标签样式并按档位配色；整卡可点进个人页；头像按 `avatarUrl` 加载，`null` 与加载失败都回退缺省头像。
+- `ReachNews/Features/Me/MeView.swift`：移除「连接信息」入口，改由账号卡片进入个人页。
+- `ReachNews/Design/Components.swift`：新增套餐标签组件（胶囊 + 按 tier 取色）。
 - `ReachNews/Features/Connection/ConnectionView.swift`：登录页增加进入注册页的入口。
 - `ReachNews/Features/BriefDetail/MarkdownBodyView.swift`：小标题右侧渲染「跟踪」按钮（标题本身不加下划线、不可点）；链接改为下划线 + 外链图标（`arrow.up.forward.app`）。
 - `ReachNews/Features/BriefDetail/BriefBodyView.swift`：把「跟踪」回调传下去。
@@ -54,7 +65,8 @@
 # 非目标
 
 - 不改 `android/**`。
-- 不改鉴权、凭证、订阅与运行逻辑。
+- 不改订阅与运行逻辑。
+- **API 地址固定**：移除登录页与偏好里的 Base URL 输入，地址固定为 `https://reachapi.niuma.art`。
 - 不改正文的 Markdown 解析规则与分块逻辑（只为小标题增加右侧「跟踪」按钮）。
 - 不改分页、轮询与错误映射。
 
