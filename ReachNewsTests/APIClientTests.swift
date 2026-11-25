@@ -256,8 +256,10 @@ final class SessionStoreTests: XCTestCase {
         XCTAssertNotNil(credentials.storedExpiry)
         // 密码不驻留。
         XCTAssertEqual(session.password, "")
-        XCTAssertEqual(transport.recorded.first?.method, "POST")
-        XCTAssertEqual(transport.recorded.first?.url.path, "/api/v1/login")
+        // 登录本身只打 /login；/me 是登录后的补充拉取，异步进行。
+        let loginRequests = transport.recorded.filter { $0.url.path == "/api/v1/login" }
+        XCTAssertEqual(loginRequests.count, 1)
+        XCTAssertEqual(loginRequests.first?.method, "POST")
     }
 
     @MainActor

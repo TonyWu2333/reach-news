@@ -3,7 +3,7 @@
 日报详情页的正文有两处需要改动。
 
 1. **正文链接可辨**：当前正文里的行内链接能点，但与正文同色（全局 tint 是近黑色 `Palette.ink`），在纸色底上等于看不见。
-   用户实机试用后明确：**不要蓝色着色**，改为**下划线 + 链条链接图标**（SF Symbols `link`，即链条符号，不用外跳箭头），文字保持正文色，点击行为不变（仍用系统浏览器打开）。
+   用户实机试用后明确：**不要蓝色着色**，改为**下划线 + 外链图标**（SF Symbols `arrow.up.forward.app`，方框加斜向右上箭头），文字保持正文色，点击行为不变（仍用系统浏览器打开）。
 2. **小标题后面跟「跟踪」按钮**：小标题本身**不加下划线、不可点**，保持普通标题样式；在其右侧跟随一个「跟踪」按钮。点该按钮**直接进入频道创建页**，不弹窗、不需要二次选择。
    创建页沿用事件模式：标题取小标题文字，提示词预填跟踪该事件的模板，二者均可修改后按普通频道提交。
    **去掉「查看原文」**：本轮不再提供跳转原文的入口，也不再需要把标题与素材做匹配（用户已明确取消该功能）。
@@ -32,7 +32,7 @@
 - `ReachNews/State/ProfileStore.swift`：用户名/邮箱/套餐/头像改读真实字段，删除本地占位常量；套餐改 `free` / `ultra` 两档。
 - `ReachNews/Features/Me/AccountHeaderView.swift`：头像按 `avatarUrl` 加载，`null` 与加载失败都回退缺省头像。
 - `ReachNews/Features/Connection/ConnectionView.swift`：登录页增加进入注册页的入口。
-- `ReachNews/Features/BriefDetail/MarkdownBodyView.swift`：小标题右侧渲染「跟踪」按钮（标题本身不加下划线、不可点）；链接改为下划线 + 链条链接图标（`link`）。
+- `ReachNews/Features/BriefDetail/MarkdownBodyView.swift`：小标题右侧渲染「跟踪」按钮（标题本身不加下划线、不可点）；链接改为下划线 + 外链图标（`arrow.up.forward.app`）。
 - `ReachNews/Features/BriefDetail/BriefBodyView.swift`：把「跟踪」回调传下去。
 - `ReachNews/Features/BriefDetail/BriefDetailView.swift`：承载「跟踪」跳转到创建页。
 - `ReachNews/Features/Channels/ChannelCreateSheet.swift`：支持事件模式入参（标题与提示词预填），普通新建行为不变。
@@ -71,7 +71,7 @@
 - 不再有任何标题↔素材匹配逻辑；相关代码与类型应删除，不留下死代码。
 - 中文与英文本地化键集完全一致，新增键两侧同时存在，界面无硬编码文案。
 - 单元测试覆盖事件预填的标题与提示词生成；不再有匹配相关测试。
-- 正文链接不再使用颜色区分：链接文字为正文色，带下划线，并在文字后显示链条链接图标（SF Symbols `link`）；点击仍由系统浏览器打开。
+- 正文链接不再使用颜色区分：链接文字为正文色，带下划线，并在文字后显示外链图标（SF Symbols `arrow.up.forward.app`）；点击仍由系统浏览器打开。
 - 「我的」页冷启动后用户名可见：会话恢复后立即取 `/api/v1/me`，取到前显示占位而不是空行。
 - 套餐标识显示服务端 `tier` 原值（实测含 `admin`），客户端与界面均不出现 `pro`，也不把管理员档映射成 ultra。
 - `email` 为 `null` 时显示缺省占位，不出现空白行或字面 `null`。

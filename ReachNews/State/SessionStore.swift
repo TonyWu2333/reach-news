@@ -132,9 +132,9 @@ final class SessionStore {
             password = ""
             blockedUntil = nil
             state = .signedIn
-            // 登录响应已带 user 与 capabilities，但这里统一走 /me，
-            // 保证登录与冷启动两条路径拿到同样完整的资料。
-            await refreshProfile()
+            // 登录响应已带 user 与 capabilities，但字段可能不全（例如缺 email）。
+            // 这里异步补一次 /me；失败不回滚登录——资料缺失不该把人踢回登录页。
+            Task { await self.refreshProfile() }
             return true
         } catch let error as APIError {
             if error.isTooManyAttempts {
@@ -186,6 +186,8 @@ final class SessionStore {
         let client = makeClient(resolvedBaseURL)
         _ = try? await client.logout()
         clearSession()
+        // 展示名也要清：否则 userName 会从偏好项回退成上一个账号的名字。
+        preferences.lastUserName = ""
         username = ""
         password = ""
         state = .signedOut

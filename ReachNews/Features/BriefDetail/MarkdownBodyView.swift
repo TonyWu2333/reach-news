@@ -96,7 +96,7 @@ enum MarkdownBlockBuilder {
 
     /// 给链接 run 加下划线。
     ///
-    /// 用户明确不要颜色区分：链接文字保持正文色，改用下划线 + 链条图标标识。
+    /// 用户明确不要颜色区分：链接文字保持正文色，改用下划线 + 外链图标标识。
     /// 下划线写进 run 本身，与 view 级样式无关；图标由视图层的 `linkText` 追加。
     static func underliningLinks(_ attributed: AttributedString) -> AttributedString {
         var result = attributed
@@ -191,13 +191,14 @@ enum MarkdownBlockBuilder {
 
     // MARK: 视图映射
 
-    /// 块内文字；含链接时在末尾补一个链条图标，提示这里可以跳转。
+    /// 块内文字；含链接时在末尾补一个外链图标（方框 + 斜向右上箭头），提示这里可以跳转。
     /// 图标只加一次：一段里有多条链接时，末尾一个已足够。
     private static func linkText(_ block: Block) -> Text {
         guard block.text.runs.contains(where: { $0.link != nil }) else {
             return Text(block.text)
         }
-        return Text(block.text) + Text(" ") + Text(Image(systemName: "link"))
+        // 用户指定用「外链」图标（方框 + 斜向右上箭头），不是链条。
+        return Text(block.text) + Text(" ") + Text(Image(systemName: "arrow.up.forward.app"))
     }
 
     private static func view(for block: Block, onTrackHeading: ((String) -> Void)?) -> AnyView {
