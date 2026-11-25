@@ -138,23 +138,22 @@ extension View {
                     case .openSource:
                         if let url = context.sourceURL {
                             Button(L10n.string("brief.heading.openSource", locale: context.locale)) {
-                                selection.wrappedValue = nil
-                                onDismiss()
+                                // 先用捕获的 url 触发动作，再清空绑定（setter 会触发 onDismiss）。
+                                // 顺序调换会让 onDismiss 先作废状态，容易被后来改动踩到。
                                 onOpenSource(url)
+                                selection.wrappedValue = nil
                             }
                         }
                     case .trackEvent:
                         Button(L10n.string("brief.heading.track", locale: context.locale)) {
-                            selection.wrappedValue = nil
-                            onDismiss()
                             onTrackEvent(context.heading)
+                            selection.wrappedValue = nil
                         }
                     }
                 }
             }
             Button(L10n.string("common.cancel", locale: selection.wrappedValue?.locale ?? .current), role: .cancel) {
                 selection.wrappedValue = nil
-                onDismiss()
             }
         }
     }

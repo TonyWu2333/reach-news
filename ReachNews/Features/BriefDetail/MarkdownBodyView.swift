@@ -116,6 +116,19 @@ enum MarkdownBlockBuilder {
         return AttributedString(markdown)
     }
 
+    /// 给链接 run 直接写入颜色。
+    ///
+    /// 不依赖 `.tint`：同段 `Text` 上的 `.foregroundStyle(Palette.ink)` 会覆盖 tint，
+    /// 链接就会与正文同色而看不见——这正是最初的报障。把颜色写进 run 本身，
+    /// 渲染结果就与 tint 优先级无关。
+    static func coloringLinks(_ attributed: AttributedString) -> AttributedString {
+        var result = attributed
+        for run in attributed.runs where run.link != nil {
+            result[run.range].foregroundColor = Palette.link
+        }
+        return result
+    }
+
     /// 按块级 intent 切分：intent 变一次就换块。
     static func split(_ attributed: AttributedString) -> [Block] {
         var blocks: [Block] = []
@@ -128,7 +141,7 @@ enum MarkdownBlockBuilder {
                 current = AttributedString()
                 return
             }
-            blocks.append(Block(kind: currentKind, text: current))
+            blocks.append(Block(kind: currentKind, text: coloringLinks(current)))
             current = AttributedString()
         }
 
