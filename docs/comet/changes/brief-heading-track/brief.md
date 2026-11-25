@@ -2,12 +2,15 @@
 
 日报详情页的正文有两处需要改动。
 
-1. **正文链接可辨**：当前正文里的行内链接能点，但与正文同色（全局 tint 是近黑色 `Palette.ink`），在纸色底上等于看不见。需要让链接在视觉上明确可辨（用设计 token 内的强调色，而不是全局近黑 tint），点击行为不变（仍用系统浏览器打开）。
-2. **小标题可点击**：正文小标题显示下划线，点击后弹出两个选项——「查看原文」与「跟踪事件」。
-   - 查看原文：按小标题文字做标题包含匹配（用户已确认按文字匹配）。
-  匹配范围是**正文 link 片段引用的素材**——读者端已不再渲染 `sections`，没有「已加载素材」这回事，
-  因此点击小标题时才按正文里出现过的 `itemID` 按需取回素材标题，再比对。命中则打开该素材的原文链接；未命中时不展示这一项。
-   - 跟踪事件：进入频道创建页；用户已确认**复用现有创建页并增加事件模式**——标题取小标题文字，提示词预填跟踪该事件的模板，用户仍可修改。
+1. **正文链接可辨**：当前正文里的行内链接能点，但与正文同色（全局 tint 是近黑色 `Palette.ink`），在纸色底上等于看不见。
+   用户实机试用后明确：**不要蓝色着色**，改为**下划线 + 链条链接图标**（SF Symbols `link`，即链条符号，不用外跳箭头），文字保持正文色，点击行为不变（仍用系统浏览器打开）。
+2. **小标题后面跟「跟踪」按钮**：小标题本身**不加下划线、不可点**，保持普通标题样式；在其右侧跟随一个「跟踪」按钮。点该按钮**直接进入频道创建页**，不弹窗、不需要二次选择。
+   创建页沿用事件模式：标题取小标题文字，提示词预填跟踪该事件的模板，二者均可修改后按普通频道提交。
+   **去掉「查看原文」**：本轮不再提供跳转原文的入口，也不再需要把标题与素材做匹配（用户已明确取消该功能）。
+
+3. **账号头部接入真实数据 + 修复用户名不显示**：用户实机发现「我的」页用户名是空的。账号头部改读后端真实字段（`GET /api/v1/me` 的 `name` / `email` / `tier` / `avatarUrl` / `capabilities`），套餐按服务端实际取值建模（实测有 `admin` / `free` / `ultra`，**无 `pro`**），未知档也原样显示不映射成 ultra，头像用 `avatarUrl`（`null` 时缺省），并支持 `POST /api/v1/me/avatar` 上传。
+
+4. **注册页与登录改造**：按 `api-changes-invite-registration.md` 增加邀请码注册（昵称/邮箱/密码/确认密码/邀请码），注册成功直接进 App；登录改为接受邮箱或昵称；两者都消费 `user` 与 `capabilities`。
 
 # 范围
 
@@ -15,45 +18,69 @@
 
 ### 新建
 
-- `ReachNews/Features/BriefDetail/BriefHeadingActions.swift`：小标题点击后的动作弹层（查看原文 / 跟踪事件），以及「标题 → 素材」的匹配规则。
-- 素材按需加载复用 `BriefDetailStore`：点击小标题时，按正文 `link` 片段里的 `itemID` 取回素材（`GET /api/v1/briefs/:id/items/:itemId`），不新增接口。
-- `ReachNewsTests/BriefHeadingTests.swift`：覆盖标题匹配规则、未命中时只给跟踪事件、预填标题与提示词的生成。
+- `ReachNews/Features/Auth/RegisterView.swift`：邀请码注册页（昵称、邮箱、密码、确认密码、邀请码），按服务端 code 逐项提示。
+- `ReachNews/Domain/UserProfile.swift`：当前用户与能力模型（`name` / `email` / `tier` / `avatarUrl` / `capabilities`）。
+- `ReachNewsTests/RegistrationTests.swift`：覆盖注册请求编码、错误码到提示的映射、注册成功直接建立会话。
+- `ReachNews/Features/BriefDetail/BriefHeadingActions.swift`：小标题右侧「跟踪」按钮，以及事件预填内容（标题与提示词）的生成。
+- `ReachNewsTests/BriefHeadingTests.swift`：覆盖事件预填标题与提示词的生成。
 
 ### 修改
 
-- `ReachNews/Features/BriefDetail/MarkdownBodyView.swift`：小标题加下划线并可点击；对外提供一个「标题被点」的回调，不在渲染层做业务判断。
-- `ReachNews/Features/BriefDetail/BriefBodyView.swift`：把标题点击回调与当前日报的素材来源传下去。
-- `ReachNews/Features/BriefDetail/BriefDetailView.swift`：承载动作弹层、打开原文与跳转创建页。
+- `ReachNews/Data/APIClient.swift`：新增 `POST /api/v1/register`、`GET /api/v1/me`、`POST /api/v1/me/avatar`、`GET /api/v1/users/:id/avatar`。
+- `ReachNews/Data/DTO/DTOs.swift`：登录响应解析新增 `email` / `tier` / `avatarUrl` 与 `capabilities`；新增注册与 me 的 DTO。
+- `ReachNews/State/SessionStore.swift`：登录接受邮箱或昵称；新增注册成功后的建会话路径；恢复会话后拉 `/api/v1/me`。
+- `ReachNews/State/ProfileStore.swift`：用户名/邮箱/套餐/头像改读真实字段，删除本地占位常量；套餐改 `free` / `ultra` 两档。
+- `ReachNews/Features/Me/AccountHeaderView.swift`：头像按 `avatarUrl` 加载，`null` 与加载失败都回退缺省头像。
+- `ReachNews/Features/Connection/ConnectionView.swift`：登录页增加进入注册页的入口。
+- `ReachNews/Features/BriefDetail/MarkdownBodyView.swift`：小标题右侧渲染「跟踪」按钮（标题本身不加下划线、不可点）；链接改为下划线 + 链条链接图标（`link`）。
+- `ReachNews/Features/BriefDetail/BriefBodyView.swift`：把「跟踪」回调传下去。
+- `ReachNews/Features/BriefDetail/BriefDetailView.swift`：承载「跟踪」跳转到创建页。
 - `ReachNews/Features/Channels/ChannelCreateSheet.swift`：支持事件模式入参（标题与提示词预填），普通新建行为不变。
 - `ReachNews/Features/Channels/ChannelListView.swift`：创建页的既有调用点保持行为不变。
-- `ReachNews/Design/Components.swift`：若链接与标题的强调样式需要复用，放在这里。
+- `ReachNews/Design/Components.swift`：若链接图标样式需要复用，放在这里。
 - `ReachNews/Resources/zh-Hans.lproj/Localizable.strings`、`ReachNews/Resources/en.lproj/Localizable.strings`：新增动作名称、事件提示词模板与相关键，两侧保持对齐。
 
 ### 明确不建
 
-- 不新增任何服务端接口或字段；不请求「小标题到素材」的关联数据（用户已确认按文字匹配）。
-- 不改后端返回结构，不要求服务端在 body 里增加 heading 关联。
+- 不做「查看原文」：不提供跳转原文入口，也不再把小标题与素材做标题匹配（用户已取消该功能）。
+- 不请求「小标题到素材」的关联数据，不改后端返回结构。
 - 不做「事件」这种新的频道类型或新的后端实体；事件仍是一个普通频道，只是创建时预填内容。
-- 不改日报列表、频道列表、追问等其它页面。
+- 不改日报列表、频道列表等其它页面（日报详情见第 1、2 条）。
+- 不引入 `pro` 档：文档明确它已被取消。
+- 不做邮箱验证（服务端明确不验证）。
+- **退出登录**：复用既有「我的 → 连接信息」中的退出入口，但接入新会话后必须同时清掉 `/me` 拉取的用户资料、能力状态与头像缓存，回到登录页；不得残留上一个账号的头部信息。
+- 注册流程内不提供头像上传（服务端刻意如此）。
 
 # 非目标
 
 - 不改 `android/**`。
 - 不改鉴权、凭证、订阅与运行逻辑。
-- 不改正文的 Markdown 解析规则与分块逻辑（只增加小标题的下划线与点击表现）。
+- 不改正文的 Markdown 解析规则与分块逻辑（只为小标题增加右侧「跟踪」按钮）。
 - 不改分页、轮询与错误映射。
 
 # 验收示例
 
 - 正文里的行内链接在纸色底上视觉可辨（有颜色区分或下划线），点击仍由系统浏览器打开其 `url`。
-- 正文小标题显示下划线，且整段标题可点击。
-- 点击小标题弹出动作弹层，最多出现「查看原文」与「跟踪事件」两个选项。
-- 正文 link 片段引用的素材中存在标题包含该小标题文字的素材时，弹层显示「查看原文」；点击后打开该素材的 `url`。
-- 没有匹配素材时，弹层不显示「查看原文」，只显示「跟踪事件」；不出现空白项或死入口。
-- 点击「跟踪事件」进入频道创建页，创建页的名称已填为该小标题文字，提示词已填为跟踪该事件的预填模板。
+- 正文小标题**不显示下划线、不可点击**，保持普通标题样式；标题右侧显示一个「跟踪」按钮。
+- 点击标题右侧的「跟踪」按钮**直接进入频道创建页**，不出现任何弹窗或选择步骤。
+- 界面上**不存在**「查看原文」入口，也不再为它做标题与素材的匹配。
+- 「跟踪」按钮在任何小标题上都出现（不依赖素材数据），点击后创建页的名称与提示词均已预填。
+- 创建页的名称等于该小标题文字，提示词等于跟踪该事件的预填模板。
 - 预填的标题与提示词都可被用户直接修改，提交后按普通频道创建。
 - 普通入口（频道页的 +）新建频道时，名称与提示词仍为空，不出现任何预填内容或事件模式痕迹。
-- 匹配为文字包含关系，不做大小写以外的模糊推断；多个素材命中时取第一个匹配项。
+- 不再有任何标题↔素材匹配逻辑；相关代码与类型应删除，不留下死代码。
 - 中文与英文本地化键集完全一致，新增键两侧同时存在，界面无硬编码文案。
-- 单元测试覆盖标题匹配、未命中只给跟踪事件、预填内容生成。
+- 单元测试覆盖事件预填的标题与提示词生成；不再有匹配相关测试。
+- 正文链接不再使用颜色区分：链接文字为正文色，带下划线，并在文字后显示链条链接图标（SF Symbols `link`）；点击仍由系统浏览器打开。
+- 「我的」页冷启动后用户名可见：会话恢复后立即取 `/api/v1/me`，取到前显示占位而不是空行。
+- 套餐标识显示服务端 `tier` 原值（实测含 `admin`），客户端与界面均不出现 `pro`，也不把管理员档映射成 ultra。
+- `email` 为 `null` 时显示缺省占位，不出现空白行或字面 `null`。
+- 头像请求返回 404 `avatar_not_found` 时按「没有头像」显示缺省图形。
+- 追问入口、建频道上限按 `capabilities.ask` 与 `capabilities.channelLimit` 决定；`channelLimit` 为 `null` 时不限。
+- 头像按 `avatarUrl` 加载；`null` 或加载失败显示缺省头像，不出现空白圆或破图。
+- 登录页可进入注册页；注册成功直接进入 App，不再调用登录接口。
+- 注册失败按服务端 code 给出逐项提示（邀请码、昵称、邮箱、密码四类），不使用笼统网络错误文案。
+- 创建频道超出上限时按 `channel_quota_exceeded` 提示「已达上限」，不当成网络错误。
+- 单元测试覆盖注册请求编码与错误码到提示的映射。
+- 退出登录后回到登录页，且「我的」页不再残留上一账号的用户名、邮箱、套餐与头像；重新登录另一账号时不显示旧账号信息。
 - 本机用 tree-sitter 静态解析全部 `.swift` 无新增 `ERROR` 节点；CI 结果出来前，构建与测试相关结论记为 `not-run`，不记为通过。

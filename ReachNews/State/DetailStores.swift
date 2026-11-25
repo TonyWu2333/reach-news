@@ -52,66 +52,32 @@ final class BriefDetailStore {
         failedMaterialIDs.contains(materialID)
     }
 
-    /// 同一素材正在取回时的等待者：连点小标题不应该让候选直接消失。
-    @ObservationIgnored private var materialWaiters: [String: [CheckedContinuation<Material?, Never>]] = [:]
-
-    /// 取回单条素材；小标题「查看原文」需要按 itemID 现取，
-    /// 读者端没有预先展开的条目，不能指望素材已经在缓存里。
-    ///
-    /// 已经在取回同一条时不返回 nil，而是等同一个请求的结果：
-    /// 早先的实现直接 return nil，连点会让候选丢失，本该出现的「查看原文」偶发不出现。
-    func loadMaterial(itemID: String) async -> Material? {
-        if let cached = materialsByID[itemID] { return cached }
-        if materialWaiters[itemID] != nil || loadingMaterialIDs.contains(itemID) {
-            return await withCheckedContinuation { continuation in
-                materialWaiters[itemID, default: []].append(continuation)
-            }
-        }
-
-        loadingMaterialIDs.insert(itemID)
-        let result: Material?
-        do {
-            let material = try await client.material(briefID: brief.id, materialID: itemID)
-            materialsByID[itemID] = material
-            failedMaterialIDs.remove(itemID)
-            result = material
-        } catch let apiError as APIError {
-            failedMaterialIDs.insert(itemID)
-            if apiError == .unauthorized { error = apiError }
-            result = nil
-        } catch {
-            failedMaterialIDs.insert(itemID)
-            result = nil
-        }
-        loadingMaterialIDs.remove(itemID)
-
-        let waiters = materialWaiters.removeValue(forKey: itemID) ?? []
-        for waiter in waiters { waiter.resume(returning: result) }
-        return result
-    }
-
-    /// 正文 link 片段里出现过的素材 id，按出现顺序去重。
-    /// 服务端没有「小标题对应哪条素材」的字段，候选只能来自正文本身。
-    var referencedItemIDs: [String] {
-        var seen = Set<String>()
-        return (brief.body?.paragraphs ?? [])
-            .flatMap(\.segments)
-            .compactMap(\.itemID)
-            .filter { seen.insert($0).inserted }
-    }
-
     /// 展开条目时按需取回该条目的素材。
-    ///
-    /// 走 `loadMaterial(itemID:)` 而不是自己发请求：否则这里只会写
-    /// `loadingMaterialIDs`，从不 resume `materialWaiters`，
-    /// 与之并发的等待者会永久挂起。
     ///
     /// 收到 401 时立刻停止：凭证已失效，继续请求剩余素材只会得到更多同样的错误。
     func loadMaterials(for entry: Entry) async {
-        for materialID in entry.materialIDs {
+        let missing = entry.materialIDs.filter {
+            materialsByID[$0] == nil && !loadingMaterialIDs.contains($0)
+        }
+        guard !missing.isEmpty else { return }
+
+        for materialID in missing {
             if Task.isCancelled { return }
-            _ = await loadMaterial(itemID: materialID)
-            if error == .unauthorized { return }
+            loadingMaterialIDs.insert(materialID)
+            defer { loadingMaterialIDs.remove(materialID) }
+            do {
+                let material = try await client.material(briefID: brief.id, materialID: materialID)
+                materialsByID[materialID] = material
+                failedMaterialIDs.remove(materialID)
+            } catch let apiError as APIError {
+                failedMaterialIDs.insert(materialID)
+                if apiError == .unauthorized {
+                    error = apiError
+                    return
+                }
+            } catch {
+                failedMaterialIDs.insert(materialID)
+            }
         }
     }
 }

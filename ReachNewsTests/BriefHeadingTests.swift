@@ -2,113 +2,28 @@ import XCTest
 import SwiftUI
 @testable import ReachNews
 
-// MARK: - 正文小标题
+// MARK: - 小标题「跟踪」按钮的事件预填
 //
-// 服务端没有「小标题对应哪条素材」的字段，「查看原文」只能按文字判断。
-// 这里覆盖匹配规则、未命中时不出现该项、以及事件频道的预填内容。
+// 小标题右侧的「跟踪」按钮直接进入频道创建页，并把名称与提示词预填好。
+// 这里覆盖预填内容的生成；不再有「查看原文」，因此也没有标题↔素材匹配的测试。
 
 final class BriefHeadingTests: XCTestCase {
-
-    // MARK: 匹配规则
-
-    func testHeadingIsContainedInMaterialTitle() {
-        XCTAssertTrue(
-            HeadingSourceMatcher.matches(
-                heading: "模型竞赛进入下半场",
-                materialTitle: "模型竞赛进入下半场：三家同时放出长上下文版本"
-            )
-        )
-    }
-
-    func testMatchingIgnoresCaseOnly() {
-        XCTAssertTrue(
-            HeadingSourceMatcher.matches(heading: "vllm", materialTitle: "vLLM 推理性能翻倍的那次合并")
-        )
-        // 需求限定「只忽略大小写」：变音符号不视为相同字符，不做模糊归一。
-        XCTAssertFalse(
-            HeadingSourceMatcher.matches(heading: "CAFE", materialTitle: "Café 里的那段对话")
-        )
-    }
-
-    func testUnrelatedTitleDoesNotMatch() {
-        XCTAssertFalse(
-            HeadingSourceMatcher.matches(heading: "算力租赁价格", materialTitle: "开源模型的许可证正在收紧")
-        )
-    }
-
-    func testEmptyHeadingNeverMatches() {
-        XCTAssertFalse(HeadingSourceMatcher.matches(heading: "   ", materialTitle: "任意标题"))
-        XCTAssertFalse(HeadingSourceMatcher.matches(heading: "", materialTitle: ""))
-    }
-
-    func testHeadingIsOnlyTrimmedNotRewritten() {
-        // 只裁首尾空白，不改写文字：去掉冒号之类会让匹配结果难以解释。
-        XCTAssertEqual(HeadingSourceMatcher.normalizedHeading("  来源  "), "来源")
-        XCTAssertEqual(HeadingSourceMatcher.normalizedHeading("来源："), "来源：")
-        XCTAssertFalse(
-            HeadingSourceMatcher.matches(heading: "来源：", materialTitle: "来源梳理")
-        )
-    }
-
-    func testFirstMatchWinsWhenSeveralCandidatesMatch() {
-        let candidates = [
-            BriefHeadingCandidate(itemID: "m1", materialTitle: "无关标题", materialURL: URL(string: "https://a.test/1")),
-            BriefHeadingCandidate(itemID: "m2", materialTitle: "事件进展一", materialURL: URL(string: "https://a.test/2")),
-            BriefHeadingCandidate(itemID: "m3", materialTitle: "事件进展二", materialURL: URL(string: "https://a.test/3"))
-        ]
-
-        let match = HeadingSourceMatcher.firstMatch(heading: "事件进展", candidates: candidates)
-
-        XCTAssertEqual(match?.itemID, "m2")
-        XCTAssertEqual(match?.materialURL?.absoluteString, "https://a.test/2")
-    }
-
-    func testNoMatchReturnsNilSoTheSourceOptionIsHidden() {
-        let candidates = [
-            BriefHeadingCandidate(itemID: "m1", materialTitle: "无关标题", materialURL: URL(string: "https://a.test/1"))
-        ]
-
-        XCTAssertNil(HeadingSourceMatcher.firstMatch(heading: "事件进展", candidates: candidates))
-    }
-
-    func testUnresolvedCandidateDoesNotMatch() {
-        // 素材取不回来（离线 / 404）时标题为 nil，不能装作命中。
-        let candidates = [BriefHeadingCandidate(itemID: "m1", materialTitle: nil, materialURL: nil)]
-
-        XCTAssertNil(HeadingSourceMatcher.firstMatch(heading: "任何标题", candidates: candidates))
-        XCTAssertFalse(candidates[0].isResolved)
-    }
-
-    // MARK: 动作层选项
-
-    func testActionsIncludeOpenSourceOnlyWhenMatched() {
-        let withSource = HeadingActionContext(
-            heading: "事件进展",
-            sourceURL: URL(string: "https://a.test/1"),
-            locale: Locale(identifier: "zh-Hans")
-        )
-        XCTAssertEqual(HeadingActionPlanner.actions(for: withSource), [.openSource, .trackEvent])
-    }
-
-    func testActionsFallBackToTrackEventOnly() {
-        let withoutSource = HeadingActionContext(
-            heading: "事件进展",
-            sourceURL: nil,
-            locale: Locale(identifier: "zh-Hans")
-        )
-        // 未命中时只剩跟踪事件，且永远不是空列表——不会出现空白项或死入口。
-        XCTAssertEqual(HeadingActionPlanner.actions(for: withoutSource), [.trackEvent])
-        XCTAssertFalse(HeadingActionPlanner.actions(for: withoutSource).isEmpty)
-    }
-
-    // MARK: 事件预填
 
     func testEventDraftNameUsesHeadingText() {
         XCTAssertEqual(TrackedEventDraft.name(heading: "  模型竞赛进入下半场  "), "模型竞赛进入下半场")
     }
 
+    func testEventDraftNameIsOnlyTrimmedNotRewritten() {
+        // 不改写文字本身：去掉冒号之类会让预填内容与标题对不上。
+        XCTAssertEqual(TrackedEventDraft.name(heading: "来源："), "来源：")
+        XCTAssertEqual(TrackedEventDraft.name(heading: "  "), "")
+    }
+
     func testEventDraftPromptEmbedsHeading() {
-        let prompt = TrackedEventDraft.prompt(heading: "模型竞赛进入下半场", locale: Locale(identifier: "zh-Hans"))
+        let prompt = TrackedEventDraft.prompt(
+            heading: "模型竞赛进入下半场",
+            locale: Locale(identifier: "zh-Hans")
+        )
 
         XCTAssertTrue(prompt.contains("模型竞赛进入下半场"))
         XCTAssertFalse(prompt.isEmpty)
@@ -127,10 +42,8 @@ final class BriefHeadingTests: XCTestCase {
 
 // MARK: - 正文链接着色
 //
-// 用户最初的报障是「链接看不见」。全局 tint 是近黑色，同段 Text 又带
-// .foregroundStyle(Palette.ink)，仅靠 tint 无法保证链接可辨。
-// 现在把颜色直接写进链接 run——这是纯 AttributedString 属性，
-// 不需要渲染就能断言，因此可以让 CI 证明「颜色确实写进去了」。
+// 用户明确不要颜色区分：链接文字保持正文色，改用下划线 + 链条图标。
+// 下划线是纯 AttributedString 属性，不需要渲染就能断言。
 
 final class BriefLinkColoringTests: XCTestCase {
 
@@ -138,47 +51,53 @@ final class BriefLinkColoringTests: XCTestCase {
         MarkdownBlockBuilder.attributed(from: markdown)
     }
 
-    func testLinkRunsGetTheLinkColor() {
-        let colored = MarkdownBlockBuilder.coloringLinks(
+    func testLinkRunsAreUnderlined() {
+        let marked = MarkdownBlockBuilder.underliningLinks(
             attributed("看这条 [原文](https://example.test/a) 的报道。")
         )
 
-        let linked = colored.runs.filter { $0.link != nil }
+        let linked = marked.runs.filter { $0.link != nil }
         XCTAssertFalse(linked.isEmpty, "markdown 里的链接应当产生 link run")
         for run in linked {
-            XCTAssertEqual(run.foregroundColor, Palette.link)
+            XCTAssertEqual(run.underlineStyle, .single)
         }
     }
 
-    func testNonLinkRunsGetNoColorWritten() {
-        let source = attributed("普通文字，与 [链接](https://example.test/a)。")
-        let colored = MarkdownBlockBuilder.coloringLinks(source)
+    func testLinkRunsKeepBodyColor() {
+        let marked = MarkdownBlockBuilder.underliningLinks(
+            attributed("看这条 [原文](https://example.test/a)。")
+        )
 
-        // 非链接 run 不应被写入任何颜色：正文颜色由视图层决定，这里不能越权。
-        //
-        // 注意不要用 XCTAssertNotEqual(run.foregroundColor, Palette.link)：
-        // nil != Palette.link 恒真，那条断言几乎什么都证明不了。这里直接断言仍为 nil。
-        let plain = colored.runs.filter { $0.link == nil }
+        // 不要颜色区分：不得给链接 run 写入强调色。
+        for run in marked.runs where run.link != nil {
+            XCTAssertNil(run.foregroundColor)
+        }
+    }
+
+    func testNonLinkRunsGetNoUnderlineOrColor() {
+        let source = attributed("普通文字，与 [链接](https://example.test/a)。")
+        let marked = MarkdownBlockBuilder.underliningLinks(source)
+
+        let plain = marked.runs.filter { $0.link == nil }
         XCTAssertFalse(plain.isEmpty)
         for run in plain {
             XCTAssertNil(run.foregroundColor)
+            XCTAssertNil(run.underlineStyle)
         }
     }
 
     func testTextWithoutLinksIsUnchanged() {
         let source = attributed("只有正文，没有任何链接。")
-        let colored = MarkdownBlockBuilder.coloringLinks(source)
+        let marked = MarkdownBlockBuilder.underliningLinks(source)
 
-        XCTAssertEqual(String(colored.characters), String(source.characters))
-        for run in colored.runs {
-            XCTAssertNil(run.foregroundColor)
+        XCTAssertEqual(String(marked.characters), String(source.characters))
+        for run in marked.runs {
+            XCTAssertNil(run.underlineStyle)
         }
     }
 
-    func testSplitAppliesColoringToEveryBlock() {
-        // 标题、段落、列表里的链接都要着色，不能只处理某一种块类型。
-        // 三个块里各放一个链接：只写「小标题」这样的纯文本标题会让这条测试
-        // 悄悄退化成只覆盖段落与列表，名字却在宣称覆盖标题。
+    func testSplitAppliesUnderlineToEveryBlock() {
+        // 标题里也放一个链接，避免只覆盖段落与列表却在名字上宣称覆盖标题。
         let markdown = """
         ## 标题里的 [链接零](https://example.test/0)
 
@@ -188,16 +107,15 @@ final class BriefLinkColoringTests: XCTestCase {
         """
         let blocks = MarkdownBlockBuilder.split(attributed(markdown))
 
-        // 先确认三种块都产生了 link run，否则下面的遍历会因为集合为空而空转通过。
         let headings = blocks.filter { if case .heading = $0.kind { return true }; return false }
         let paragraphs = blocks.filter { $0.kind == .paragraph }
         let listItems = blocks.filter { if case .listItem = $0.kind { return true }; return false }
 
         for (name, group) in [("heading", headings), ("paragraph", paragraphs), ("listItem", listItems)] {
             let linkRuns = group.flatMap { $0.text.runs.filter { $0.link != nil } }
-            XCTAssertFalse(linkRuns.isEmpty, "\(name) 里应当有 link run 被着色")
+            XCTAssertFalse(linkRuns.isEmpty, "\(name) 里应当有 link run")
             for run in linkRuns {
-                XCTAssertEqual(run.foregroundColor, Palette.link)
+                XCTAssertEqual(run.underlineStyle, .single)
             }
         }
     }

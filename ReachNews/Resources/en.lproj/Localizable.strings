@@ -194,10 +194,34 @@
 "error.notPublished" = "This channel isn't public";
 "error.ownChannel" = "This is your own channel";
 "error.subscriberReadOnly" = "Subscribed channels are read-only; fork it to edit";
+"error.channelQuotaExceeded" = "Channel limit reached. Delete an unused channel or ask an admin to upgrade.";
 
 "brief.body.empty" = "No readable body for this issue";
 
 "brief.detail.title" = "Brief";
-"brief.heading.openSource" = "View source";
-"brief.heading.track" = "Track event";
+"brief.heading.track" = "Track";
 "brief.heading.track.prompt" = "Keep tracking developments on \"%@\": prefer primary sources, record key dates, parties involved and what changed, without commentary or predictions.";
+"me.account.email.empty" = "No email";
+"login.goRegister" = "No account yet? Register";
+"register.title" = "Register";
+"register.submit" = "Register";
+"register.nickname" = "Nickname";
+"register.email" = "Email";
+"register.email.hint" = "No verification for now";
+"register.password" = "Password";
+"register.passwordConfirm" = "Confirm password";
+"register.inviteCode" = "Invite code";
+"register.error.unknown" = "Registration failed. Try again later";
+"register.error.invite_not_found" = "Invite code not found";
+"register.error.invite_used" = "This invite code has been used";
+"register.error.invite_revoked" = "This invite code was revoked";
+"register.error.nickname_required" = "Enter a nickname";
+"register.error.nickname_too_long" = "Nickname is at most 40 characters";
+"register.error.nickname_taken" = "This nickname is taken";
+"register.error.email_required" = "Enter an email";
+"register.error.email_invalid" = "Email format is invalid";
+"register.error.email_taken" = "This email is already used";
+"register.error.password_required" = "Enter a password";
+"register.error.password_too_short" = "Password needs at least 8 characters";
+"register.error.password_confirm_required" = "Enter the password again";
+"register.error.password_mismatch" = "Passwords do not match";

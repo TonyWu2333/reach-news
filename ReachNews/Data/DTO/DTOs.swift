@@ -73,6 +73,7 @@ struct ErrorEnvelope: Decodable {
         case .notPublished: return .notPublished(error.message)
         case .ownChannel: return .ownChannel(error.message)
         case .subscriberReadOnly: return .subscriberReadOnly(error.message)
+        case .channelQuotaExceeded: return .channelQuotaExceeded(error.message)
         case .unknown: return .server(error.message)
         }
     }
@@ -454,12 +455,48 @@ struct LoginRequest: Encodable {
 struct LoginUserDTO: Decodable {
     let id: String
     let name: String
+    /// 未填写时为 nil；不要在这里塞空串，界面需要区分「没有邮箱」与「空字符串」。
+    let email: String?
+    /// 服务端原样返回的档位，例如 free / ultra / admin。
+    let tier: String?
+    /// 形如 `/api/v1/users/xxx/avatar`；nil 表示没有头像。
+    let avatarUrl: String?
+
+    func toDomain() -> UserProfile {
+        UserProfile(
+            id: id,
+            name: name,
+            email: email,
+            tier: tier ?? "",
+            avatarURLPath: avatarUrl,
+            channelCount: nil
+        )
+    }
 }
 
+struct CapabilitiesDTO: Decodable {
+    let tier: String?
+    let ask: Bool?
+    let briefImages: Bool?
+    /// nil 表示不限。
+    let channelLimit: Int?
+
+    func toDomain() -> UserCapabilities {
+        UserCapabilities(
+            tier: tier ?? "",
+            ask: ask ?? true,
+            briefImages: briefImages ?? false,
+            channelLimit: channelLimit
+        )
+    }
+}
+
+/// 登录与注册共用同一响应形状：注册成功后不需要再调一次登录。
 struct LoginResponseDTO: Decodable {
     let token: String
     let expiresAt: String?
     let user: LoginUserDTO?
+    let capabilities: CapabilitiesDTO?
 
     func session() throws -> AuthSession {
         guard let expires = JSONDate.parse(expiresAt) else {
@@ -467,6 +504,50 @@ struct LoginResponseDTO: Decodable {
         }
         return AuthSession(token: token, expiresAt: expires, userName: user?.name ?? "")
     }
+
+    func profile() -> UserProfile? { user?.toDomain() }
+
+    func capabilitySet() -> UserCapabilities { capabilities?.toDomain() ?? .unknown }
+}
+
+// MARK: - 注册
+
+struct RegisterRequest: Encodable {
+    let nickname: String
+    let email: String
+    let password: String
+    let passwordConfirm: String
+    let inviteCode: String
+}
+
+// MARK: - 当前用户
+
+struct MeResponseDTO: Decodable {
+    let id: String
+    let name: String
+    let email: String?
+    let tier: String?
+    let avatarUrl: String?
+    let createdAt: String?
+    let channelCount: Int?
+    let capabilities: CapabilitiesDTO?
+
+    func profile() -> UserProfile {
+        UserProfile(
+            id: id,
+            name: name,
+            email: email,
+            tier: tier ?? "",
+            avatarURLPath: avatarUrl,
+            channelCount: channelCount
+        )
+    }
+}
+
+// MARK: - 头像上传
+
+struct AvatarUploadResponseDTO: Decodable {
+    let avatarUrl: String?
 }
 
 struct LogoutResponseDTO: Decodable {

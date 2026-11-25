@@ -10,8 +10,8 @@ struct BriefBodyView: View {
     /// 输入正文。命名避开 `body`，否则会与 `View.body` 冲突。
     let content: BriefBody?
     var onOpenURL: (URL) -> Void
-    /// 点了正文小标题时的回调；为 nil 时标题只显示下划线，不可点。
-    var onTapHeading: ((String) -> Void)?
+    /// 点小标题右侧「跟踪」按钮时的回调；为 nil 时不显示该按钮。
+    var onTrackHeading: ((String) -> Void)?
 
     @Environment(\.appLocale) private var locale
 
@@ -28,7 +28,7 @@ struct BriefBodyView: View {
             MarkdownBodyView(
                 markdown: content.markdown,
                 onOpenURL: onOpenURL,
-                onTapHeading: onTapHeading
+                onTrackHeading: onTrackHeading
             )
             .accessibilityIdentifier("brief-body")
         } else {

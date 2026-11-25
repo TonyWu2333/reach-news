@@ -89,6 +89,9 @@ enum Endpoint {
     case subscribe(channelID: String)
     case fork(channelID: String)
     case settings
+    case register
+    case me
+    case avatar
 
     var path: String {
         switch self {
@@ -128,6 +131,12 @@ enum Endpoint {
             return "/api/v1/channels/\(channelID)/fork"
         case .settings:
             return "/api/v1/settings"
+        case .register:
+            return "/api/v1/register"
+        case .me:
+            return "/api/v1/me"
+        case .avatar:
+            return "/api/v1/me/avatar"
         }
     }
 
@@ -147,14 +156,14 @@ enum Endpoint {
         case .cursor(let since):
             return [URLQueryItem(name: "since", value: PollingBaseline.sinceString(since))]
         case .health, .login, .logout, .createChannel, .channel, .brief, .material, .run, .ask,
-             .connectors, .subscribe, .fork, .settings:
+             .connectors, .subscribe, .fork, .settings, .register, .me, .avatar:
             return []
         }
     }
 
     var requiresAuthorization: Bool {
         switch self {
-        case .health, .login: return false
+        case .health, .login, .register: return false
         default: return true
         }
     }
@@ -202,6 +211,103 @@ final class APIClient {
         } catch let error as APIError {
             throw error
         }
+    }
+
+    /// 注册结果：成功直接带会话与资料，失败带服务端 code 与 message。
+    enum RegisterOutcome {
+        case success(AuthSession, UserProfile, UserCapabilities)
+        case rejected(RegistrationError)
+    }
+
+    /// 邀请码注册（公开端点）。
+    ///
+    /// 单独实现而不复用 `send`：注册的 14 种错误码需要原样保留给界面做逐项提示，
+    /// 折叠成通用 `APIError` 会丢掉「邀请码已被使用」这类可操作信息。
+    func register(
+        nickname: String,
+        email: String,
+        password: String,
+        passwordConfirm: String,
+        inviteCode: String
+    ) async throws -> RegisterOutcome {
+        let payload = RegisterRequest(
+            nickname: nickname,
+            email: email,
+            password: password,
+            passwordConfirm: passwordConfirm,
+            inviteCode: inviteCode
+        )
+        let body = try JSONEncoder().encode(payload)
+        let request = try makeRequest(Endpoint.register, method: "POST", body: body)
+
+        let data: Data
+        let response: HTTPURLResponse
+        do {
+            (data, response) = try await transport.send(request)
+        } catch let error as APIError {
+            throw error
+        } catch {
+            throw APIError.normalize(transportError: error)
+        }
+
+        guard (200..<300).contains(response.statusCode) else {
+            // 服务端已给出中文 message；没有 message 时保留空串，由界面用本地兜底文案。
+            if let envelope = try? JSONDecoder().decode(ErrorEnvelope.self, from: data) {
+                let code = envelope.error.code
+                if !code.isEmpty {
+                    return .rejected(RegistrationError(code: code, message: envelope.error.message))
+                }
+            }
+            if response.statusCode == 401 { throw APIError.unauthorized }
+            throw APIError.server("HTTP \(response.statusCode)")
+        }
+
+        guard let dto = try? JSONDecoder().decode(LoginResponseDTO.self, from: data) else {
+            throw APIError.decodingFailed
+        }
+        let session = try dto.session()
+        guard let profile = dto.profile() else { throw APIError.decodingFailed }
+        return .success(session, profile, dto.capabilitySet())
+    }
+
+    /// 当前用户资料。用于冷启动恢复会话后补齐头部所需字段。
+    func me() async throws -> (UserProfile, UserCapabilities) {
+        let dto: MeResponseDTO = try await get(Endpoint.me)
+        return (dto.profile(), dto.capabilities?.toDomain() ?? .unknown)
+    }
+
+    /// 上传头像（multipart，字段名 avatar）。成功后返回可直接使用的头像地址。
+    func uploadAvatar(imageData: Data, filename: String = "avatar.png", mimeType: String = "image/png") async throws -> String? {
+        let boundary = "Boundary-\(UUID().uuidString)"
+        var body = Data()
+        func append(_ text: String) { body.append(Data(text.utf8)) }
+        append("--\(boundary)\r\n")
+        append("Content-Disposition: form-data; name=\"avatar\"; filename=\"\(filename)\"\r\n")
+        append("Content-Type: \(mimeType)\r\n\r\n")
+        body.append(imageData)
+        append("\r\n--\(boundary)--\r\n")
+
+        var request = try makeRequest(Endpoint.avatar, method: "POST", body: body)
+        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
+
+        let data: Data
+        let response: HTTPURLResponse
+        do {
+            (data, response) = try await transport.send(request)
+        } catch let error as APIError {
+            throw error
+        } catch {
+            throw APIError.normalize(transportError: error)
+        }
+
+        guard (200..<300).contains(response.statusCode) else {
+            if let envelope = try? JSONDecoder().decode(ErrorEnvelope.self, from: data) {
+                throw envelope.normalized
+            }
+            if response.statusCode == 401 { throw APIError.unauthorized }
+            throw APIError.server("HTTP \(response.statusCode)")
+        }
+        return (try? JSONDecoder().decode(AvatarUploadResponseDTO.self, from: data))?.avatarUrl
     }
 
     /// 注销当前会话凭证；失败不阻碍本地清理。

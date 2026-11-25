@@ -20,6 +20,16 @@ final class SessionStore {
     private(set) var session: AuthSession?
     private(set) var serviceTime: Date?
 
+    /// 当前用户资料。冷启动恢复会话后由 `refreshProfile()` 填充。
+    /// 退出登录时必须清空，否则换账号会看到上一个账号的头部信息。
+    private(set) var profile: UserProfile?
+    /// 档位能力：界面据此决定是否显示追问入口、频道上限提示等。
+    private(set) var capabilities: UserCapabilities = .unknown
+    /// 资料是否正在拉取；界面据此显示占位而不是空行。
+    private(set) var isRefreshingProfile = false
+    /// 注册进行中；界面据此禁用提交。
+    private(set) var isRegistering = false
+
     var baseURLString: String
     var username: String = ""
     /// 密码不常驻内存：登录成功后立即清空。
@@ -122,6 +132,9 @@ final class SessionStore {
             password = ""
             blockedUntil = nil
             state = .signedIn
+            // 登录响应已带 user 与 capabilities，但这里统一走 /me，
+            // 保证登录与冷启动两条路径拿到同样完整的资料。
+            await refreshProfile()
             return true
         } catch let error as APIError {
             if error.isTooManyAttempts {
@@ -152,6 +165,9 @@ final class SessionStore {
         do {
             _ = try await client.channels(limit: 1)
             state = .signedIn
+            // 冷启动必须拉一次 /me：Keychain 里的会话没有用户名，
+            // 只靠本地缓存会让「我的」页头部空着。
+            await refreshProfile()
         } catch let error as APIError {
             if error == .unauthorized {
                 // 管理员重置密码会清空所有会话；直接回登录页。
@@ -165,7 +181,7 @@ final class SessionStore {
         }
     }
 
-    /// 注销：先通知服务端，无论结果如何都清本地凭证。
+    /// 注销：先通知服务端，无论结果如何都清本地凭证与用户资料。
     func signOut() async {
         let client = makeClient(resolvedBaseURL)
         _ = try? await client.logout()
@@ -173,6 +189,103 @@ final class SessionStore {
         username = ""
         password = ""
         state = .signedOut
+    }
+
+    /// 仅供测试注入资料：生产路径只通过 `refreshProfile()` 与注册写入。
+    func applyProfileForTesting(_ profile: UserProfile, capabilities: UserCapabilities? = nil) {
+        self.profile = profile
+        if let capabilities { self.capabilities = capabilities }
+        if !profile.name.isEmpty { preferences.lastUserName = profile.name }
+    }
+
+    /// 拉取当前用户资料与能力。
+    ///
+    /// 失败不改变登录状态：离线时头部显示占位，比把用户踢回登录页更合理。
+    /// 401 例外——凭证真的失效时仍按既有规则退回登录页。
+    func refreshProfile() async {
+        guard session != nil else { return }
+        isRefreshingProfile = true
+        defer { isRefreshingProfile = false }
+
+        let client = makeClient(resolvedBaseURL)
+        do {
+            let (profile, capabilities) = try await client.me()
+            self.profile = profile
+            self.capabilities = capabilities
+            if !profile.name.isEmpty {
+                // 顺手补上展示名，下次冷启动即使 /me 暂时失败也不会空行。
+                preferences.lastUserName = profile.name
+            }
+        } catch let error as APIError where error == .unauthorized {
+            handleUnauthorized()
+        } catch {
+            // 网络或服务端异常：保留既有状态，界面用占位兜底。
+        }
+    }
+
+    /// 用邀请码注册并直接建立会话（注册响应已带 token，无需再登录）。
+    /// 返回 nil 表示成功，否则返回需要展示的注册错误。
+    func register(
+        nickname: String,
+        email: String,
+        password: String,
+        passwordConfirm: String,
+        inviteCode: String
+    ) async -> RegistrationError? {
+        guard let url = BaseURLDefaults.parse(baseURLString) else {
+            return RegistrationError(code: "invalid_configuration", message: "")
+        }
+        if isRegistering { return RegistrationError(code: "busy", message: "") }
+        isRegistering = true
+        defer { isRegistering = false }
+
+        let client = makeClient(url)
+        do {
+            let outcome = try await client.register(
+                nickname: nickname.trimmingCharacters(in: .whitespacesAndNewlines),
+                email: email.trimmingCharacters(in: .whitespacesAndNewlines),
+                password: password,
+                passwordConfirm: passwordConfirm,
+                inviteCode: inviteCode.trimmingCharacters(in: .whitespacesAndNewlines)
+            )
+            switch outcome {
+            case let .rejected(error):
+                return error
+            case let .success(newSession, profile, capabilities):
+                try credentials.store(token: newSession.token)
+                credentials.store(expiresAt: newSession.expiresAt)
+                preferences.baseURLString = url.absoluteString
+                baseURLString = url.absoluteString
+                preferences.lastUserName = profile.name
+                session = AuthSession(
+                    token: newSession.token,
+                    expiresAt: newSession.expiresAt,
+                    userName: profile.name
+                )
+                self.profile = profile
+                self.capabilities = capabilities
+                state = .signedIn
+                return nil
+            }
+        } catch let error as APIError {
+            return RegistrationError(code: error.errorCode?.rawValue ?? "unknown", message: "")
+        } catch {
+            return RegistrationError(code: "offline", message: "")
+        }
+    }
+
+    /// 上传头像并刷新资料。
+    @discardableResult
+    func uploadAvatar(imageData: Data) async -> Bool {
+        guard session != nil else { return false }
+        let client = makeClient(resolvedBaseURL)
+        do {
+            _ = try await client.uploadAvatar(imageData: imageData)
+            await refreshProfile()
+            return true
+        } catch {
+            return false
+        }
     }
 
     /// 任何请求收到 401 都调用这里：清会话并回登录页，不自动重试。
@@ -189,6 +302,10 @@ final class SessionStore {
     private func clearSession() {
         credentials.clearToken()
         session = nil
+        // 资料与能力跟着会话走：留着会让下一个账号看到上一个账号的头部。
+        profile = nil
+        capabilities = .unknown
+        isRefreshingProfile = false
     }
 
     func resetError() {
@@ -221,6 +338,7 @@ extension APIError {
         case .notPublished: return "error.notPublished"
         case .ownChannel: return "error.ownChannel"
         case .subscriberReadOnly: return "error.subscriberReadOnly"
+        case .channelQuotaExceeded: return "error.channelQuotaExceeded"
         }
     }
 
@@ -229,7 +347,8 @@ extension APIError {
         switch self {
         case .invalidConnector(let message), .invalidInput(let message), .busy(let message),
              .badRequest(let message), .server(let message), .removed(let message),
-             .notPublished(let message), .ownChannel(let message), .subscriberReadOnly(let message):
+             .notPublished(let message), .ownChannel(let message), .subscriberReadOnly(let message),
+             .channelQuotaExceeded(let message):
             return message.isEmpty ? nil : message
         case .transport(let message):
             return message.isEmpty ? nil : message

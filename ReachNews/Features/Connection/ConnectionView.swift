@@ -12,6 +12,8 @@ struct ConnectionView: View {
     @Environment(\.appLocale) private var locale
     @Environment(\.dismiss) private var dismiss
     @FocusState private var focusedField: Field?
+    /// 是否正在看注册页；用导航推入，返回即回到登录。
+    @State private var showsRegister = false
 
     private enum Field {
         case baseURL
@@ -96,6 +98,20 @@ struct ConnectionView: View {
                 .disabled(!session.canSubmit)
                 .opacity(session.canSubmit ? 1 : 0.5)
                 .accessibilityIdentifier("connection-submit")
+
+                // 注册入口：只在首次登录时出现，更换凭证时不需要再注册。
+                if !isReplacingCredential {
+                    Button {
+                        showsRegister = true
+                    } label: {
+                        Text(L10n.string("login.goRegister", locale: locale))
+                            .font(TypeFace.body(13))
+                            .foregroundStyle(Palette.inkSecondary)
+                    }
+                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity)
+                    .accessibilityIdentifier("login-go-register")
+                }
             }
             .padding(.horizontal, Space.xl)
             .padding(.top, Space.xxl)
@@ -115,6 +131,10 @@ struct ConnectionView: View {
                     }
                 }
             }
+        }
+        .navigationDestination(isPresented: $showsRegister) {
+            // 注册页复用同一个 session：注册成功即建立会话，根视图会自动切到主界面。
+            RegisterView(session: session)
         }
         .accessibilityIdentifier("connection-view")
         .task {

@@ -19,43 +19,21 @@ import Foundation
 struct MarkdownBodyView: View {
     let markdown: String
     var onOpenURL: (URL) -> Void
-    /// 点了某段小标题时的回调；为 nil 时标题保持不可点。
-    var onTapHeading: ((String) -> Void)?
+    /// 点小标题右侧「跟踪」按钮时的回调，参数是该标题的文字。
+    var onTrackHeading: ((String) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: Space.l) {
-            let blocks = MarkdownBlockBuilder.parse(markdown)
-            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
-                blockView(block, onTapHeading: onTapHeading)
+            let blocks = MarkdownBlockBuilder.parse(markdown, onTrackHeading: onTrackHeading)
+            ForEach(blocks) { block in
+                block.view
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        // 全局 tint 是近黑的 Palette.ink，链接会与正文同色而看不见；
-        // 这里把链接单独换成可辨的强调色。
-        .tint(Palette.link)
         .environment(\.openURL, OpenURLAction { url in
             onOpenURL(url)
             return .handled
         })
-    }
-
-    /// 标题块单独包一层按钮，其余块原样返回。
-    /// 标题的文字内容在切块时已作为纯文本保留，这里直接取来传给回调，
-    /// 不再从 AttributedString 里做反解析。
-    @ViewBuilder
-    private func blockView(_ block: MarkdownBlockBuilder.LaidOutBlock, onTapHeading: ((String) -> Void)?) -> some View {
-        if case .heading = block.kind, let onTapHeading, !block.plainText.isEmpty {
-            Button {
-                onTapHeading(block.plainText)
-            } label: {
-                block.view
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("brief-heading")
-        } else {
-            block.view
-        }
     }
 }
 
@@ -93,13 +71,13 @@ enum MarkdownBlockBuilder {
         let view: AnyView
     }
 
-    static func parse(_ markdown: String) -> [LaidOutBlock] {
+    static func parse(_ markdown: String, onTrackHeading: ((String) -> Void)? = nil) -> [LaidOutBlock] {
         split(attributed(from: markdown)).enumerated().map { index, block in
             LaidOutBlock(
                 id: index,
                 kind: block.kind,
                 plainText: block.plainText,
-                view: view(for: block)
+                view: view(for: block, onTrackHeading: onTrackHeading)
             )
         }
     }
@@ -116,15 +94,14 @@ enum MarkdownBlockBuilder {
         return AttributedString(markdown)
     }
 
-    /// 给链接 run 直接写入颜色。
+    /// 给链接 run 加下划线。
     ///
-    /// 不依赖 `.tint`：同段 `Text` 上的 `.foregroundStyle(Palette.ink)` 会覆盖 tint，
-    /// 链接就会与正文同色而看不见——这正是最初的报障。把颜色写进 run 本身，
-    /// 渲染结果就与 tint 优先级无关。
-    static func coloringLinks(_ attributed: AttributedString) -> AttributedString {
+    /// 用户明确不要颜色区分：链接文字保持正文色，改用下划线 + 链条图标标识。
+    /// 下划线写进 run 本身，与 view 级样式无关；图标由视图层的 `linkText` 追加。
+    static func underliningLinks(_ attributed: AttributedString) -> AttributedString {
         var result = attributed
         for run in attributed.runs where run.link != nil {
-            result[run.range].foregroundColor = Palette.link
+            result[run.range].underlineStyle = .single
         }
         return result
     }
@@ -141,7 +118,7 @@ enum MarkdownBlockBuilder {
                 current = AttributedString()
                 return
             }
-            blocks.append(Block(kind: currentKind, text: coloringLinks(current)))
+            blocks.append(Block(kind: currentKind, text: underliningLinks(current)))
             current = AttributedString()
         }
 
@@ -214,21 +191,41 @@ enum MarkdownBlockBuilder {
 
     // MARK: 视图映射
 
-    private static func view(for block: Block) -> AnyView {
+    /// 块内文字；含链接时在末尾补一个链条图标，提示这里可以跳转。
+    /// 图标只加一次：一段里有多条链接时，末尾一个已足够。
+    private static func linkText(_ block: Block) -> Text {
+        guard block.text.runs.contains(where: { $0.link != nil }) else {
+            return Text(block.text)
+        }
+        return Text(block.text) + Text(" ") + Text(Image(systemName: "link"))
+    }
+
+    private static func view(for block: Block, onTrackHeading: ((String) -> Void)?) -> AnyView {
         switch block.kind {
         case .heading(let level):
             let sizes: [CGFloat] = [22, 19, 17, 16, 16, 16]
             let size = sizes[min(max(level, 1), 6) - 1]
             return AnyView(
-                Text(block.text)
-                    .font(TypeFace.heading(size))
-                    .foregroundStyle(Palette.ink)
-                    // 小标题加下划线：它现在是可点的入口，需要看起来像可以点。
-                    .underline()
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, Space.xs)
-                    .accessibilityAddTraits(.isHeader)
+                HStack(alignment: .firstTextBaseline, spacing: Space.s) {
+                    Text(block.text)
+                        .font(TypeFace.heading(size))
+                        .foregroundStyle(Palette.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityAddTraits(.isHeader)
+                    // 标题右侧跟一个「跟踪」按钮：标题本身保持普通样式、不可点。
+                    Button {
+                        (onTrackHeading)(block.plainText)
+                    } label: {
+                        Image(systemName: "plus.circle")
+                            .font(.system(size: 13, weight: .regular))
+                            .foregroundStyle(Palette.inkTertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(Text(L10n.string("brief.heading.track", locale: .current)))
+                    .accessibilityIdentifier("brief-heading-track")
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, Space.xs)
             )
 
         case .listItem(let ordered, let ordinal):
@@ -239,7 +236,7 @@ enum MarkdownBlockBuilder {
                         .font(ordered ? TypeFace.condensed(14, weight: .semibold) : TypeFace.body(16))
                         .foregroundStyle(Palette.inkTertiary)
                         .frame(minWidth: 18, alignment: .trailing)
-                    Text(block.text)
+                    linkText(block)
                         .font(TypeFace.body(16))
                         .lineSpacing(7)
                         .foregroundStyle(Palette.ink)
@@ -271,7 +268,7 @@ enum MarkdownBlockBuilder {
                     Rectangle()
                         .fill(Palette.lineStrong)
                         .frame(width: 3)
-                    Text(block.text)
+                    linkText(block)
                         .font(TypeFace.body(15))
                         .lineSpacing(6)
                         .foregroundStyle(Palette.inkSecondary)
@@ -290,7 +287,7 @@ enum MarkdownBlockBuilder {
 
         case .paragraph:
             return AnyView(
-                Text(block.text)
+                linkText(block)
                     .font(TypeFace.body(16))
                     .lineSpacing(7)
                     .foregroundStyle(Palette.ink)

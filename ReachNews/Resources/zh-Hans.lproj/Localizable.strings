@@ -194,10 +194,34 @@
 "error.notPublished" = "该频道尚未公开";
 "error.ownChannel" = "这是你自己的频道";
 "error.subscriberReadOnly" = "订阅频道只读，可 fork 后修改";
+"error.channelQuotaExceeded" = "已达频道数量上限，请删除不用的频道或联系管理员升级档位";
 
 "brief.body.empty" = "本期无可读正文";
 
 "brief.detail.title" = "日报";
-"brief.heading.openSource" = "查看原文";
-"brief.heading.track" = "跟踪事件";
+"brief.heading.track" = "跟踪";
 "brief.heading.track.prompt" = "持续跟踪「%@」的进展：优先一手来源，记录关键时间点、涉及方与变化，不过度评论，也不预测结论。";
+"me.account.email.empty" = "未填写邮箱";
+"login.goRegister" = "还没有账号？注册";
+"register.title" = "注册";
+"register.submit" = "注册";
+"register.nickname" = "昵称";
+"register.email" = "邮箱";
+"register.email.hint" = "暂不需要验证";
+"register.password" = "密码";
+"register.passwordConfirm" = "确认密码";
+"register.inviteCode" = "邀请码";
+"register.error.unknown" = "注册失败，请稍后重试";
+"register.error.invite_not_found" = "邀请码无效，请检查";
+"register.error.invite_used" = "该邀请码已被使用";
+"register.error.invite_revoked" = "该邀请码已失效";
+"register.error.nickname_required" = "请填写昵称";
+"register.error.nickname_too_long" = "昵称最多 40 个字符";
+"register.error.nickname_taken" = "该昵称已被使用";
+"register.error.email_required" = "请填写邮箱";
+"register.error.email_invalid" = "邮箱格式不正确";
+"register.error.email_taken" = "该邮箱已被使用";
+"register.error.password_required" = "请填写密码";
+"register.error.password_too_short" = "密码至少 8 位";
+"register.error.password_confirm_required" = "请再次输入密码";
+"register.error.password_mismatch" = "两次输入的密码不一致";

@@ -108,6 +108,8 @@ enum APIErrorCode: Equatable {
     case notPublished
     case ownChannel
     case subscriberReadOnly
+    /// 自建频道数超出档位上限（403）。
+    case channelQuotaExceeded
     case unknown(String)
 
     static func parse(_ raw: String) -> APIErrorCode {
@@ -124,6 +126,7 @@ enum APIErrorCode: Equatable {
         case "not_published": return .notPublished
         case "own_channel": return .ownChannel
         case "subscriber_read_only": return .subscriberReadOnly
+        case "channel_quota_exceeded": return .channelQuotaExceeded
         default: return .unknown(raw)
         }
     }
@@ -142,28 +145,10 @@ enum APIErrorCode: Equatable {
         case .notPublished: return "not_published"
         case .ownChannel: return "own_channel"
         case .subscriberReadOnly: return "subscriber_read_only"
+        case .channelQuotaExceeded: return "channel_quota_exceeded"
         case .unknown(let value): return value
         }
     }
-}
-
-// MARK: - 套餐
-//
-// 「我的」页头部的第三行展示它。后端尚未提供该字段，因此由客户端给出统一取值；
-// 先按三值建模，接上后端后只需替换取值来源，界面不必改动。
-
-enum PlanTier: String, Equatable, CaseIterable {
-    case free
-    case pro
-    case ultra
-
-    /// 界面上原样显示小写的 `free` / `pro` / `ultra`。
-    var label: String { rawValue }
-
-    var labelKey: String { "me.account.plan." + rawValue }
-
-    /// 没有后端时的统一取值。
-    static let current: PlanTier = .ultra
 }
 
 // MARK: - 运行触发方式
@@ -216,6 +201,8 @@ enum APIError: Error, Equatable {
     case ownChannel(String)
     /// 订阅频道只读：修改频道或触发运行被拒。
     case subscriberReadOnly(String)
+    /// 自建频道数已达档位上限；不是网络错误，界面应引导删除或升级。
+    case channelQuotaExceeded(String)
 
     var errorCode: APIErrorCode? {
         switch self {
@@ -231,6 +218,7 @@ enum APIError: Error, Equatable {
         case .notPublished: return .notPublished
         case .ownChannel: return .ownChannel
         case .subscriberReadOnly: return .subscriberReadOnly
+        case .channelQuotaExceeded: return .channelQuotaExceeded
         case .offline, .transport, .decodingFailed, .invalidConfiguration: return nil
         }
     }

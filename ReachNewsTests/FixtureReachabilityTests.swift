@@ -77,7 +77,18 @@ final class LocalizationTests: XCTestCase {
             "subscribed.fork", "subscribed.unsubscribe",
             "error.ownChannel", "error.notPublished", "error.subscriberReadOnly",
             "brief.body.empty",
-            "brief.heading.openSource", "brief.heading.track", "brief.heading.track.prompt"
+            "brief.heading.track", "brief.heading.track.prompt",
+            "me.account.email.empty", "login.goRegister",
+            "register.title", "register.submit", "register.nickname", "register.email",
+            "register.email.hint", "register.password", "register.passwordConfirm",
+            "register.inviteCode", "register.error.unknown",
+            "register.error.invite_not_found", "register.error.invite_used",
+            "register.error.invite_revoked", "register.error.nickname_required",
+            "register.error.nickname_too_long", "register.error.nickname_taken",
+            "register.error.email_required", "register.error.email_invalid",
+            "register.error.email_taken", "register.error.password_required",
+            "register.error.password_too_short", "register.error.password_confirm_required",
+            "register.error.password_mismatch", "error.channelQuotaExceeded"
         ]
         let zh = try keys(in: "Localizable", table: nil, language: "zh-Hans")
         let en = try keys(in: "Localizable", table: nil, language: "en")
