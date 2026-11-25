@@ -105,10 +105,13 @@ final class BriefDetailStore {
     /// 走 `loadMaterial(itemID:)` 而不是自己发请求：否则这里只会写
     /// `loadingMaterialIDs`，从不 resume `materialWaiters`，
     /// 与之并发的等待者会永久挂起。
+    ///
+    /// 收到 401 时立刻停止：凭证已失效，继续请求剩余素材只会得到更多同样的错误。
     func loadMaterials(for entry: Entry) async {
         for materialID in entry.materialIDs {
             if Task.isCancelled { return }
             _ = await loadMaterial(itemID: materialID)
+            if error == .unauthorized { return }
         }
     }
 }

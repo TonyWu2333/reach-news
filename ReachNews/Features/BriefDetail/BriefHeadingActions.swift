@@ -113,14 +113,20 @@ extension View {
     func briefHeadingActions(
         selection: Binding<HeadingActionContext?>,
         onOpenSource: @escaping (URL) -> Void,
-        onTrackEvent: @escaping (String) -> Void
+        onTrackEvent: @escaping (String) -> Void,
+        onDismiss: @escaping () -> Void = {}
     ) -> some View {
         confirmationDialog(
             // 用 String 重载：Text 重载要求同时给 message，这里不需要第二行说明。
             selection.wrappedValue?.heading ?? "",
             isPresented: Binding(
                 get: { selection.wrappedValue != nil },
-                set: { if !$0 { selection.wrappedValue = nil } }
+                set: {
+                    if !$0 {
+                        selection.wrappedValue = nil
+                        onDismiss()
+                    }
+                }
             ),
             titleVisibility: .visible
         ) {
@@ -133,12 +139,14 @@ extension View {
                         if let url = context.sourceURL {
                             Button(L10n.string("brief.heading.openSource", locale: context.locale)) {
                                 selection.wrappedValue = nil
+                                onDismiss()
                                 onOpenSource(url)
                             }
                         }
                     case .trackEvent:
                         Button(L10n.string("brief.heading.track", locale: context.locale)) {
                             selection.wrappedValue = nil
+                            onDismiss()
                             onTrackEvent(context.heading)
                         }
                     }
@@ -146,6 +154,7 @@ extension View {
             }
             Button(L10n.string("common.cancel", locale: selection.wrappedValue?.locale ?? .current), role: .cancel) {
                 selection.wrappedValue = nil
+                onDismiss()
             }
         }
     }

@@ -18,6 +18,10 @@ struct BriefDetailView: View {
     @State private var headingAction: HeadingActionContext?
     /// 点了「跟踪事件」后要预填到创建页的标题；nil 表示不是事件模式。
     @State private var trackedEventHeading: String?
+    /// 当前在途的小标题取回任务。连点时取消旧任务，避免后落地的旧结果覆盖新选择。
+    @State private var headingTask: Task<Void, Never>?
+    /// 最近一次点击的标题。取回完成时用它判断结果是否仍然相关。
+    @State private var pendingHeading: String?
 
     var body: some View {
         ScrollView {
@@ -29,7 +33,7 @@ struct BriefDetailView: View {
                     content: store.brief.body,
                     onOpenURL: { url in openURL(url) },
                     onTapHeading: { heading in
-                        Task { await presentHeadingActions(for: heading) }
+                        startHeadingLookup(for: heading)
                     }
                 )
                 .padding(.horizontal, Space.xl)
@@ -71,11 +75,14 @@ struct BriefDetailView: View {
             )
         }
         .toolbar(.hidden, for: .tabBar)
+        .onDisappear { cancelHeadingLookup() }
         .accessibilityIdentifier("brief-detail")
         .briefHeadingActions(
             selection: $headingAction,
             onOpenSource: { url in openURL(url) },
-            onTrackEvent: { heading in trackedEventHeading = heading }
+            onTrackEvent: { heading in trackedEventHeading = heading },
+            // 无论从哪条路径关闭，都作废在途取回：否则它落地时会把弹层又弹出来。
+            onDismiss: { cancelHeadingLookup() }
         )
         .navigationDestination(isPresented: Binding(
             get: { trackedEventHeading != nil },
@@ -96,14 +103,40 @@ struct BriefDetailView: View {
         }
     }
 
-    /// 点小标题时先确定「有没有可打开的原文」，再弹出动作层。
+    /// 点小标题：先确定「有没有可打开的原文」，再弹出动作层。
     ///
     /// 这里刻意**不**依赖「弹层展示期间 SwiftUI 会重建按钮」：那样第一次点击可能看不到
     /// 「查看原文」，要再点一次才出现。读者端不预载素材，因此先取回候选、算出命中，
     /// 再一次性把带 sourceURL 的上下文交给弹层，保证点开即见。
-    /// 取回失败的素材被跳过（离线、404），此时只少一个选项，不影响事件跟踪。
-    private func presentHeadingActions(for heading: String) async {
+    ///
+    /// 取回是异步的，因此必须防重入：连点两个标题时，旧任务要被取消，
+    /// 且旧结果落地时不能覆盖用户的新选择，也不能把已经关闭的弹层重新弹出来。
+    private func startHeadingLookup(for heading: String) {
         let normalized = HeadingSourceMatcher.normalizedHeading(heading)
+        // 取消上一次仍在取回的任务：它的结果已经不再相关。
+        headingTask?.cancel()
+        pendingHeading = normalized
+
+        headingTask = Task {
+            let context = await resolveHeadingContext(for: normalized)
+            // 任务被取消（又点了别的标题，或页面已离开）就不赋值。
+            guard !Task.isCancelled else { return }
+            // 落地时再核对一次：结果必须仍对应当前选中的标题。
+            guard pendingHeading == normalized else { return }
+            headingAction = context
+        }
+    }
+
+    /// 关闭动作层时作废在途任务与选中标题，避免慢请求把已关闭的弹层重新弹出。
+    private func cancelHeadingLookup() {
+        headingTask?.cancel()
+        headingTask = nil
+        pendingHeading = nil
+    }
+
+    /// 取回候选素材并算出命中；取回失败的素材被跳过（离线、404），
+    /// 此时只少一个选项，不影响事件跟踪。
+    private func resolveHeadingContext(for normalized: String) async -> HeadingActionContext {
         let itemIDs = store.referencedItemIDs
 
         var candidates: [BriefHeadingCandidate] = itemIDs.compactMap { itemID in
@@ -115,9 +148,10 @@ struct BriefDetailView: View {
             )
         }
 
-        // 只取还没命中的素材；一旦确定有原文就不再多取。
+        // 已缓存素材就能命中时不必再取；否则边取边判，命中即停。
         if HeadingSourceMatcher.firstMatch(heading: normalized, candidates: candidates) == nil {
             for itemID in itemIDs where !candidates.contains(where: { $0.itemID == itemID }) {
+                if Task.isCancelled { break }
                 if let material = await store.loadMaterial(itemID: itemID) {
                     candidates.append(
                         BriefHeadingCandidate(
@@ -126,12 +160,16 @@ struct BriefDetailView: View {
                             materialURL: material.url
                         )
                     )
+                    // 一旦确定有原文就停，不再为后续素材发请求。
+                    if HeadingSourceMatcher.firstMatch(heading: normalized, candidates: candidates) != nil {
+                        break
+                    }
                 }
             }
         }
 
         let match = HeadingSourceMatcher.firstMatch(heading: normalized, candidates: candidates)
-        headingAction = HeadingActionContext(
+        return HeadingActionContext(
             heading: normalized,
             sourceURL: match?.materialURL,
             locale: locale
